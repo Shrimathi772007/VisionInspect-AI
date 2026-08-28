@@ -3,9 +3,11 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.auth.router import router as auth_router
 from app.database import get_db
 
 app = FastAPI(title="VisionInspect AI Backend")
+app.include_router(auth_router)
 
 
 @app.get("/health")

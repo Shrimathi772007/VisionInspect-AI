@@ -4,3 +4,6 @@ sqlalchemy==2.0.52
 alembic==1.19.1
 psycopg[binary]==3.3.4
 python-dotenv==1.2.3
+bcrypt==4.3.0
+PyJWT==2.13.0
+email-validator==2.3.0
