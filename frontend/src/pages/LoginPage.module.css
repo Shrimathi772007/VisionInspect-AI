@@ -1,0 +1,203 @@
+.page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+}
+
+.visualPanel {
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(circle at 20% 20%, #0f1a24 0%, var(--color-bg) 55%);
+  display: flex;
+  align-items: center;
+  padding: var(--space-16);
+  border-right: 1px solid var(--color-border);
+}
+
+.grid {
+  position: absolute;
+  inset: -1px;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 64px 64px;
+  animation: gridDrift 40s linear infinite;
+  mask-image: radial-gradient(circle at 30% 30%, black 0%, transparent 75%);
+}
+
+.glow {
+  position: absolute;
+  width: 560px;
+  height: 560px;
+  top: -160px;
+  left: -160px;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.18) 0%, rgba(34, 211, 238, 0) 70%);
+  filter: blur(10px);
+}
+
+.visualContent {
+  position: relative;
+  z-index: 1;
+  max-width: 480px;
+  animation: slideUp var(--transition-slow);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-10);
+}
+
+.brandMark {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--gradient-accent);
+  color: #041016;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.brandName {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.headline {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+.headlineAccent {
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.subheadline {
+  margin-top: var(--space-5);
+  font-size: 15px;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  max-width: 420px;
+}
+
+.featureList {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-10) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.featureList li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 13.5px;
+  color: var(--color-text-secondary);
+}
+
+.featureList svg {
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.formPanel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+}
+
+.formCard {
+  width: 100%;
+  max-width: 380px;
+  animation: slideUp var(--transition-slow);
+}
+
+.formCardMobileBrand {
+  display: none;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-8);
+}
+
+.formTitle {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.formSubtitle {
+  margin-top: var(--space-2);
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-8);
+}
+
+.errorBanner {
+  background: var(--color-danger-soft);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: var(--color-danger);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-size: 13.5px;
+  margin-bottom: var(--space-5);
+  animation: scaleIn var(--transition-base);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.togglePassword {
+  background: none;
+  border: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  border-radius: var(--radius-sm);
+}
+
+.togglePassword:hover {
+  color: var(--color-text-primary);
+}
+
+.footerNote {
+  margin-top: var(--space-8);
+  font-size: 12.5px;
+  color: var(--color-text-tertiary);
+  text-align: center;
+  line-height: 1.5;
+}
+
+@media (max-width: 980px) {
+  .page {
+    grid-template-columns: 1fr;
+  }
+
+  .visualPanel {
+    display: none;
+  }
+
+  .formCardMobileBrand {
+    display: flex;
+  }
+}
+
+@media (max-width: 480px) {
+  .formPanel {
+    padding: var(--space-4);
+  }
+}

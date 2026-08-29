@@ -1,0 +1,80 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.inputWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input {
+  width: 100%;
+  height: 44px;
+  padding: 0 var(--space-4);
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.hasError .input {
+  border-color: var(--color-danger);
+}
+
+.hasError .input:focus {
+  box-shadow: 0 0 0 3px var(--color-danger-soft);
+}
+
+.withLeftIcon {
+  padding-left: 40px;
+}
+
+.withRightSlot {
+  padding-right: 44px;
+}
+
+.leftIcon {
+  position: absolute;
+  left: 14px;
+  display: flex;
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+}
+
+.rightSlot {
+  position: absolute;
+  right: 6px;
+  display: flex;
+}
+
+.errorText {
+  font-size: 12.5px;
+  color: var(--color-danger);
+}
+
+.helperText {
+  font-size: 12.5px;
+  color: var(--color-text-tertiary);
+}

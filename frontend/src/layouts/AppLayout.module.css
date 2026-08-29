@@ -1,0 +1,36 @@
+.shell {
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+
+.content {
+  margin-left: var(--sidebar-width);
+  transition: margin-left var(--transition-slow);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.contentCollapsed {
+  margin-left: var(--sidebar-width-collapsed);
+}
+
+.main {
+  flex: 1;
+  padding: var(--space-8);
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  animation: fadeIn var(--transition-slow);
+}
+
+@media (max-width: 900px) {
+  .content,
+  .contentCollapsed {
+    margin-left: 0;
+  }
+
+  .main {
+    padding: var(--space-5);
+  }
+}

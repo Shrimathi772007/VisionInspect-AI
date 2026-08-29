@@ -1,4 +1,7 @@
+import os
+
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -9,6 +12,16 @@ from app.inspections.router import router as inspections_router
 from app.products.router import router as products_router
 
 app = FastAPI(title="VisionInspect AI Backend")
+
+frontend_origins = os.getenv("FRONTEND_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[origin.strip() for origin in frontend_origins.split(",") if origin.strip()],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(auth_router)
 app.include_router(products_router)
 app.include_router(inspections_router)

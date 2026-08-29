@@ -1,0 +1,50 @@
+.card {
+  padding: var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.iconWrap {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.iconWrap.accent {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+.iconWrap.info {
+  background: var(--color-info-soft);
+  color: var(--color-info);
+}
+.iconWrap.success {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+.iconWrap.warning {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.content {
+  min-width: 0;
+}
+
+.label {
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.value {
+  font-size: 24px;
+  font-weight: 700;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}

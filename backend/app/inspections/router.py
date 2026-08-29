@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user, require_role
@@ -11,6 +12,14 @@ from app.models.product import Product
 from app.models.user import User, UserRole
 
 router = APIRouter(prefix="/inspections", tags=["inspections"])
+
+
+@router.get("", response_model=list[InspectionOut])
+def list_inspections(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return db.execute(select(Inspection).order_by(Inspection.created_at.desc())).scalars().all()
 
 
 @router.post("/upload", response_model=InspectionOut, status_code=status.HTTP_201_CREATED)

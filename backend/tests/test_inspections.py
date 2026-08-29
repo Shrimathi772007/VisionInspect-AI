@@ -3,6 +3,28 @@ from sqlalchemy.orm import Session
 from tests.conftest import make_image_bytes
 
 
+def test_list_inspections(client, qe_headers, supervisor_headers, test_product):
+    image_bytes = make_image_bytes("PNG")
+    upload_response = client.post(
+        "/inspections/upload",
+        headers=qe_headers,
+        data={"product_id": str(test_product["id"])},
+        files={"file": ("sample.png", image_bytes, "image/png")},
+    )
+    created_id = upload_response.json()["id"]
+
+    response = client.get("/inspections", headers=supervisor_headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert isinstance(body, list)
+    assert any(item["id"] == created_id for item in body)
+
+
+def test_list_inspections_requires_authentication(client):
+    response = client.get("/inspections")
+    assert response.status_code == 401
+
+
 def test_quality_engineer_can_upload_inspection(client, qe_headers, test_product):
     image_bytes = make_image_bytes("PNG")
     response = client.post(
