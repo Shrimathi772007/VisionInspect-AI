@@ -7,3 +7,9 @@ python-dotenv==1.2.3
 bcrypt==4.3.0
 PyJWT==2.13.0
 email-validator==2.3.0
+Pillow==11.3.0
+python-multipart==0.0.32
+
+# Testing (dev only)
+pytest==8.4.2
+httpx==0.28.1

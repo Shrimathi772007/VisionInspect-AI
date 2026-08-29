@@ -21,6 +21,7 @@ venv/
 env/
 backend/.env
 backend/__pycache__/
+backend/storage/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
