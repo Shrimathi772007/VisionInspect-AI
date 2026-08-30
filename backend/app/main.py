@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.router import router as auth_router
 from app.database import get_db
+from app.dataset.router import router as dataset_router
 from app.inspections.router import router as inspections_router
 from app.products.router import router as products_router
 
@@ -25,6 +26,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(products_router)
 app.include_router(inspections_router)
+app.include_router(dataset_router)
 
 
 @app.get("/health")

@@ -7,6 +7,7 @@ import { ProductsPage } from "./pages/ProductsPage";
 import { InspectionsPage } from "./pages/InspectionsPage";
 import { InspectionUploadPage } from "./pages/InspectionUploadPage";
 import { InspectionDetailPage } from "./pages/InspectionDetailPage";
+import { DatasetBrowserPage } from "./pages/DatasetBrowserPage";
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
         <Route path="/inspections" element={<InspectionsPage />} />
         <Route path="/inspections/upload" element={<InspectionUploadPage />} />
         <Route path="/inspections/:id" element={<InspectionDetailPage />} />
+        <Route path="/dataset" element={<DatasetBrowserPage />} />
       </Route>
 
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

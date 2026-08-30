@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user, require_role
 from app.database import get_db
-from app.inspections.schemas import InspectionOut
+from app.dataset.service import build_dataset_relative_path
+from app.inspections.schemas import DatasetImportRequest, InspectionOut
 from app.inspections.storage import DATASET_ROOT, STORAGE_ROOT, resolve_image_path, save_upload_file
 from app.models.inspection import Inspection, InspectionSource
 from app.models.product import Product
@@ -52,6 +53,35 @@ async def upload_inspection(
             detail="Failed to create inspection record",
         )
 
+    return inspection
+
+
+@router.post("/import", response_model=InspectionOut, status_code=status.HTTP_201_CREATED)
+def import_dataset_inspection(
+    payload: DatasetImportRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.quality_engineer)),
+):
+    product = db.get(Product, payload.product_id)
+    if product is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+
+    # Validates the dataset reference and resolves it to an internal, storage-relative
+    # path; the original file under DATASET_ROOT is never copied or modified.
+    relative_path = build_dataset_relative_path(
+        payload.category, payload.split, payload.defect_type, payload.filename
+    )
+    inspection_status = "good" if payload.defect_type == "good" else "defective"
+
+    inspection = Inspection(
+        product_id=payload.product_id,
+        image_path=relative_path,
+        source=InspectionSource.mvtec_ad,
+        status=inspection_status,
+    )
+    db.add(inspection)
+    db.commit()
+    db.refresh(inspection)
     return inspection
 
 
