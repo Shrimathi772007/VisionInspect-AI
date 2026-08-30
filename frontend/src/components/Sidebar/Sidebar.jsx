@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Box, ScanEye, UploadCloud, LogOut, ChevronsLeft, ChevronsRight, ScanLine } from "lucide-react";
+import { LayoutDashboard, Box, ScanEye, UploadCloud, LogOut, ChevronsLeft, ChevronsRight, ScanLine, Database } from "lucide-react";
 import { Badge } from "../Badge/Badge";
 import { ThemeToggle } from "../ThemeToggle/ThemeToggle";
 import { roleLabel, roleTone } from "../../utils/badgeMaps";
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { to: "/products", label: "Products", icon: Box, roles: null },
   { to: "/inspections", label: "Inspections", icon: ScanEye, roles: null },
   { to: "/inspections/upload", label: "Upload Inspection", icon: UploadCloud, roles: ["quality_engineer"] },
+  { to: "/dataset", label: "Dataset Browser", icon: Database, roles: null },
 ];
 
 export function Sidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMobile, user, onLogout }) {

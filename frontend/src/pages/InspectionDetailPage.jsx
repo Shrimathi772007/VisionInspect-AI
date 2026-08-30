@@ -143,6 +143,30 @@ export function InspectionDetailPage() {
               </dl>
             </Card>
 
+            {inspection.source === "mvtec_ad" && (
+              <Card className={styles.metaCard}>
+                <h2 className={styles.metaCardTitle}>Dataset reference</h2>
+                <dl className={styles.metaList}>
+                  <div className={styles.metaRow}>
+                    <dt>Category</dt>
+                    <dd className={styles.mono}>{inspection.dataset_category}</dd>
+                  </div>
+                  <div className={styles.metaRow}>
+                    <dt>Split</dt>
+                    <dd className={styles.mono}>{inspection.dataset_split}</dd>
+                  </div>
+                  <div className={styles.metaRow}>
+                    <dt>Defect type</dt>
+                    <dd className={styles.mono}>{inspection.dataset_defect_type}</dd>
+                  </div>
+                  <div className={styles.metaRow}>
+                    <dt>Filename</dt>
+                    <dd className={styles.mono}>{inspection.dataset_filename}</dd>
+                  </div>
+                </dl>
+              </Card>
+            )}
+
             <Card className={styles.metaCard}>
               <h2 className={styles.metaCardTitle}>Product</h2>
               {productsLoading && <Skeleton height={16} width="70%" />}

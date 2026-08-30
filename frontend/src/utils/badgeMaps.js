@@ -10,10 +10,14 @@ export const ROLE_TONES = {
 
 export const STATUS_LABELS = {
   pending: "Pending",
+  good: "Good",
+  defective: "Defective",
 };
 
 export const STATUS_TONES = {
   pending: "warning",
+  good: "success",
+  defective: "danger",
 };
 
 export const SOURCE_LABELS = {
