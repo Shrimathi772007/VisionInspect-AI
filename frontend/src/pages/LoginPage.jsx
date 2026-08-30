@@ -4,6 +4,7 @@ import { Eye, EyeOff, Mail, Lock, ScanLine, ShieldCheck, Layers, Camera } from "
 import { useAuth } from "../auth/useAuth";
 import { Input } from "../components/Input/Input";
 import { Button } from "../components/Button/Button";
+import { ThemeToggle } from "../components/ThemeToggle/ThemeToggle";
 import { ApiError } from "../api/client";
 import styles from "./LoginPage.module.css";
 
@@ -40,6 +41,9 @@ export function LoginPage() {
 
   return (
     <div className={styles.page}>
+      <div className={styles.themeToggleWrap}>
+        <ThemeToggle />
+      </div>
       <div className={styles.visualPanel}>
         <div className={styles.grid} aria-hidden="true" />
         <div className={styles.glow} aria-hidden="true" />

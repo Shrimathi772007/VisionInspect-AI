@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { LayoutDashboard, Box, ScanEye, UploadCloud, LogOut, ChevronsLeft, ChevronsRight, ScanLine } from "lucide-react";
 import { Badge } from "../Badge/Badge";
+import { ThemeToggle } from "../ThemeToggle/ThemeToggle";
 import { roleLabel, roleTone } from "../../utils/badgeMaps";
 import styles from "./Sidebar.module.css";
 
@@ -60,6 +61,10 @@ export function Sidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMobil
               </div>
             </div>
           )}
+          <div className={`${styles.themeRow} ${collapsed ? styles.collapsed : ""}`}>
+            {!collapsed && <span className={styles.themeLabel}>Theme</span>}
+            <ThemeToggle compact={collapsed} />
+          </div>
           <button type="button" className={styles.logoutButton} onClick={onLogout} title="Log out">
             <LogOut size={18} strokeWidth={1.9} aria-hidden="true" />
             {!collapsed && <span>Log out</span>}

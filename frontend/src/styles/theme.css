@@ -1,4 +1,49 @@
 :root {
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 999px;
+
+  --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 320ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  --sidebar-width: 264px;
+  --sidebar-width-collapsed: 76px;
+  --topbar-height: 64px;
+
+  --z-sidebar: 40;
+  --z-topbar: 30;
+  --z-modal-overlay: 100;
+  --z-modal: 101;
+  --z-toast: 200;
+
+  --gradient-accent: linear-gradient(135deg, #22d3ee 0%, #6366f1 100%);
+  --color-on-accent: #041016;
+}
+
+/*
+  Color tokens are theme-scoped. Dark is the default (applied on :root and
+  explicitly on [data-theme="dark"]); [data-theme="light"] overrides only
+  what needs to change for a light, professional industrial UI.
+*/
+:root,
+:root[data-theme="dark"] {
   --color-bg: #0a0d12;
   --color-bg-elevated: #0e1218;
   --color-surface: #141a22;
@@ -26,47 +71,68 @@
   --color-info: #60a5fa;
   --color-info-soft: rgba(96, 165, 250, 0.12);
 
-  --gradient-accent: linear-gradient(135deg, #22d3ee 0%, #6366f1 100%);
   --gradient-surface: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 100%);
-
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
-
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --space-10: 40px;
-  --space-12: 48px;
-  --space-16: 64px;
-
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
-  --radius-full: 999px;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.24);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.32);
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.4);
   --shadow-glow-accent: 0 0 0 1px var(--color-accent-border), 0 0 24px rgba(34, 211, 238, 0.15);
 
-  --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 320ms cubic-bezier(0.4, 0, 0.2, 1);
+  --color-overlay-hover: rgba(255, 255, 255, 0.06);
+  --color-neutral-soft: rgba(255, 255, 255, 0.06);
+  --color-scrim: rgba(4, 6, 10, 0.6);
+  --color-scrim-strong: rgba(4, 6, 10, 0.72);
+  --color-grid-line: rgba(255, 255, 255, 0.045);
+  --color-login-visual-start: #0f1a24;
+  --color-login-glow: rgba(34, 211, 238, 0.18);
+  --color-scrollbar-thumb: rgba(255, 255, 255, 0.12);
+  --color-scrollbar-thumb-hover: rgba(255, 255, 255, 0.2);
+}
 
-  --sidebar-width: 264px;
-  --sidebar-width-collapsed: 76px;
-  --topbar-height: 64px;
+:root[data-theme="light"] {
+  --color-bg: #eef1f6;
+  --color-bg-elevated: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f3f5f9;
+  --color-surface-sunken: #eaeef3;
+  --color-border: rgba(15, 23, 42, 0.08);
+  --color-border-strong: rgba(15, 23, 42, 0.16);
 
-  --z-sidebar: 40;
-  --z-topbar: 30;
-  --z-modal-overlay: 100;
-  --z-modal: 101;
-  --z-toast: 200;
+  --color-text-primary: #101828;
+  --color-text-secondary: #47536b;
+  --color-text-tertiary: #7c8797;
+
+  --color-accent: #0e7490;
+  --color-accent-strong: #155e75;
+  --color-accent-soft: rgba(14, 116, 144, 0.08);
+  --color-accent-border: rgba(14, 116, 144, 0.32);
+  --color-secondary: #4f46e5;
+
+  --color-success: #059669;
+  --color-success-soft: rgba(5, 150, 105, 0.1);
+  --color-warning: #b45309;
+  --color-warning-soft: rgba(180, 83, 9, 0.1);
+  --color-danger: #dc2626;
+  --color-danger-soft: rgba(220, 38, 38, 0.08);
+  --color-info: #2563eb;
+  --color-info-soft: rgba(37, 99, 235, 0.08);
+
+  --gradient-surface: linear-gradient(180deg, rgba(15, 23, 42, 0.025) 0%, rgba(15, 23, 42, 0) 100%);
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 20px 40px rgba(15, 23, 42, 0.12);
+  --shadow-glow-accent: 0 0 0 1px var(--color-accent-border), 0 0 20px rgba(14, 116, 144, 0.12);
+
+  --color-overlay-hover: rgba(15, 23, 42, 0.045);
+  --color-neutral-soft: rgba(15, 23, 42, 0.05);
+  --color-scrim: rgba(15, 23, 42, 0.4);
+  --color-scrim-strong: rgba(15, 23, 42, 0.5);
+  --color-grid-line: rgba(15, 23, 42, 0.05);
+  --color-login-visual-start: #e2e8f0;
+  --color-login-glow: rgba(14, 116, 144, 0.14);
+  --color-scrollbar-thumb: rgba(15, 23, 42, 0.15);
+  --color-scrollbar-thumb-hover: rgba(15, 23, 42, 0.25);
 }
 
 *,
@@ -90,6 +156,7 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background var(--transition-base), color var(--transition-base);
 }
 
 h1,
@@ -128,14 +195,14 @@ a {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--color-scrollbar-thumb);
   border-radius: var(--radius-full);
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--color-scrollbar-thumb-hover);
   background-clip: padding-box;
 }
 

@@ -1,4 +1,5 @@
 import { Menu, ScanLine } from "lucide-react";
+import { ThemeToggle } from "../ThemeToggle/ThemeToggle";
 import styles from "./Topbar.module.css";
 
 export function Topbar({ onOpenMobileNav, title }) {
@@ -15,6 +16,9 @@ export function Topbar({ onOpenMobileNav, title }) {
       <div className={styles.brand}>
         <ScanLine size={16} className={styles.brandIcon} aria-hidden="true" />
         <span>{title || "VisionInspect AI"}</span>
+      </div>
+      <div className={styles.actions}>
+        <ThemeToggle compact />
       </div>
     </header>
   );

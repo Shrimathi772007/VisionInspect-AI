@@ -7,7 +7,7 @@
 .visualPanel {
   position: relative;
   overflow: hidden;
-  background: radial-gradient(circle at 20% 20%, #0f1a24 0%, var(--color-bg) 55%);
+  background: radial-gradient(circle at 20% 20%, var(--color-login-visual-start) 0%, var(--color-bg) 55%);
   display: flex;
   align-items: center;
   padding: var(--space-16);
@@ -17,8 +17,8 @@
 .grid {
   position: absolute;
   inset: -1px;
-  background-image: linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-image: linear-gradient(var(--color-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-grid-line) 1px, transparent 1px);
   background-size: 64px 64px;
   animation: gridDrift 40s linear infinite;
   mask-image: radial-gradient(circle at 30% 30%, black 0%, transparent 75%);
@@ -30,8 +30,15 @@
   height: 560px;
   top: -160px;
   left: -160px;
-  background: radial-gradient(circle, rgba(34, 211, 238, 0.18) 0%, rgba(34, 211, 238, 0) 70%);
+  background: radial-gradient(circle, var(--color-login-glow) 0%, rgba(34, 211, 238, 0) 70%);
   filter: blur(10px);
+}
+
+.themeToggleWrap {
+  position: fixed;
+  top: var(--space-5);
+  right: var(--space-5);
+  z-index: 2;
 }
 
 .visualContent {

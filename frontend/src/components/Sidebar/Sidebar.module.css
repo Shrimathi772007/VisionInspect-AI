@@ -1,7 +1,7 @@
 .scrim {
   position: fixed;
   inset: 0;
-  background: rgba(4, 6, 10, 0.6);
+  background: var(--color-scrim);
   z-index: calc(var(--z-sidebar) - 1);
   animation: fadeIn var(--transition-base);
 }
@@ -90,7 +90,7 @@
 }
 
 .navItem:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-overlay-hover);
   color: var(--color-text-primary);
 }
 
@@ -153,6 +153,23 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.themeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px var(--space-2);
+}
+
+.themeRow.collapsed {
+  justify-content: center;
+}
+
+.themeLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
 }
 
 .logoutButton {
