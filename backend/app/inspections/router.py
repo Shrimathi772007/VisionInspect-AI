@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user, require_role
 from app.database import get_db
 from app.dataset.service import build_dataset_relative_path
+from app.inspections.analytics import InspectionAnalyticsSummary, get_inspection_analytics_summary
 from app.inspections.schemas import DatasetImportRequest, InspectionOut
 from app.inspections.service import run_ai_inference
 from app.inspections.storage import (
@@ -28,6 +29,19 @@ def list_inspections(
     current_user: User = Depends(get_current_user),
 ):
     return db.execute(select(Inspection).order_by(Inspection.created_at.desc())).scalars().all()
+
+
+@router.get("/analytics/summary", response_model=InspectionAnalyticsSummary)
+def get_analytics_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Database-aggregated inspection/AI metrics for the monitoring dashboard.
+
+    Placed before the /{inspection_id} routes below so "analytics" is never
+    mistaken for an inspection id.
+    """
+    return get_inspection_analytics_summary(db)
 
 
 @router.post("/upload", response_model=InspectionOut, status_code=status.HTTP_201_CREATED)
