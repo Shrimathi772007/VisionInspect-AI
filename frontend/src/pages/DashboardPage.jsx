@@ -11,11 +11,39 @@ import { Button } from "../components/Button/Button";
 import { EmptyState } from "../components/EmptyState/EmptyState";
 import { Skeleton } from "../components/Skeleton/Skeleton";
 import { RoleGate } from "../components/RoleGate/RoleGate";
+import { ActivityChart } from "../components/ActivityChart/ActivityChart";
 import { statusLabel, statusTone } from "../utils/badgeMaps";
 import { formatRelativeTime } from "../utils/formatDate";
 import styles from "./DashboardPage.module.css";
 
 const RECENT_COUNT = 5;
+const WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+function computeTrend(inspections, predicate) {
+  const now = Date.now();
+  let current = 0;
+  let previous = 0;
+
+  inspections.forEach((inspection) => {
+    if (predicate && !predicate(inspection)) return;
+    const age = now - new Date(inspection.created_at).getTime();
+    if (age < 0) return;
+    if (age <= WINDOW_MS) current += 1;
+    else if (age <= WINDOW_MS * 2) previous += 1;
+  });
+
+  if (previous === 0) {
+    if (current === 0) return { direction: "flat", label: "" };
+    return { direction: "up", label: `+${current} this week` };
+  }
+
+  const change = Math.round(((current - previous) / previous) * 100);
+  if (change === 0) return { direction: "flat", label: "" };
+  return {
+    direction: change > 0 ? "up" : "down",
+    label: `${change > 0 ? "+" : ""}${change}% vs last week`,
+  };
+}
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -24,6 +52,9 @@ export function DashboardPage() {
 
   const recentInspections = inspections.slice(0, RECENT_COUNT);
   const firstName = user?.name?.split(" ")[0];
+
+  const inspectionsTrend = computeTrend(inspections);
+  const pendingTrend = computeTrend(inspections, (i) => i.status === "pending");
 
   return (
     <div>
@@ -48,6 +79,7 @@ export function DashboardPage() {
           value={inspections.length}
           loading={inspectionsLoading}
           tone="info"
+          trend={inspectionsLoading ? null : inspectionsTrend}
         />
         <StatCard
           icon={Clock}
@@ -55,8 +87,21 @@ export function DashboardPage() {
           value={inspections.filter((i) => i.status === "pending").length}
           loading={inspectionsLoading}
           tone="warning"
+          trend={inspectionsLoading ? null : pendingTrend}
         />
       </div>
+
+      <Card className={styles.activityCard}>
+        <div className={styles.cardHeader}>
+          <h2 className={styles.cardTitle}>Inspection activity</h2>
+          <span className={styles.cardSubtitle}>Last 14 days</span>
+        </div>
+        {inspectionsLoading ? (
+          <Skeleton variant="block" height={160} />
+        ) : (
+          <ActivityChart inspections={inspections} />
+        )}
+      </Card>
 
       <div className={styles.bottomGrid}>
         <Card className={styles.recentCard}>

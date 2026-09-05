@@ -10,3 +10,7 @@ export function createProduct({ productName, productCode }) {
     json: { product_name: productName, product_code: productCode },
   });
 }
+
+export function deleteProduct(id) {
+  return apiFetch(`/products/${id}`, { method: "DELETE", responseType: "none" });
+}

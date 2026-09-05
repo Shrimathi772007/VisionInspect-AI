@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { Plus, Search, Box, Hash, Calendar, ScanEye } from "lucide-react";
+import { Plus, Search, Box, Hash, Calendar, ScanEye, Trash2 } from "lucide-react";
 import { useProducts } from "../hooks/useProducts";
 import { useInspections } from "../hooks/useInspections";
-import { createProduct } from "../api/products";
+import { createProduct, deleteProduct } from "../api/products";
 import { ApiError } from "../api/client";
 import { useToast } from "../components/Toast/ToastProvider";
 import { PageHeader } from "../components/PageHeader/PageHeader";
@@ -13,12 +13,14 @@ import { Modal } from "../components/Modal/Modal";
 import { EmptyState } from "../components/EmptyState/EmptyState";
 import { Skeleton } from "../components/Skeleton/Skeleton";
 import { Badge } from "../components/Badge/Badge";
+import { RoleGate } from "../components/RoleGate/RoleGate";
+import { ProductDetailModal } from "../components/ProductDetailModal/ProductDetailModal";
 import { formatDateTime } from "../utils/formatDate";
 import styles from "./ProductsPage.module.css";
 
 export function ProductsPage() {
   const { products, isLoading, error, refetch } = useProducts();
-  const { inspections } = useInspections();
+  const { inspections, isLoading: inspectionsLoading, error: inspectionsError } = useInspections();
   const { showToast } = useToast();
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -26,6 +28,9 @@ export function ProductsPage() {
   const [formValues, setFormValues] = useState({ productName: "", productCode: "" });
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
   const inspectionCountByProduct = useMemo(() => {
     const counts = new Map();
@@ -34,6 +39,11 @@ export function ProductsPage() {
     }
     return counts;
   }, [inspections]);
+
+  const selectedProductInspections = useMemo(() => {
+    if (!selectedProduct) return [];
+    return inspections.filter((i) => i.product_id === selectedProduct.id);
+  }, [inspections, selectedProduct]);
 
   const filteredProducts = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -84,6 +94,46 @@ export function ProductsPage() {
       }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const closeDeleteModal = () => {
+    if (isDeleting) return;
+    setPendingDelete(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteProduct(pendingDelete.id);
+      showToast({
+        type: "success",
+        title: "Product deleted",
+        message: `${pendingDelete.product_name} was removed.`,
+      });
+      setPendingDelete(null);
+      refetch();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        showToast({
+          type: "error",
+          title: "Can't delete this product",
+          message: "This product has associated inspections and cannot currently be deleted.",
+        });
+      } else if (err instanceof ApiError && err.status === 404) {
+        showToast({ type: "error", title: "Product not found", message: "It may have already been deleted." });
+        setPendingDelete(null);
+        refetch();
+      } else {
+        showToast({
+          type: "error",
+          title: "Couldn't delete product",
+          message: err instanceof ApiError ? err.message : "Something went wrong.",
+        });
+      }
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -157,9 +207,39 @@ export function ProductsPage() {
       {!isLoading && !error && filteredProducts.length > 0 && (
         <div className={styles.grid}>
           {filteredProducts.map((product) => (
-            <Card key={product.id} hoverable className={styles.productCard}>
-              <div className={styles.productIcon}>
-                <Box size={18} />
+            <Card
+              key={product.id}
+              hoverable
+              className={styles.productCard}
+              role="button"
+              tabIndex={0}
+              onClick={() => setSelectedProduct(product)}
+              onKeyDown={(event) => {
+                if (event.target !== event.currentTarget) return;
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setSelectedProduct(product);
+                }
+              }}
+              aria-label={`View details for ${product.product_name}`}
+            >
+              <div className={styles.productCardHeader}>
+                <div className={styles.productIcon}>
+                  <Box size={18} />
+                </div>
+                <RoleGate allow={["quality_engineer"]}>
+                  <button
+                    type="button"
+                    className={styles.deleteButton}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setPendingDelete(product);
+                    }}
+                    aria-label={`Delete ${product.product_name}`}
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </RoleGate>
               </div>
               <h3 className={styles.productName}>{product.product_name}</h3>
               <div className={styles.productMetaRow}>
@@ -215,6 +295,38 @@ export function ProductsPage() {
           />
         </form>
       </Modal>
+
+      <Modal
+        open={Boolean(pendingDelete)}
+        onClose={closeDeleteModal}
+        title={pendingDelete ? `Delete ${pendingDelete.product_name}?` : ""}
+        description="This permanently removes the product. Products with associated inspections cannot be deleted."
+        footer={
+          <>
+            <Button variant="ghost" onClick={closeDeleteModal} disabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={confirmDelete} loading={isDeleting}>
+              Delete Product
+            </Button>
+          </>
+        }
+      >
+        {pendingDelete && (
+          <p className={styles.deleteConfirmText}>
+            Product code: <strong className={styles.mono}>{pendingDelete.product_code}</strong>
+          </p>
+        )}
+      </Modal>
+
+      <ProductDetailModal
+        product={selectedProduct}
+        inspections={selectedProductInspections}
+        isLoading={inspectionsLoading}
+        error={inspectionsError}
+        open={Boolean(selectedProduct)}
+        onClose={() => setSelectedProduct(null)}
+      />
     </div>
   );
 }

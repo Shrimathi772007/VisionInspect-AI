@@ -5,6 +5,11 @@
   margin-bottom: var(--space-6);
 }
 
+.activityCard {
+  padding: var(--space-6);
+  margin-bottom: var(--space-5);
+}
+
 .bottomGrid {
   display: grid;
   grid-template-columns: 1.7fr 1fr;
@@ -27,6 +32,11 @@
 .cardTitle {
   font-size: 15px;
   font-weight: 700;
+}
+
+.cardSubtitle {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
 }
 
 .viewAllLink {

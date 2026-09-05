@@ -1,26 +1,35 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Box, Hash, ImageOff, AlertCircle } from "lucide-react";
-import { getInspection, getInspectionImageObjectUrl } from "../api/inspections";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, Box, Hash, ImageOff, AlertCircle, Trash2 } from "lucide-react";
+import { deleteInspection, getInspection, getInspectionImageObjectUrl } from "../api/inspections";
 import { useProducts } from "../hooks/useProducts";
 import { ApiError } from "../api/client";
+import { useToast } from "../components/Toast/ToastProvider";
 import { Card } from "../components/Card/Card";
 import { Badge } from "../components/Badge/Badge";
 import { Button } from "../components/Button/Button";
 import { Skeleton } from "../components/Skeleton/Skeleton";
+import { Modal } from "../components/Modal/Modal";
+import { RoleGate } from "../components/RoleGate/RoleGate";
+import { ImageViewer } from "../components/ImageViewer/ImageViewer";
+import { InspectionStatusBanner } from "../components/InspectionStatusBanner/InspectionStatusBanner";
 import { statusLabel, statusTone, sourceLabel, sourceTone } from "../utils/badgeMaps";
 import { formatDateTime } from "../utils/formatDate";
 import styles from "./InspectionDetailPage.module.css";
 
 export function InspectionDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { getProductById, isLoading: productsLoading } = useProducts();
+  const { showToast } = useToast();
 
   const [inspection, setInspection] = useState(null);
   const [imageUrl, setImageUrl] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [imageError, setImageError] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     let cancelledImageUrl = null;
@@ -67,11 +76,52 @@ export function InspectionDetailPage() {
 
   const product = inspection ? getProductById(inspection.product_id) : null;
 
+  const closeDeleteModal = () => {
+    if (isDeleting) return;
+    setIsDeleteModalOpen(false);
+  };
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await deleteInspection(id);
+      showToast({ type: "success", title: "Inspection deleted", message: `Inspection #${id} was removed.` });
+      navigate("/inspections");
+    } catch (err) {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
+      if (err instanceof ApiError && err.status === 404) {
+        showToast({ type: "error", title: "Inspection not found", message: "It may have already been deleted." });
+        navigate("/inspections");
+        return;
+      }
+      showToast({
+        type: "error",
+        title: "Couldn't delete inspection",
+        message: err instanceof ApiError ? err.message : "Something went wrong.",
+      });
+    }
+  };
+
   return (
     <div>
-      <Link to="/inspections" className={styles.backLink}>
-        <ArrowLeft size={15} /> Back to Inspections
-      </Link>
+      <div className={styles.topRow}>
+        <Link to="/inspections" className={styles.backLink}>
+          <ArrowLeft size={15} /> Back to Inspections
+        </Link>
+        {!isLoading && !error && inspection && (
+          <RoleGate allow={["quality_engineer"]}>
+            <Button
+              variant="danger"
+              size="sm"
+              leftIcon={<Trash2 size={14} />}
+              onClick={() => setIsDeleteModalOpen(true)}
+            >
+              Delete Inspection
+            </Button>
+          </RoleGate>
+        )}
+      </div>
 
       {isLoading && (
         <div className={styles.layout}>
@@ -95,22 +145,19 @@ export function InspectionDetailPage() {
 
       {!isLoading && !error && inspection && (
         <div className={styles.layout}>
-          <Card className={styles.imageCard}>
-            {/* Overlay layer intentionally empty for now — reserved so future
-                anomaly heatmaps / bounding boxes / segmentation masks can be
-                absolutely positioned over the image without restructuring. */}
-            <div className={styles.imageViewer}>
-              {imageUrl && <img src={imageUrl} alt={`Inspection ${inspection.id} capture`} className={styles.image} />}
-              {!imageUrl && !imageError && <Skeleton variant="block" height="100%" />}
+          <div className={styles.imageColumn}>
+            <InspectionStatusBanner status={inspection.status} />
+            <Card className={styles.imageCard}>
+              {imageUrl && <ImageViewer src={imageUrl} alt={`Inspection ${inspection.id} capture`} />}
+              {!imageUrl && !imageError && <Skeleton variant="block" height={420} />}
               {imageError && (
                 <div className={styles.imageError}>
                   <ImageOff size={24} />
                   <p>{imageError}</p>
                 </div>
               )}
-              <div className={styles.overlayLayer} aria-hidden="true" />
-            </div>
-          </Card>
+            </Card>
+          </div>
 
           <div className={styles.sideColumn}>
             <Card className={styles.metaCard}>
@@ -189,6 +236,33 @@ export function InspectionDetailPage() {
             </Card>
           </div>
         </div>
+      )}
+
+      {inspection && (
+        <Modal
+          open={isDeleteModalOpen}
+          onClose={closeDeleteModal}
+          title={`Delete inspection #${inspection.id}?`}
+          description={
+            inspection.source === "mvtec_ad"
+              ? "This removes the inspection record only. The original MVTec dataset image is not deleted and will remain available for future imports."
+              : "This permanently removes the inspection record and its uploaded image. This action cannot be undone."
+          }
+          footer={
+            <>
+              <Button variant="ghost" onClick={closeDeleteModal} disabled={isDeleting}>
+                Cancel
+              </Button>
+              <Button variant="danger" onClick={handleDelete} loading={isDeleting}>
+                Delete Inspection
+              </Button>
+            </>
+          }
+        >
+          <p className={styles.deleteConfirmText}>
+            Product: <strong>{product ? product.product_name : `#${inspection.product_id}`}</strong>
+          </p>
+        </Modal>
       )}
     </div>
   );
