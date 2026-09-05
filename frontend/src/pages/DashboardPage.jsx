@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
-import { Box, ScanEye, UploadCloud, ArrowRight, Clock } from "lucide-react";
+import { Box, ScanEye, UploadCloud, ArrowRight, Clock, Cpu, AlertTriangle } from "lucide-react";
 import { useAuth } from "../auth/useAuth";
 import { useProducts } from "../hooks/useProducts";
 import { useInspections } from "../hooks/useInspections";
+import { useAnalyticsSummary } from "../hooks/useAnalyticsSummary";
 import { PageHeader } from "../components/PageHeader/PageHeader";
 import { StatCard } from "../components/StatCard/StatCard";
 import { Card } from "../components/Card/Card";
@@ -49,8 +50,14 @@ export function DashboardPage() {
   const { user } = useAuth();
   const { products, isLoading: productsLoading, getProductById } = useProducts();
   const { inspections, isLoading: inspectionsLoading } = useInspections();
+  const { data: analytics, isLoading: analyticsLoading, error: analyticsError, refetch: refetchAnalytics } =
+    useAnalyticsSummary();
 
   const recentInspections = inspections.slice(0, RECENT_COUNT);
+  const aiAnalyzedCount = analytics?.ai_analyzed_count ?? 0;
+  const aiDefectRate = analytics?.ai_defect_rate;
+  const aiGoodCount = analytics?.ai_prediction_counts?.good ?? 0;
+  const aiDefectiveCount = analytics?.ai_prediction_counts?.defective ?? 0;
   const firstName = user?.name?.split(" ")[0];
 
   const inspectionsTrend = computeTrend(inspections);
@@ -89,6 +96,20 @@ export function DashboardPage() {
           tone="warning"
           trend={inspectionsLoading ? null : pendingTrend}
         />
+        <StatCard
+          icon={Cpu}
+          label="AI analyzed"
+          value={aiAnalyzedCount}
+          loading={analyticsLoading}
+          tone="info"
+        />
+        <StatCard
+          icon={AlertTriangle}
+          label="AI defect rate"
+          value={aiDefectRate == null ? "No data" : `${(aiDefectRate * 100).toFixed(1)}%`}
+          loading={analyticsLoading}
+          tone="warning"
+        />
       </div>
 
       <Card className={styles.activityCard}>
@@ -100,6 +121,51 @@ export function DashboardPage() {
           <Skeleton variant="block" height={160} />
         ) : (
           <ActivityChart inspections={inspections} />
+        )}
+      </Card>
+
+      <Card className={styles.aiCard}>
+        <div className={styles.cardHeader}>
+          <h2 className={styles.cardTitle}>AI prediction distribution</h2>
+          <span className={styles.cardSubtitle}>AI-analyzed inspections only</span>
+        </div>
+
+        {analyticsLoading && <Skeleton variant="block" height={56} />}
+
+        {!analyticsLoading && analyticsError && (
+          <div className={styles.aiError}>
+            <p>AI monitoring data unavailable.</p>
+            <Button size="sm" variant="secondary" onClick={refetchAnalytics}>
+              Retry
+            </Button>
+          </div>
+        )}
+
+        {!analyticsLoading && !analyticsError && aiAnalyzedCount === 0 && (
+          <EmptyState
+            icon={Cpu}
+            title="No AI predictions yet"
+            description="AI predictions appear here once inspections for a supported product category (currently bottle) are analyzed."
+          />
+        )}
+
+        {!analyticsLoading && !analyticsError && aiAnalyzedCount > 0 && (
+          <div className={styles.aiDistribution}>
+            <div className={styles.aiBar}>
+              <div
+                className={styles.aiBarGood}
+                style={{ width: `${(aiGoodCount / aiAnalyzedCount) * 100}%` }}
+              />
+              <div
+                className={styles.aiBarDefective}
+                style={{ width: `${(aiDefectiveCount / aiAnalyzedCount) * 100}%` }}
+              />
+            </div>
+            <div className={styles.aiLegend}>
+              <Badge tone="info">AI Good &middot; {aiGoodCount}</Badge>
+              <Badge tone="warning">AI Defective &middot; {aiDefectiveCount}</Badge>
+            </div>
+          </div>
         )}
       </Card>
 

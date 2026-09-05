@@ -13,7 +13,14 @@ import { Modal } from "../components/Modal/Modal";
 import { RoleGate } from "../components/RoleGate/RoleGate";
 import { ImageViewer } from "../components/ImageViewer/ImageViewer";
 import { InspectionStatusBanner } from "../components/InspectionStatusBanner/InspectionStatusBanner";
-import { statusLabel, statusTone, sourceLabel, sourceTone } from "../utils/badgeMaps";
+import {
+  statusLabel,
+  statusTone,
+  sourceLabel,
+  sourceTone,
+  aiPredictionLabel,
+  aiPredictionTone,
+} from "../utils/badgeMaps";
 import { formatDateTime } from "../utils/formatDate";
 import styles from "./InspectionDetailPage.module.css";
 
@@ -188,6 +195,39 @@ export function InspectionDetailPage() {
                   <dd>{formatDateTime(inspection.created_at)}</dd>
                 </div>
               </dl>
+            </Card>
+
+            <Card className={styles.metaCard}>
+              <h2 className={styles.metaCardTitle}>AI Prediction</h2>
+              {inspection.ai_prediction ? (
+                <>
+                  <p className={styles.aiCaption}>AI-generated result, independent of inspection status.</p>
+                  <dl className={styles.metaList}>
+                    <div className={styles.metaRow}>
+                      <dt>AI Prediction</dt>
+                      <dd>
+                        <Badge tone={aiPredictionTone(inspection.ai_prediction)}>
+                          {aiPredictionLabel(inspection.ai_prediction)}
+                        </Badge>
+                      </dd>
+                    </div>
+                    <div className={styles.metaRow}>
+                      <dt>Reconstruction error</dt>
+                      <dd className={styles.mono}>{inspection.ai_reconstruction_error.toFixed(6)}</dd>
+                    </div>
+                    <div className={styles.metaRow}>
+                      <dt>Threshold</dt>
+                      <dd className={styles.mono}>{inspection.ai_threshold.toFixed(6)}</dd>
+                    </div>
+                    <div className={styles.metaRow}>
+                      <dt>Model</dt>
+                      <dd className={styles.mono}>{inspection.ai_model_name}</dd>
+                    </div>
+                  </dl>
+                </>
+              ) : (
+                <p className={styles.metaFallback}>Not yet analyzed</p>
+              )}
             </Card>
 
             {inspection.source === "mvtec_ad" && (

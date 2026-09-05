@@ -53,3 +53,25 @@ export function sourceLabel(source) {
 export function sourceTone(source) {
   return SOURCE_TONES[source] || "neutral";
 }
+
+// AI prediction (Phase 8) - intentionally NOT success/danger like STATUS_TONES.
+// ai_prediction is a model guess, independent of and never reconciled with the
+// ground-truth `status`; reusing green/red here would visually imply the two
+// values agree (Phase 5: this model only has ~46% recall on real defects).
+export const AI_PREDICTION_LABELS = {
+  good: "AI: Good",
+  defective: "AI: Defective",
+};
+
+export const AI_PREDICTION_TONES = {
+  good: "info",
+  defective: "warning",
+};
+
+export function aiPredictionLabel(prediction) {
+  return AI_PREDICTION_LABELS[prediction] || prediction;
+}
+
+export function aiPredictionTone(prediction) {
+  return AI_PREDICTION_TONES[prediction] || "neutral";
+}
