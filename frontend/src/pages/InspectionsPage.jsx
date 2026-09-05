@@ -1,13 +1,17 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, ScanEye, UploadCloud, ChevronRight } from "lucide-react";
+import { Search, ScanEye, UploadCloud, ChevronRight, Trash2 } from "lucide-react";
 import { useInspections } from "../hooks/useInspections";
 import { useProducts } from "../hooks/useProducts";
+import { deleteInspection } from "../api/inspections";
+import { ApiError } from "../api/client";
+import { useToast } from "../components/Toast/ToastProvider";
 import { PageHeader } from "../components/PageHeader/PageHeader";
 import { Card } from "../components/Card/Card";
 import { Button } from "../components/Button/Button";
 import { Input } from "../components/Input/Input";
 import { Badge } from "../components/Badge/Badge";
+import { Modal } from "../components/Modal/Modal";
 import { EmptyState } from "../components/EmptyState/EmptyState";
 import { Skeleton } from "../components/Skeleton/Skeleton";
 import { RoleGate } from "../components/RoleGate/RoleGate";
@@ -18,7 +22,10 @@ import styles from "./InspectionsPage.module.css";
 export function InspectionsPage() {
   const { inspections, isLoading, error, refetch } = useInspections();
   const { getProductById } = useProducts();
+  const { showToast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredInspections = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -32,6 +39,46 @@ export function InspectionsPage() {
       );
     });
   }, [inspections, searchTerm, getProductById]);
+
+  const requestDelete = (event, inspection) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setPendingDelete(inspection);
+  };
+
+  const closeDeleteModal = () => {
+    if (isDeleting) return;
+    setPendingDelete(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteInspection(pendingDelete.id);
+      showToast({
+        type: "success",
+        title: "Inspection deleted",
+        message: `Inspection #${pendingDelete.id} was removed.`,
+      });
+      setPendingDelete(null);
+      refetch();
+    } catch (err) {
+      showToast({
+        type: "error",
+        title: "Couldn't delete inspection",
+        message: err instanceof ApiError ? err.message : "Something went wrong.",
+      });
+      if (err instanceof ApiError && err.status === 404) {
+        setPendingDelete(null);
+        refetch();
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const pendingDeleteProduct = pendingDelete ? getProductById(pendingDelete.product_id) : null;
 
   return (
     <div>
@@ -129,12 +176,52 @@ export function InspectionsPage() {
                   <Badge tone={sourceTone(inspection.source)}>{sourceLabel(inspection.source)}</Badge>
                   <Badge tone={statusTone(inspection.status)}>{statusLabel(inspection.status)}</Badge>
                 </div>
+                <RoleGate allow={["quality_engineer"]}>
+                  <button
+                    type="button"
+                    className={styles.deleteButton}
+                    onClick={(event) => requestDelete(event, inspection)}
+                    aria-label={`Delete inspection #${inspection.id}`}
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </RoleGate>
                 <ChevronRight size={16} className={styles.chevron} aria-hidden="true" />
               </Link>
             );
           })}
         </Card>
       )}
+
+      <Modal
+        open={Boolean(pendingDelete)}
+        onClose={closeDeleteModal}
+        title={pendingDelete ? `Delete inspection #${pendingDelete.id}?` : ""}
+        description={
+          pendingDelete?.source === "mvtec_ad"
+            ? "This removes the inspection record only. The original MVTec dataset image is not deleted."
+            : "This permanently removes the inspection record and its uploaded image. This action cannot be undone."
+        }
+        footer={
+          <>
+            <Button variant="ghost" onClick={closeDeleteModal} disabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={confirmDelete} loading={isDeleting}>
+              Delete Inspection
+            </Button>
+          </>
+        }
+      >
+        {pendingDelete && (
+          <p className={styles.deleteConfirmText}>
+            Product:{" "}
+            <strong>
+              {pendingDeleteProduct ? pendingDeleteProduct.product_name : `#${pendingDelete.product_id}`}
+            </strong>
+          </p>
+        )}
+      </Modal>
     </div>
   );
 }

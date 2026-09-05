@@ -11,6 +11,18 @@
 
 .productCard {
   padding: var(--space-5);
+  cursor: pointer;
+}
+
+.productCard:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.productCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .productIcon {
@@ -22,6 +34,26 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.deleteButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.deleteButton:hover {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
 }
 
 .productName {
@@ -78,4 +110,14 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
+}
+
+.deleteConfirmText {
+  font-size: 13.5px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.mono {
+  font-family: var(--font-mono);
 }

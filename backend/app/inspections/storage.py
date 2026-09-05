@@ -86,3 +86,9 @@ def resolve_image_path(source_root: Path, relative_path: str) -> Path:
     if not resolved.is_relative_to(source_root):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")
     return resolved
+
+
+def delete_upload_file(relative_path: str) -> None:
+    """Remove an uploaded inspection image from STORAGE_ROOT. Never touches DATASET_ROOT."""
+    absolute_path = resolve_image_path(STORAGE_ROOT, relative_path)
+    absolute_path.unlink(missing_ok=True)

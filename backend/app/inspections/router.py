@@ -7,7 +7,13 @@ from app.auth.dependencies import get_current_user, require_role
 from app.database import get_db
 from app.dataset.service import build_dataset_relative_path
 from app.inspections.schemas import DatasetImportRequest, InspectionOut
-from app.inspections.storage import DATASET_ROOT, STORAGE_ROOT, resolve_image_path, save_upload_file
+from app.inspections.storage import (
+    DATASET_ROOT,
+    STORAGE_ROOT,
+    delete_upload_file,
+    resolve_image_path,
+    save_upload_file,
+)
 from app.models.inspection import Inspection, InspectionSource
 from app.models.product import Product
 from app.models.user import User, UserRole
@@ -114,3 +120,22 @@ def get_inspection_image(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")
 
     return FileResponse(image_path)
+
+
+@router.delete("/{inspection_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_inspection(
+    inspection_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.quality_engineer)),
+):
+    inspection = db.get(Inspection, inspection_id)
+    if inspection is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inspection not found")
+
+    # Only uploaded images live under STORAGE_ROOT and are owned by the app;
+    # mvtec_ad inspections reference DATASET_ROOT and must never be touched.
+    if inspection.source == InspectionSource.upload:
+        delete_upload_file(inspection.image_path)
+
+    db.delete(inspection)
+    db.commit()

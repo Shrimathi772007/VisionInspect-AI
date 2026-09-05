@@ -1,5 +1,7 @@
 from sqlalchemy.orm import Session
 
+from app.database import SessionLocal
+from app.models.defect import Defect
 from tests.conftest import make_image_bytes
 
 
@@ -191,3 +193,127 @@ def test_get_inspection_image_requires_authentication(client, qe_headers, test_p
 
     response = client.get(f"/inspections/{inspection_id}/image")
     assert response.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# DELETE /inspections/{inspection_id}
+# ---------------------------------------------------------------------------
+
+def _create_upload_inspection(client, qe_headers, test_product):
+    image_bytes = make_image_bytes("PNG")
+    response = client.post(
+        "/inspections/upload",
+        headers=qe_headers,
+        data={"product_id": str(test_product["id"])},
+        files={"file": ("sample.png", image_bytes, "image/png")},
+    )
+    assert response.status_code == 201
+    return response.json()["id"]
+
+
+def test_delete_inspection_requires_authentication(client, qe_headers, test_product):
+    inspection_id = _create_upload_inspection(client, qe_headers, test_product)
+    response = client.delete(f"/inspections/{inspection_id}")
+    assert response.status_code == 401
+
+    # inspection must still exist
+    assert client.get(f"/inspections/{inspection_id}", headers=qe_headers).status_code == 200
+
+
+def test_delete_inspection_requires_quality_engineer(client, qe_headers, supervisor_headers, test_product):
+    inspection_id = _create_upload_inspection(client, qe_headers, test_product)
+    response = client.delete(f"/inspections/{inspection_id}", headers=supervisor_headers)
+    assert response.status_code == 403
+
+    # inspection must still exist
+    assert client.get(f"/inspections/{inspection_id}", headers=qe_headers).status_code == 200
+
+
+def test_delete_nonexistent_inspection(client, qe_headers):
+    response = client.delete("/inspections/999999", headers=qe_headers)
+    assert response.status_code == 404
+
+
+def test_delete_upload_inspection_removes_record_and_file(client, qe_headers, test_product):
+    from app.inspections.storage import STORAGE_ROOT
+
+    image_bytes = make_image_bytes("PNG")
+    upload_response = client.post(
+        "/inspections/upload",
+        headers=qe_headers,
+        data={"product_id": str(test_product["id"])},
+        files={"file": ("sample.png", image_bytes, "image/png")},
+    )
+    assert upload_response.status_code == 201
+    inspection_id = upload_response.json()["id"]
+
+    with SessionLocal() as session:
+        from app.models.inspection import Inspection as InspectionModel
+
+        image_path = session.get(InspectionModel, inspection_id).image_path
+    absolute_path = STORAGE_ROOT / image_path
+    assert absolute_path.is_file()
+
+    response = client.delete(f"/inspections/{inspection_id}", headers=qe_headers)
+    assert response.status_code == 204
+
+    assert not absolute_path.exists(), "uploaded image file was not removed on delete"
+    assert client.get(f"/inspections/{inspection_id}", headers=qe_headers).status_code == 404
+
+
+def test_delete_inspection_cascades_defects(client, qe_headers, test_product):
+    inspection_id = _create_upload_inspection(client, qe_headers, test_product)
+
+    with SessionLocal() as session:
+        defect = Defect(inspection_id=inspection_id, defect_type="scratch", confidence=0.9)
+        session.add(defect)
+        session.commit()
+        defect_id = defect.id
+
+    response = client.delete(f"/inspections/{inspection_id}", headers=qe_headers)
+    assert response.status_code == 204
+
+    with SessionLocal() as session:
+        assert session.get(Defect, defect_id) is None
+
+
+def test_delete_mvtec_inspection_does_not_touch_dataset_image(client, qe_headers, test_product):
+    from app.inspections.storage import DATASET_ROOT
+
+    on_disk_path = DATASET_ROOT / "bottle" / "test" / "good" / "000.png"
+    original_bytes = on_disk_path.read_bytes()
+
+    import_response = client.post(
+        "/inspections/import",
+        headers=qe_headers,
+        json={
+            "product_id": test_product["id"],
+            "category": "bottle",
+            "split": "test",
+            "defect_type": "good",
+            "filename": "000.png",
+        },
+    )
+    assert import_response.status_code == 201
+    inspection_id = import_response.json()["id"]
+
+    response = client.delete(f"/inspections/{inspection_id}", headers=qe_headers)
+    assert response.status_code == 204
+
+    assert on_disk_path.is_file(), "MVTec dataset image must never be deleted"
+    assert on_disk_path.read_bytes() == original_bytes
+    assert client.get(f"/inspections/{inspection_id}", headers=qe_headers).status_code == 404
+
+
+def test_delete_inspection_rejects_path_traversal_in_stored_image_path(client, qe_headers, test_product, monkeypatch):
+    inspection_id = _create_upload_inspection(client, qe_headers, test_product)
+
+    with SessionLocal() as session:
+        from app.models.inspection import Inspection as InspectionModel
+
+        inspection = session.get(InspectionModel, inspection_id)
+        inspection.image_path = "../../etc/passwd"
+        session.commit()
+
+    response = client.delete(f"/inspections/{inspection_id}", headers=qe_headers)
+    assert response.status_code == 404

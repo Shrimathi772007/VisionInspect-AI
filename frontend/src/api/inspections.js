@@ -19,3 +19,7 @@ export async function getInspectionImageObjectUrl(id) {
   const blob = await apiFetch(`/inspections/${id}/image`, { responseType: "blob" });
   return URL.createObjectURL(blob);
 }
+
+export function deleteInspection(id) {
+  return apiFetch(`/inspections/${id}`, { method: "DELETE", responseType: "none" });
+}

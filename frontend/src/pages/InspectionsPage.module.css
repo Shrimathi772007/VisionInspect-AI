@@ -76,6 +76,32 @@ a.row:hover {
   flex-shrink: 0;
 }
 
+.deleteButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.deleteButton:hover {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.deleteConfirmText {
+  font-size: 13.5px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
 .errorCard {
   padding: var(--space-6);
   display: flex;
@@ -87,7 +113,9 @@ a.row:hover {
 }
 
 @media (max-width: 640px) {
-  .badges {
+  /* Keep the status badge (pass/fail/pending) visible on narrow screens —
+     only drop the less-critical source badge to save space. */
+  .badges > *:first-child {
     display: none;
   }
 }
