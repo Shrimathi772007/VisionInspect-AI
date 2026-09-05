@@ -20,6 +20,14 @@ class InspectionOut(BaseModel):
     inspection_date: datetime
     created_at: datetime
 
+    # AI prediction (Phase 7) - from app.ai.inference.predict_image, kept strictly separate
+    # from `status`/dataset_defect_type (MVTec ground truth). NULL when no AI result is
+    # available (old record, unsupported category, or inference failure).
+    ai_prediction: Optional[str] = None
+    ai_reconstruction_error: Optional[float] = None
+    ai_threshold: Optional[float] = None
+    ai_model_name: Optional[str] = None
+
     @model_validator(mode="before")
     @classmethod
     def extract_dataset_metadata(cls, data):
@@ -35,6 +43,10 @@ class InspectionOut(BaseModel):
             "source": data.source,
             "inspection_date": data.inspection_date,
             "created_at": data.created_at,
+            "ai_prediction": data.ai_prediction,
+            "ai_reconstruction_error": data.ai_reconstruction_error,
+            "ai_threshold": data.ai_threshold,
+            "ai_model_name": data.ai_model_name,
         }
 
         if data.source == InspectionSource.mvtec_ad and data.image_path:

@@ -1,7 +1,8 @@
 import enum
 from datetime import datetime
+from typing import Optional
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, func
+from sqlalchemy import DateTime, Enum, Float, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -30,6 +31,15 @@ class Inspection(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+    # AI prediction (Phase 7) - populated by app.inspections.service.run_ai_inference from
+    # app.ai.inference.predict_image. Independent of `status`/MVTec ground truth: NULL means
+    # "no AI result available yet" (old record, unsupported category, or inference failure),
+    # never a stand-in for a ground-truth or workflow value.
+    ai_prediction: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    ai_reconstruction_error: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    ai_threshold: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    ai_model_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
     product: Mapped["Product"] = relationship(back_populates="inspections")
     defects: Mapped[list["Defect"]] = relationship(
