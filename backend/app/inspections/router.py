@@ -7,6 +7,7 @@ from app.auth.dependencies import get_current_user, require_role
 from app.database import get_db
 from app.dataset.service import build_dataset_relative_path
 from app.inspections.schemas import DatasetImportRequest, InspectionOut
+from app.inspections.service import run_ai_inference
 from app.inspections.storage import (
     DATASET_ROOT,
     STORAGE_ROOT,
@@ -59,6 +60,10 @@ async def upload_inspection(
             detail="Failed to create inspection record",
         )
 
+    # Best-effort AI prediction, after the inspection is safely persisted - never allowed
+    # to fail or roll back the creation above (see app.inspections.service.run_ai_inference).
+    run_ai_inference(inspection, db)
+
     return inspection
 
 
@@ -88,6 +93,11 @@ def import_dataset_inspection(
     db.add(inspection)
     db.commit()
     db.refresh(inspection)
+
+    # Best-effort AI prediction, after the inspection is safely persisted - never allowed
+    # to fail or roll back the creation above (see app.inspections.service.run_ai_inference).
+    run_ai_inference(inspection, db)
+
     return inspection
 
 
