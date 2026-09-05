@@ -10,6 +10,13 @@ email-validator==2.3.0
 Pillow==11.3.0
 python-multipart==0.0.32
 
+# Milestone 2 - image processing / AI development
+numpy==2.5.2
+opencv-python-headless==5.0.0.93
+torch==2.14.0
+scikit-learn==1.9.0
+matplotlib==3.11.1
+
 # Testing (dev only)
 pytest==8.4.2
 httpx==0.28.1
