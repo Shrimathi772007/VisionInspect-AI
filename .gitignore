@@ -37,6 +37,7 @@ backend/storage/
 mlruns/
 wandb/
 *.log
+backend/ai_models/
 
 # ---- Dataset (large binary data) ----
 dataset/*
