@@ -103,3 +103,38 @@ export function defectCategoryTone(category) {
   if (!category) return "neutral";
   return category === "good" ? "success" : "danger";
 }
+
+// Severity / quality risk (Milestone 3 Phase 2) - from the backend severity scoring
+// engine (app.inspections.severity). Deliberately a distinct tone set/badge from
+// AI_PREDICTION_* and STATUS_*: severity is a derived risk assessment, not the AI's raw
+// guess or the business status, and must never look like either. `null`/"Not assessed"
+// means current evidence is insufficient to score - never render a fabricated value.
+export const SEVERITY_LEVEL_TONES = {
+  Critical: "danger",
+  High: "warning",
+  Medium: "info",
+  Low: "success",
+};
+
+export const QUALITY_RISK_TONES = {
+  "Critical Risk": "danger",
+  "High Risk": "warning",
+  "Medium Risk": "info",
+  "Low Risk": "success",
+};
+
+export function severityLabel(level) {
+  return level || "Not assessed";
+}
+
+export function severityTone(level) {
+  return SEVERITY_LEVEL_TONES[level] || "neutral";
+}
+
+export function qualityRiskLabel(risk) {
+  return risk || "Not assessed";
+}
+
+export function qualityRiskTone(risk) {
+  return QUALITY_RISK_TONES[risk] || "neutral";
+}

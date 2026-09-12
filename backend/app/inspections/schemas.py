@@ -34,6 +34,14 @@ class InspectionOut(BaseModel):
     ai_threshold: Optional[float] = None
     ai_model_name: Optional[str] = None
 
+    # Severity scoring / quality risk assessment (Milestone 3 Phase 2) - from
+    # app.inspections.severity, kept strictly separate from `status`, `defect_category`,
+    # and `ai_prediction`. NULL/"Not assessed" when current evidence is insufficient -
+    # never a fabricated score (see app.inspections.severity for why).
+    severity_score: Optional[float] = None
+    severity_level: Optional[str] = None
+    quality_risk: Optional[str] = None
+
     @model_validator(mode="before")
     @classmethod
     def extract_dataset_metadata(cls, data):
@@ -54,6 +62,9 @@ class InspectionOut(BaseModel):
             "ai_reconstruction_error": data.ai_reconstruction_error,
             "ai_threshold": data.ai_threshold,
             "ai_model_name": data.ai_model_name,
+            "severity_score": data.severity_score,
+            "severity_level": data.severity_level,
+            "quality_risk": data.quality_risk,
         }
 
         if data.source == InspectionSource.mvtec_ad and data.image_path:

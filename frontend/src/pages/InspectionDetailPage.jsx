@@ -22,6 +22,10 @@ import {
   aiPredictionTone,
   defectCategoryLabel,
   defectCategoryTone,
+  severityLabel,
+  severityTone,
+  qualityRiskLabel,
+  qualityRiskTone,
 } from "../utils/badgeMaps";
 import { formatDateTime } from "../utils/formatDate";
 import styles from "./InspectionDetailPage.module.css";
@@ -237,6 +241,41 @@ export function InspectionDetailPage() {
                 </>
               ) : (
                 <p className={styles.metaFallback}>Not yet analyzed</p>
+              )}
+            </Card>
+
+            <Card className={styles.metaCard}>
+              <h2 className={styles.metaCardTitle}>Severity Assessment</h2>
+              {Number.isFinite(inspection.severity_score) ? (
+                <>
+                  <p className={styles.aiCaption}>
+                    Deterministic score from currently available defect evidence.
+                  </p>
+                  <dl className={styles.metaList}>
+                    <div className={styles.metaRow}>
+                      <dt>Score</dt>
+                      <dd className={styles.mono}>{Math.round(inspection.severity_score)} / 100</dd>
+                    </div>
+                    <div className={styles.metaRow}>
+                      <dt>Level</dt>
+                      <dd>
+                        <Badge tone={severityTone(inspection.severity_level)}>
+                          {severityLabel(inspection.severity_level)}
+                        </Badge>
+                      </dd>
+                    </div>
+                    <div className={styles.metaRow}>
+                      <dt>Quality Risk</dt>
+                      <dd>
+                        <Badge tone={qualityRiskTone(inspection.quality_risk)}>
+                          {qualityRiskLabel(inspection.quality_risk)}
+                        </Badge>
+                      </dd>
+                    </div>
+                  </dl>
+                </>
+              ) : (
+                <p className={styles.metaFallback}>Not assessed - insufficient evidence available</p>
               )}
             </Card>
 
