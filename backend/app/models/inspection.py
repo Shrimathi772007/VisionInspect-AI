@@ -50,6 +50,16 @@ class Inspection(Base):
     # (the autoencoder's anomaly-detection guess, which cannot classify defect types).
     defect_category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
+    # Severity scoring / quality risk assessment (Milestone 3 Phase 2) - populated by
+    # app.inspections.service.apply_severity_assessment from app.inspections.severity.
+    # NULL means "not assessed": current evidence is insufficient (see app.inspections.
+    # severity for why), never a fabricated score. Independent of `status`, `ai_prediction`,
+    # and `defect_category` - severity is derived FROM available evidence about those
+    # fields, but never overwrites or is overwritten by them.
+    severity_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    severity_level: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    quality_risk: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
     product: Mapped["Product"] = relationship(back_populates="inspections")
     defects: Mapped[list["Defect"]] = relationship(
         back_populates="inspection", cascade="all, delete-orphan"

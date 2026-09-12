@@ -8,7 +8,7 @@ from app.database import get_db
 from app.dataset.service import build_dataset_relative_path
 from app.inspections.analytics import InspectionAnalyticsSummary, get_inspection_analytics_summary
 from app.inspections.schemas import DatasetImportRequest, InspectionOut
-from app.inspections.service import run_ai_inference
+from app.inspections.service import apply_severity_assessment, run_ai_inference
 from app.inspections.storage import (
     DATASET_ROOT,
     STORAGE_ROOT,
@@ -78,6 +78,12 @@ async def upload_inspection(
     # to fail or roll back the creation above (see app.inspections.service.run_ai_inference).
     run_ai_inference(inspection, db)
 
+    # Severity assessment runs after AI inference so it can see ai_prediction/defect_category
+    # once those are settled - today it uses only defect_category (see app.inspections.severity
+    # for why the other three factors are currently unavailable) and stays honestly
+    # "not assessed" for uploads, which never have a defect_category.
+    apply_severity_assessment(inspection, db)
+
     return inspection
 
 
@@ -115,6 +121,10 @@ def import_dataset_inspection(
     # Best-effort AI prediction, after the inspection is safely persisted - never allowed
     # to fail or roll back the creation above (see app.inspections.service.run_ai_inference).
     run_ai_inference(inspection, db)
+
+    # Severity assessment - see app.inspections.severity for the current all-four-required
+    # policy; MVTec imports have a real defect_category but that alone is not sufficient.
+    apply_severity_assessment(inspection, db)
 
     return inspection
 
