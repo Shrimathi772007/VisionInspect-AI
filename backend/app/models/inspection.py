@@ -41,6 +41,15 @@ class Inspection(Base):
     ai_threshold: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     ai_model_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
+    # Defect categorization (Milestone 3 Phase 1) - the known defect category/type for this
+    # inspection, e.g. "good", "broken_large", "broken_small", "contamination" for MVTec
+    # imports (copied verbatim from the dataset's own defect_type directory name, so it
+    # extends to any MVTec category without code changes). NULL for uploads and any other
+    # inspection with no known ground-truth category - never inferred from ai_prediction.
+    # Independent of both `status` (business/workflow ground truth) and `ai_prediction`
+    # (the autoencoder's anomaly-detection guess, which cannot classify defect types).
+    defect_category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+
     product: Mapped["Product"] = relationship(back_populates="inspections")
     defects: Mapped[list["Defect"]] = relationship(
         back_populates="inspection", cascade="all, delete-orphan"

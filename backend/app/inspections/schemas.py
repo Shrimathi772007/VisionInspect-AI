@@ -20,6 +20,12 @@ class InspectionOut(BaseModel):
     inspection_date: datetime
     created_at: datetime
 
+    # Defect categorization (Milestone 3 Phase 1) - the known defect category/type, kept
+    # strictly separate from `status` (business ground truth) and `ai_prediction` (the
+    # anomaly detector's guess, which cannot classify defect types). NULL/unknown when no
+    # category is known, e.g. a generic user upload.
+    defect_category: Optional[str] = None
+
     # AI prediction (Phase 7) - from app.ai.inference.predict_image, kept strictly separate
     # from `status`/dataset_defect_type (MVTec ground truth). NULL when no AI result is
     # available (old record, unsupported category, or inference failure).
@@ -43,6 +49,7 @@ class InspectionOut(BaseModel):
             "source": data.source,
             "inspection_date": data.inspection_date,
             "created_at": data.created_at,
+            "defect_category": data.defect_category,
             "ai_prediction": data.ai_prediction,
             "ai_reconstruction_error": data.ai_reconstruction_error,
             "ai_threshold": data.ai_threshold,

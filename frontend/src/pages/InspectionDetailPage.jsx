@@ -20,6 +20,8 @@ import {
   sourceTone,
   aiPredictionLabel,
   aiPredictionTone,
+  defectCategoryLabel,
+  defectCategoryTone,
 } from "../utils/badgeMaps";
 import { formatDateTime } from "../utils/formatDate";
 import styles from "./InspectionDetailPage.module.css";
@@ -178,6 +180,14 @@ export function InspectionDetailPage() {
                   <dt>Status</dt>
                   <dd>
                     <Badge tone={statusTone(inspection.status)}>{statusLabel(inspection.status)}</Badge>
+                  </dd>
+                </div>
+                <div className={styles.metaRow}>
+                  <dt>Defect Category</dt>
+                  <dd>
+                    <Badge tone={defectCategoryTone(inspection.defect_category)}>
+                      {defectCategoryLabel(inspection.defect_category)}
+                    </Badge>
                   </dd>
                 </div>
                 <div className={styles.metaRow}>
