@@ -103,6 +103,10 @@ def import_dataset_inspection(
         image_path=relative_path,
         source=InspectionSource.mvtec_ad,
         status=inspection_status,
+        # MVTec ground-truth defect category, taken verbatim from the dataset's own
+        # defect_type directory name (already validated by build_dataset_relative_path
+        # above) - works for any MVTec category, not just bottle.
+        defect_category=payload.defect_type,
     )
     db.add(inspection)
     db.commit()

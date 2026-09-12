@@ -75,3 +75,31 @@ export function aiPredictionLabel(prediction) {
 export function aiPredictionTone(prediction) {
   return AI_PREDICTION_TONES[prediction] || "neutral";
 }
+
+// Defect category (Milestone 3 Phase 1) - the known defect category/type, e.g. from an
+// MVTec import's ground-truth defect_type. Kept visually and conceptually distinct from
+// STATUS_LABELS/STATUS_TONES (business status) and AI_PREDICTION_* (anomaly detector
+// guess). Only "good" has an explicit label/tone below because the set of MVTec defect
+// types varies by category; any other value is titleized from its snake_case name so new
+// categories (e.g. "metal_contamination") render sensibly without code changes.
+export const DEFECT_CATEGORY_LABELS = {
+  good: "Good",
+};
+
+function titleizeSnakeCase(value) {
+  return value
+    .split("_")
+    .filter(Boolean)
+    .map((word) => word[0].toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+export function defectCategoryLabel(category) {
+  if (!category) return "Not categorized";
+  return DEFECT_CATEGORY_LABELS[category] || titleizeSnakeCase(category);
+}
+
+export function defectCategoryTone(category) {
+  if (!category) return "neutral";
+  return category === "good" ? "success" : "danger";
+}
