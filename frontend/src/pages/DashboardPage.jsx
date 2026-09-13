@@ -13,6 +13,11 @@ import {
   ShieldCheck,
   Gauge,
   Lightbulb,
+  Activity,
+  History,
+  TrendingUp,
+  TrendingDown,
+  Minus,
 } from "lucide-react";
 import { useAuth } from "../auth/useAuth";
 import { useProducts } from "../hooks/useProducts";
@@ -28,6 +33,7 @@ import { Skeleton } from "../components/Skeleton/Skeleton";
 import { RoleGate } from "../components/RoleGate/RoleGate";
 import { ActivityChart } from "../components/ActivityChart/ActivityChart";
 import { DistributionBar } from "../components/DistributionBar/DistributionBar";
+import { TrendChart } from "../components/TrendChart/TrendChart";
 import {
   statusLabel,
   statusTone,
@@ -45,6 +51,26 @@ const MAX_VISIBLE_PRODUCTS = 6;
 
 const RECENT_COUNT = 5;
 const WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Milestone 3 Phase 6 - category-trend bars need a distinct tone per tracked category.
+// "success" is deliberately excluded here: these are always real DEFECT categories (the
+// backend already excludes "good"), so a success-green bar would misleadingly read as
+// "no defect". Cycles if there are ever more than 5 (matches MAX_CATEGORY_TRENDS today).
+const CATEGORY_TREND_TONES = ["danger", "warning", "info", "accent", "neutral"];
+
+// Reshapes Phase 6's category_trends ([{ category, daily: [{date, count}] }]) into the
+// per-day, per-series-key rows TrendChart expects ([{ date, [category]: count }]) - a
+// presentation-only pivot, no new data.
+function buildCategoryTrendDays(categoryTrends) {
+  if (categoryTrends.length === 0) return [];
+  const days = categoryTrends[0].daily.map((point) => ({ date: point.date }));
+  categoryTrends.forEach((trend) => {
+    trend.daily.forEach((point, index) => {
+      days[index][trend.category] = point.count;
+    });
+  });
+  return days;
+}
 
 function computeTrend(inspections, predicate) {
   const now = Date.now();
@@ -99,6 +125,18 @@ export function DashboardPage() {
 
   const inspectionsTrend = computeTrend(inspections);
   const pendingTrend = computeTrend(inspections, (i) => i.status === "pending");
+
+  const trendMonitoring = analytics?.trend_monitoring;
+  const trendDaily = trendMonitoring?.daily ?? [];
+  const categoryTrends = trendMonitoring?.category_trends ?? [];
+  const categoryTrendDays = buildCategoryTrendDays(categoryTrends);
+  const categoryTrendSeries = categoryTrends.map((trend, index) => ({
+    key: trend.category,
+    label: defectCategoryLabel(trend.category),
+    tone: CATEGORY_TREND_TONES[index % CATEGORY_TREND_TONES.length],
+  }));
+  const trendInsights = trendMonitoring?.insights ?? [];
+  const trendPeriodDays = trendMonitoring?.period_days ?? 14;
 
   return (
     <div>
@@ -335,6 +373,18 @@ export function DashboardPage() {
                     <Badge tone={product.defective > 0 ? "danger" : "success"}>
                       {(product.defect_rate * 100).toFixed(1)}%
                     </Badge>
+                    {/* Milestone 3 Phase 6 - recent (last trendPeriodDays) trend, independent
+                        of the all-time defect_rate badge above. Omitted (no icon) rather than
+                        guessed when there isn't enough recent history to classify a direction. */}
+                    {product.recent_trend === "up" && (
+                      <TrendingUp size={14} className={styles.trendUp} aria-label="Recent defect rate increasing" />
+                    )}
+                    {product.recent_trend === "down" && (
+                      <TrendingDown size={14} className={styles.trendDown} aria-label="Recent defect rate decreasing" />
+                    )}
+                    {product.recent_trend === "stable" && (
+                      <Minus size={14} className={styles.trendStable} aria-label="Recent defect rate stable" />
+                    )}
                   </div>
                 </div>
               ))}
@@ -347,6 +397,103 @@ export function DashboardPage() {
           )}
         </Card>
       </div>
+
+      <div className={styles.analyticsSectionHeader}>
+        <h2 className={styles.analyticsSectionTitle}>Historical Trend Monitoring</h2>
+        <p className={styles.analyticsSectionSubtitle}>
+          Last {trendPeriodDays} days, compared with the previous {trendPeriodDays}-day period.
+        </p>
+      </div>
+
+      <Card className={styles.activityCard}>
+        <div className={styles.cardHeader}>
+          <h2 className={styles.cardTitle}>Inspection &amp; Quality Trend</h2>
+          <span className={styles.cardSubtitle}>Ground truth, last {trendPeriodDays} days</span>
+        </div>
+        {analyticsLoading && <Skeleton variant="block" height={160} />}
+        {!analyticsLoading && analyticsError && <AnalyticsErrorBlock onRetry={refetchAnalytics} />}
+        {!analyticsLoading && !analyticsError && (
+          <TrendChart
+            days={trendDaily}
+            series={[
+              { key: "good", label: "Good", tone: "success" },
+              { key: "defective", label: "Defective", tone: "danger" },
+              { key: "pending", label: "Pending", tone: "warning" },
+            ]}
+            emptyIcon={Activity}
+            emptyTitle="No trend data available"
+            emptyDescription="Historical trends appear once inspections are recorded."
+          />
+        )}
+      </Card>
+
+      <div className={styles.analyticsGrid}>
+        <Card className={styles.analyticsCard}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>Defect Category Trend</h2>
+            <span className={styles.cardSubtitle}>Top {categoryTrends.length || 0} categories by volume</span>
+          </div>
+          {analyticsLoading && <Skeleton variant="block" height={56} />}
+          {!analyticsLoading && analyticsError && <AnalyticsErrorBlock onRetry={refetchAnalytics} />}
+          {!analyticsLoading && !analyticsError && (
+            <TrendChart
+              days={categoryTrendDays}
+              series={categoryTrendSeries}
+              emptyIcon={Layers}
+              emptyTitle="No category trend data"
+              emptyDescription="Category trends appear once categorized defects are recorded in this window."
+            />
+          )}
+        </Card>
+
+        <Card className={styles.analyticsCard}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>Quality Decision Trend</h2>
+            <span className={styles.cardSubtitle}>PASS / FAIL / NOT ASSESSED</span>
+          </div>
+          {analyticsLoading && <Skeleton variant="block" height={56} />}
+          {!analyticsLoading && analyticsError && <AnalyticsErrorBlock onRetry={refetchAnalytics} />}
+          {!analyticsLoading && !analyticsError && (
+            <TrendChart
+              days={trendDaily}
+              series={[
+                { key: "quality_pass", label: "PASS", tone: "success" },
+                { key: "quality_fail", label: "FAIL", tone: "danger" },
+                { key: "quality_not_assessed", label: "Not assessed", tone: "warning" },
+              ]}
+              emptyIcon={ShieldCheck}
+              emptyTitle="No quality decision trend data"
+              emptyDescription="Quality decision trends appear once inspections are recorded in this window."
+            />
+          )}
+        </Card>
+      </div>
+
+      <Card className={styles.insightsCard}>
+        <div className={styles.cardHeader}>
+          <h2 className={styles.cardTitle}>Trend Insights</h2>
+          <span className={styles.cardSubtitle}>Historical observations, last {trendPeriodDays} vs previous {trendPeriodDays} days</span>
+        </div>
+        {analyticsLoading && <Skeleton variant="block" height={56} />}
+        {!analyticsLoading && analyticsError && <AnalyticsErrorBlock onRetry={refetchAnalytics} />}
+        {!analyticsLoading && !analyticsError && trendInsights.length === 0 && (
+          <EmptyState
+            icon={History}
+            title="Insufficient historical data"
+            description="Trend insights appear once there is enough historical data to compare periods."
+          />
+        )}
+        {!analyticsLoading && !analyticsError && trendInsights.length > 0 && (
+          <ul className={styles.insightsList}>
+            {trendInsights.map((insight) => (
+              <li key={insight.type} className={styles.insightItem}>
+                <History size={14} strokeWidth={1.75} aria-hidden="true" />
+                <span>{insight.message}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       <Card className={styles.insightsCard}>
         <div className={styles.cardHeader}>

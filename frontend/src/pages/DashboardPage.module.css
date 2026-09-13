@@ -266,6 +266,25 @@ a.recentRow:hover {
   margin-top: var(--space-1);
 }
 
+/* Milestone 3 Phase 6 - per-product recent-trend indicator (up = more recent defects,
+   down = fewer, stable = no meaningful change; "insufficient_data" renders no icon at all,
+   see DashboardPage.jsx). Up is danger-toned (more defects is the concerning direction),
+   down is success-toned, matching the rest of the dashboard's tone vocabulary. */
+.trendUp {
+  color: var(--color-danger);
+  flex-shrink: 0;
+}
+
+.trendDown {
+  color: var(--color-success);
+  flex-shrink: 0;
+}
+
+.trendStable {
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
 .insightsCard {
   padding: var(--space-6);
   margin-bottom: var(--space-5);
