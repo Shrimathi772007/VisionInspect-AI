@@ -97,3 +97,77 @@ class DatasetImportRequest(BaseModel):
     split: str
     defect_type: str
     filename: str
+
+
+# ---------------------------------------------------------------------------
+# Production quality report (Milestone 3 Phase 4) - a read-only, structured presentation
+# of one inspection's existing Phase 1-3 evidence. See app.inspections.report for the
+# builder that populates these; these models only define the response shape. No new
+# business logic or decision algorithm lives here - report.quality.decision and
+# report.report_summary.overall_result are always exactly Inspection.quality_decision
+# (Phase 3), never recomputed.
+# ---------------------------------------------------------------------------
+
+
+class InspectionReportSection(BaseModel):
+    id: int
+    product_id: int
+    product_name: str
+    status: str
+    source: InspectionSource
+    inspection_date: datetime
+    created_at: datetime
+
+
+class DatasetReportSection(BaseModel):
+    """MVTec dataset reference for this inspection - present only for mvtec_ad inspections,
+    None for generic uploads (never fabricated)."""
+
+    category: str
+    split: str
+    defect_type: str
+    filename: str
+
+
+class DefectReportSection(BaseModel):
+    # `category` is Phase 1 MVTec ground truth, never AI output - kept in its own field,
+    # never labeled or presented as an "AI classification".
+    category: Optional[str] = None
+    ai_prediction: Optional[str] = None
+    ai_reconstruction_error: Optional[float] = None
+    ai_threshold: Optional[float] = None
+    ai_model_name: Optional[str] = None
+
+
+class SeverityReportSection(BaseModel):
+    score: Optional[float] = None
+    level: Optional[str] = None
+    quality_risk: Optional[str] = None
+
+
+class QualityReportSection(BaseModel):
+    # decision is never NULL in the report even if Inspection.quality_decision is (a
+    # pre-Phase-3 row) - see app.inspections.report.build_production_quality_report.
+    decision: str
+    assessment: Optional[str] = None
+    recommendation: Optional[str] = None
+
+
+class ReportSummary(BaseModel):
+    # Always identical to `quality.decision` above - restated here only for a convenient
+    # top-level summary, never an independently computed value.
+    overall_result: str
+    # Report completeness/availability, NOT a product quality outcome (see Phase 4 spec):
+    # "COMPLETE" once a real quality assessment has run, "PARTIAL" for a pre-Phase-3 row
+    # with no quality_decision yet.
+    report_status: str
+    summary: str
+
+
+class ProductionQualityReport(BaseModel):
+    inspection: InspectionReportSection
+    dataset: Optional[DatasetReportSection] = None
+    defect: DefectReportSection
+    severity: SeverityReportSection
+    quality: QualityReportSection
+    report_summary: ReportSummary

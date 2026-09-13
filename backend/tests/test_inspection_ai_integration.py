@@ -279,14 +279,15 @@ def test_ground_truth_and_ai_prediction_remain_independent(client, qe_headers, t
 # ---------------------------------------------------------------------------
 
 def test_phase7_added_zero_api_routes(client):
-    # Phase 8 adds exactly one new operation (GET /inspections/analytics/summary) -
-    # the counts/paths below reflect that, not a Phase 7 regression.
+    # Phase 8 adds exactly one new operation (GET /inspections/analytics/summary), and
+    # Milestone 3 Phase 4 adds exactly one more (GET /inspections/{id}/report) - the count
+    # below reflects both, not a Phase 7 regression.
     schema = client.get("/openapi.json").json()
     paths = schema["paths"]
     operations = sum(
         1 for methods in paths.values() for m in methods if m.lower() in ("get", "post", "put", "patch", "delete")
     )
-    assert operations == 19
+    assert operations == 20
     assert set(paths.keys()) == {
         "/auth/register",
         "/auth/login",
@@ -298,6 +299,7 @@ def test_phase7_added_zero_api_routes(client):
         "/inspections/upload",
         "/inspections/import",
         "/inspections/{inspection_id}",
+        "/inspections/{inspection_id}/report",
         "/inspections/{inspection_id}/image",
         "/dataset/categories",
         "/dataset/categories/{category}",

@@ -482,9 +482,11 @@ def test_supervisor_can_read_quality_fields(client, qe_headers, supervisor_heade
 # ---------------------------------------------------------------------------
 
 def test_phase3_adds_zero_api_routes(client):
+    # Milestone 3 Phase 4 later adds exactly one new operation (GET
+    # /inspections/{id}/report) - the count below reflects that, not a Phase 3 regression.
     schema = client.get("/openapi.json").json()
     paths = schema["paths"]
     operations = sum(
         1 for methods in paths.values() for m in methods if m.lower() in ("get", "post", "put", "patch", "delete")
     )
-    assert operations == 19
+    assert operations == 20

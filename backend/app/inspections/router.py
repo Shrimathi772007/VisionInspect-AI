@@ -7,7 +7,8 @@ from app.auth.dependencies import get_current_user, require_role
 from app.database import get_db
 from app.dataset.service import build_dataset_relative_path
 from app.inspections.analytics import InspectionAnalyticsSummary, get_inspection_analytics_summary
-from app.inspections.schemas import DatasetImportRequest, InspectionOut
+from app.inspections.report import build_production_quality_report
+from app.inspections.schemas import DatasetImportRequest, InspectionOut, ProductionQualityReport
 from app.inspections.service import apply_quality_assessment, apply_severity_assessment, run_ai_inference
 from app.inspections.storage import (
     DATASET_ROOT,
@@ -147,6 +148,25 @@ def get_inspection(
     if inspection is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inspection not found")
     return inspection
+
+
+@router.get("/{inspection_id}/report", response_model=ProductionQualityReport)
+def get_inspection_report(
+    inspection_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Structured production quality report for one inspection (Milestone 3 Phase 4).
+
+    Same authorization as GET /{inspection_id} - any authenticated user (both
+    quality_engineer and factory_supervisor) may read it. Composes only this inspection's
+    already-persisted data (see app.inspections.report) - no new query beyond the
+    inspection and its related product, and no new quality-decision algorithm.
+    """
+    inspection = db.get(Inspection, inspection_id)
+    if inspection is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inspection not found")
+    return build_production_quality_report(inspection, inspection.product)
 
 
 @router.get("/{inspection_id}/image")
