@@ -8,7 +8,7 @@ from app.database import get_db
 from app.dataset.service import build_dataset_relative_path
 from app.inspections.analytics import InspectionAnalyticsSummary, get_inspection_analytics_summary
 from app.inspections.schemas import DatasetImportRequest, InspectionOut
-from app.inspections.service import apply_severity_assessment, run_ai_inference
+from app.inspections.service import apply_quality_assessment, apply_severity_assessment, run_ai_inference
 from app.inspections.storage import (
     DATASET_ROOT,
     STORAGE_ROOT,
@@ -84,6 +84,10 @@ async def upload_inspection(
     # "not assessed" for uploads, which never have a defect_category.
     apply_severity_assessment(inspection, db)
 
+    # Quality assessment runs last so it can reason about the settled ai_prediction/
+    # severity_level - see app.inspections.quality for the evidence-precedence rules.
+    apply_quality_assessment(inspection, db)
+
     return inspection
 
 
@@ -125,6 +129,10 @@ def import_dataset_inspection(
     # Severity assessment - see app.inspections.severity for the current all-four-required
     # policy; MVTec imports have a real defect_category but that alone is not sufficient.
     apply_severity_assessment(inspection, db)
+
+    # Quality assessment runs last so it can reason about the settled ai_prediction/
+    # severity_level - see app.inspections.quality for the evidence-precedence rules.
+    apply_quality_assessment(inspection, db)
 
     return inspection
 

@@ -42,6 +42,13 @@ class InspectionOut(BaseModel):
     severity_level: Optional[str] = None
     quality_risk: Optional[str] = None
 
+    # Quality assessment (Milestone 3 Phase 3) - from app.inspections.quality, a fourth
+    # conclusion derived from (not a copy of) status/ai_prediction/defect_category/
+    # severity_level. NULL only for rows created before this phase existed.
+    quality_decision: Optional[str] = None
+    quality_assessment: Optional[str] = None
+    quality_recommendation: Optional[str] = None
+
     @model_validator(mode="before")
     @classmethod
     def extract_dataset_metadata(cls, data):
@@ -65,6 +72,9 @@ class InspectionOut(BaseModel):
             "severity_score": data.severity_score,
             "severity_level": data.severity_level,
             "quality_risk": data.quality_risk,
+            "quality_decision": data.quality_decision,
+            "quality_assessment": data.quality_assessment,
+            "quality_recommendation": data.quality_recommendation,
         }
 
         if data.source == InspectionSource.mvtec_ad and data.image_path:
