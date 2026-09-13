@@ -130,7 +130,11 @@ def test_analytics_summary_response_shape(client, qe_headers):
         assert set(day.keys()) == {"date", "total", "good", "defective", "pending"}
 
     for product in body["by_product"]:
-        assert set(product.keys()) == {"product_id", "product_name", "total", "ai_defective"}
+        # `defective`/`defect_rate` are a Milestone 3 Phase 5 addition (ground-truth,
+        # independent of `ai_defective`) - see test_defect_analytics.py for their behavior.
+        assert set(product.keys()) == {
+            "product_id", "product_name", "total", "ai_defective", "defective", "defect_rate",
+        }
 
 
 # ---------------------------------------------------------------------------
