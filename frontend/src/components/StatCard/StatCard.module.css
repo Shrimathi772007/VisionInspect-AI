@@ -31,6 +31,10 @@
   background: var(--color-warning-soft);
   color: var(--color-warning);
 }
+.iconWrap.danger {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
 
 .content {
   min-width: 0;

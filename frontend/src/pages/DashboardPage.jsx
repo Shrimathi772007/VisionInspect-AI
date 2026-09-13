@@ -1,5 +1,19 @@
 import { Link } from "react-router-dom";
-import { Box, ScanEye, UploadCloud, ArrowRight, Clock, Cpu, AlertTriangle } from "lucide-react";
+import {
+  Box,
+  ScanEye,
+  UploadCloud,
+  ArrowRight,
+  Clock,
+  Cpu,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  Layers,
+  ShieldCheck,
+  Gauge,
+  Lightbulb,
+} from "lucide-react";
 import { useAuth } from "../auth/useAuth";
 import { useProducts } from "../hooks/useProducts";
 import { useInspections } from "../hooks/useInspections";
@@ -13,9 +27,21 @@ import { EmptyState } from "../components/EmptyState/EmptyState";
 import { Skeleton } from "../components/Skeleton/Skeleton";
 import { RoleGate } from "../components/RoleGate/RoleGate";
 import { ActivityChart } from "../components/ActivityChart/ActivityChart";
-import { statusLabel, statusTone } from "../utils/badgeMaps";
+import { DistributionBar } from "../components/DistributionBar/DistributionBar";
+import {
+  statusLabel,
+  statusTone,
+  defectCategoryLabel,
+  defectCategoryTone,
+  qualityDecisionLabel,
+  qualityDecisionTone,
+  severityLabel,
+  severityTone,
+} from "../utils/badgeMaps";
 import { formatRelativeTime } from "../utils/formatDate";
 import styles from "./DashboardPage.module.css";
+
+const MAX_VISIBLE_PRODUCTS = 6;
 
 const RECENT_COUNT = 5;
 const WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -44,6 +70,17 @@ function computeTrend(inspections, predicate) {
     direction: change > 0 ? "up" : "down",
     label: `${change > 0 ? "+" : ""}${change}% vs last week`,
   };
+}
+
+function AnalyticsErrorBlock({ onRetry }) {
+  return (
+    <div className={styles.aiError}>
+      <p>Analytics data unavailable.</p>
+      <Button size="sm" variant="secondary" onClick={onRetry}>
+        Retry
+      </Button>
+    </div>
+  );
 }
 
 export function DashboardPage() {
@@ -166,6 +203,174 @@ export function DashboardPage() {
               <Badge tone="warning">AI Defective &middot; {aiDefectiveCount}</Badge>
             </div>
           </div>
+        )}
+      </Card>
+
+      <div className={styles.analyticsSectionHeader}>
+        <h2 className={styles.analyticsSectionTitle}>Manufacturing Quality Analytics</h2>
+        <p className={styles.analyticsSectionSubtitle}>
+          Defect categorization, quality decisions, and severity insights across all recorded inspections.
+        </p>
+      </div>
+
+      <div className={styles.statsGrid}>
+        <StatCard
+          icon={CheckCircle2}
+          label="Good (ground truth)"
+          value={analytics?.by_status?.good ?? 0}
+          loading={analyticsLoading}
+          tone="success"
+        />
+        <StatCard
+          icon={XCircle}
+          label="Defective (ground truth)"
+          value={analytics?.by_status?.defective ?? 0}
+          loading={analyticsLoading}
+          tone="danger"
+        />
+        <StatCard
+          icon={Clock}
+          label="Pending (no ground truth yet)"
+          value={analytics?.by_status?.pending ?? 0}
+          loading={analyticsLoading}
+          tone="warning"
+        />
+      </div>
+
+      <div className={styles.analyticsGrid}>
+        <Card className={styles.analyticsCard}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>Defect Category Distribution</h2>
+            <span className={styles.cardSubtitle}>MVTec ground truth</span>
+          </div>
+          {analyticsLoading && <Skeleton variant="block" height={56} />}
+          {!analyticsLoading && analyticsError && <AnalyticsErrorBlock onRetry={refetchAnalytics} />}
+          {!analyticsLoading && !analyticsError && (
+            <DistributionBar
+              segments={(analytics?.defect_categories ?? []).map((entry) => ({
+                key: entry.category ?? "uncategorized",
+                label: defectCategoryLabel(entry.category),
+                count: entry.count,
+                tone: defectCategoryTone(entry.category),
+              }))}
+              emptyIcon={Layers}
+              emptyTitle="No categorized defects"
+              emptyDescription="Defect categories appear here once MVTec inspections are imported."
+            />
+          )}
+        </Card>
+
+        <Card className={styles.analyticsCard}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>Quality Decision Distribution</h2>
+            <span className={styles.cardSubtitle}>Phase 3 quality engine</span>
+          </div>
+          {analyticsLoading && <Skeleton variant="block" height={56} />}
+          {!analyticsLoading && analyticsError && <AnalyticsErrorBlock onRetry={refetchAnalytics} />}
+          {!analyticsLoading && !analyticsError && (
+            <DistributionBar
+              segments={(analytics?.quality_decisions ?? []).map((entry) => ({
+                key: entry.decision,
+                label: qualityDecisionLabel(entry.decision),
+                count: entry.count,
+                tone: qualityDecisionTone(entry.decision),
+              }))}
+              emptyIcon={ShieldCheck}
+              emptyTitle="No quality decisions yet"
+              emptyDescription="Quality decisions appear here once inspections are recorded."
+            />
+          )}
+        </Card>
+
+        <Card className={styles.analyticsCard}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>Severity &amp; Risk Distribution</h2>
+            <span className={styles.cardSubtitle}>Phase 2 severity engine</span>
+          </div>
+          {analyticsLoading && <Skeleton variant="block" height={56} />}
+          {!analyticsLoading && analyticsError && <AnalyticsErrorBlock onRetry={refetchAnalytics} />}
+          {!analyticsLoading && !analyticsError && (
+            <DistributionBar
+              segments={(analytics?.severity_distribution ?? []).map((entry) => ({
+                key: entry.level,
+                label: severityLabel(entry.level),
+                count: entry.count,
+                tone: severityTone(entry.level),
+              }))}
+              emptyIcon={Gauge}
+              emptyTitle="No severity data"
+              emptyDescription="Severity is assessed once all required evidence is available for an inspection."
+            />
+          )}
+        </Card>
+
+        <Card className={styles.analyticsCard}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>Product Quality Overview</h2>
+            <span className={styles.cardSubtitle}>Ground-truth defect rate</span>
+          </div>
+          {analyticsLoading && (
+            <div className={styles.recentList}>
+              {[1, 2, 3].map((key) => (
+                <Skeleton key={key} height={16} width="80%" style={{ marginBottom: 10 }} />
+              ))}
+            </div>
+          )}
+          {!analyticsLoading && analyticsError && <AnalyticsErrorBlock onRetry={refetchAnalytics} />}
+          {!analyticsLoading && !analyticsError && (analytics?.by_product?.length ?? 0) === 0 && (
+            <EmptyState
+              icon={Box}
+              title="No product data yet"
+              description="Product quality statistics appear once inspections are recorded."
+            />
+          )}
+          {!analyticsLoading && !analyticsError && (analytics?.by_product?.length ?? 0) > 0 && (
+            <div className={styles.productList}>
+              {analytics.by_product.slice(0, MAX_VISIBLE_PRODUCTS).map((product) => (
+                <div key={product.product_id} className={styles.productRow}>
+                  <p className={styles.productRowName}>{product.product_name}</p>
+                  <div className={styles.productRowStats}>
+                    <span>{product.total} total</span>
+                    <span>{product.defective} defective</span>
+                    <Badge tone={product.defective > 0 ? "danger" : "success"}>
+                      {(product.defect_rate * 100).toFixed(1)}%
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+              {analytics.by_product.length > MAX_VISIBLE_PRODUCTS && (
+                <p className={styles.productListNote}>
+                  Showing the {MAX_VISIBLE_PRODUCTS} highest-volume products of {analytics.by_product.length}.
+                </p>
+              )}
+            </div>
+          )}
+        </Card>
+      </div>
+
+      <Card className={styles.insightsCard}>
+        <div className={styles.cardHeader}>
+          <h2 className={styles.cardTitle}>Operational Insights</h2>
+          <span className={styles.cardSubtitle}>Deterministic, evidence-based observations</span>
+        </div>
+        {analyticsLoading && <Skeleton variant="block" height={56} />}
+        {!analyticsLoading && analyticsError && <AnalyticsErrorBlock onRetry={refetchAnalytics} />}
+        {!analyticsLoading && !analyticsError && (analytics?.operational_insights?.length ?? 0) === 0 && (
+          <EmptyState
+            icon={Lightbulb}
+            title="No insights yet"
+            description="Insights appear once there is enough inspection data to summarize."
+          />
+        )}
+        {!analyticsLoading && !analyticsError && (analytics?.operational_insights?.length ?? 0) > 0 && (
+          <ul className={styles.insightsList}>
+            {analytics.operational_insights.map((insight) => (
+              <li key={insight.type} className={styles.insightItem}>
+                <Lightbulb size={14} strokeWidth={1.75} aria-hidden="true" />
+                <span>{insight.message}</span>
+              </li>
+            ))}
+          </ul>
         )}
       </Card>
 
