@@ -135,8 +135,11 @@ def test_response_includes_phase5_sections(client, qe_headers):
     for entry in body["operational_insights"]:
         assert set(entry.keys()) == {"type", "message"}
     for entry in body["by_product"]:
+        # `recent_defect_rate`/`recent_trend` are a Milestone 3 Phase 6 addition - see
+        # test_defect_trends.py for their behavior.
         assert set(entry.keys()) == {
             "product_id", "product_name", "total", "ai_defective", "defective", "defect_rate",
+            "recent_defect_rate", "recent_trend",
         }
 
 
@@ -417,9 +420,12 @@ def test_analytics_summary_issues_a_bounded_number_of_queries(client, qe_headers
     finally:
         event.remove(engine, "before_cursor_execute", _count_queries)
 
-    # A handful of fixed aggregate queries (totals, activity, by_product, defect
-    # categories, quality decisions, severity distribution) - never one per inspection row.
-    assert query_count <= 10
+    # A handful of fixed aggregate queries (totals, activity, by_product + its per-product
+    # period-trend query, defect categories, quality decisions, severity distribution, plus
+    # Milestone 3 Phase 6's trend-monitoring queries: daily trend, category trends [2
+    # queries], previous-period totals) - 11 today, never one per inspection row or scaling
+    # with row count. See test_defect_trends.py for Phase 6's own bounded-query assertion.
+    assert query_count <= 20
 
 
 # ---------------------------------------------------------------------------

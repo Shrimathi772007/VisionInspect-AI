@@ -131,10 +131,17 @@ def test_analytics_summary_response_shape(client, qe_headers):
 
     for product in body["by_product"]:
         # `defective`/`defect_rate` are a Milestone 3 Phase 5 addition (ground-truth,
-        # independent of `ai_defective`) - see test_defect_analytics.py for their behavior.
+        # independent of `ai_defective`); `recent_defect_rate`/`recent_trend` are a Phase 6
+        # addition (windowed trend) - see test_defect_analytics.py / test_defect_trends.py
+        # for their behavior.
         assert set(product.keys()) == {
             "product_id", "product_name", "total", "ai_defective", "defective", "defect_rate",
+            "recent_defect_rate", "recent_trend",
         }
+
+    # Milestone 3 Phase 6 addition - see test_defect_trends.py for full trend_monitoring coverage.
+    assert isinstance(body["trend_monitoring"], dict)
+    assert set(body["trend_monitoring"].keys()) == {"period_days", "daily", "category_trends", "insights"}
 
 
 # ---------------------------------------------------------------------------
