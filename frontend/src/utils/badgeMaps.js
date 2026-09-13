@@ -138,3 +138,28 @@ export function qualityRiskLabel(risk) {
 export function qualityRiskTone(risk) {
   return QUALITY_RISK_TONES[risk] || "neutral";
 }
+
+// Quality decision (Milestone 3 Phase 3) - from the backend quality assessment engine
+// (app.inspections.quality). A fourth, independent conclusion - deliberately its own tone
+// set, not reused from AI_PREDICTION_*, STATUS_*, or SEVERITY_LEVEL_TONES, so it never
+// visually implies it is a copy of any of those.
+export const QUALITY_DECISION_LABELS = {
+  PASS: "PASS",
+  FAIL: "FAIL",
+  NOT_ASSESSED: "NOT ASSESSED",
+};
+
+export const QUALITY_DECISION_TONES = {
+  PASS: "success",
+  FAIL: "danger",
+  NOT_ASSESSED: "warning",
+};
+
+export function qualityDecisionLabel(decision) {
+  if (!decision) return "NOT ASSESSED";
+  return QUALITY_DECISION_LABELS[decision] || decision;
+}
+
+export function qualityDecisionTone(decision) {
+  return QUALITY_DECISION_TONES[decision] || "neutral";
+}

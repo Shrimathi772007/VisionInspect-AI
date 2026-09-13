@@ -60,6 +60,16 @@ class Inspection(Base):
     severity_level: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     quality_risk: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
 
+    # Quality assessment and recommendations (Milestone 3 Phase 3) - populated by
+    # app.inspections.service.apply_quality_assessment from app.inspections.quality.
+    # A fourth, independent conclusion derived FROM status/ai_prediction/defect_category/
+    # severity_level - never a copy of any one of them, and never written back to any of
+    # them. NULL means "not yet assessed" (should not occur once the creation flow below
+    # runs, but is possible for older rows).
+    quality_decision: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    quality_assessment: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    quality_recommendation: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
     product: Mapped["Product"] = relationship(back_populates="inspections")
     defects: Mapped[list["Defect"]] = relationship(
         back_populates="inspection", cascade="all, delete-orphan"

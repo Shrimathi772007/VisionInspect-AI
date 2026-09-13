@@ -26,6 +26,8 @@ import {
   severityTone,
   qualityRiskLabel,
   qualityRiskTone,
+  qualityDecisionLabel,
+  qualityDecisionTone,
 } from "../utils/badgeMaps";
 import { formatDateTime } from "../utils/formatDate";
 import styles from "./InspectionDetailPage.module.css";
@@ -277,6 +279,35 @@ export function InspectionDetailPage() {
               ) : (
                 <p className={styles.metaFallback}>Not assessed - insufficient evidence available</p>
               )}
+            </Card>
+
+            <Card className={styles.metaCard}>
+              <h2 className={styles.metaCardTitle}>Quality Assessment</h2>
+              <p className={styles.aiCaption}>
+                Deterministic decision derived from available inspection evidence.
+              </p>
+              <dl className={styles.metaList}>
+                <div className={styles.metaRow}>
+                  <dt>Decision</dt>
+                  <dd>
+                    <Badge tone={qualityDecisionTone(inspection.quality_decision)}>
+                      {qualityDecisionLabel(inspection.quality_decision)}
+                    </Badge>
+                  </dd>
+                </div>
+                {inspection.quality_assessment && (
+                  <div className={styles.metaRow}>
+                    <dt>Assessment</dt>
+                    <dd>{inspection.quality_assessment}</dd>
+                  </div>
+                )}
+                {inspection.quality_recommendation && (
+                  <div className={styles.metaRow}>
+                    <dt>Recommendation</dt>
+                    <dd>{inspection.quality_recommendation}</dd>
+                  </div>
+                )}
+              </dl>
             </Card>
 
             {inspection.source === "mvtec_ad" && (

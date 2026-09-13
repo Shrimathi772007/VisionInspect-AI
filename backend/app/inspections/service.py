@@ -1,9 +1,10 @@
 """Inspection business logic that sits between the router and the AI/storage layers.
 
-Home to best-effort AI inference and severity assessment for an already-created,
-already-committed inspection. Kept separate from app.ai.inference/app.inspections.severity
-so those packages stay framework/DB-free, and separate from the router so the same logic
-is not duplicated across the upload and import endpoints.
+Home to best-effort AI inference, severity assessment, and quality assessment for an
+already-created, already-committed inspection. Kept separate from app.ai.inference/
+app.inspections.severity/app.inspections.quality so those packages stay framework/DB-free,
+and separate from the router so the same logic is not duplicated across the upload and
+import endpoints.
 """
 
 import logging
@@ -13,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.ai.inference import predict_image
 from app.dataset.ground_truth import compute_defect_area_ratio
-from app.inspections import severity
+from app.inspections import quality, severity
 from app.inspections.storage import DATASET_ROOT, STORAGE_ROOT, resolve_image_path
 from app.models.inspection import Inspection, InspectionSource
 
@@ -133,5 +134,31 @@ def apply_severity_assessment(inspection: Inspection, db: Session) -> None:
     inspection.severity_score = result.score
     inspection.severity_level = result.level
     inspection.quality_risk = result.quality_risk
+    db.commit()
+    db.refresh(inspection)
+
+
+def apply_quality_assessment(inspection: Inspection, db: Session) -> None:
+    """Quality decision / assessment / recommendation for one already-persisted inspection.
+
+    Must run after run_ai_inference and apply_severity_assessment so it can reason about
+    their settled results (see app.inspections.quality's evidence-precedence rules) -
+    reads `status`, `ai_prediction`, `defect_category`, and `severity_level`, but never
+    writes to any of them: quality_decision/quality_assessment/quality_recommendation are
+    a separate, fourth conclusion, not a restatement of any single existing field.
+
+    Pure computation (app.inspections.quality.assess_quality never touches the filesystem,
+    a model, or the database), so like apply_severity_assessment there is nothing here
+    that can fail.
+    """
+    result = quality.assess_quality(
+        status=inspection.status,
+        ai_prediction=inspection.ai_prediction,
+        defect_category=inspection.defect_category,
+        severity_level=inspection.severity_level,
+    )
+    inspection.quality_decision = result.decision
+    inspection.quality_assessment = result.assessment
+    inspection.quality_recommendation = result.recommendation
     db.commit()
     db.refresh(inspection)
