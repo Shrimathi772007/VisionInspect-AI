@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Box, Hash, ImageOff, AlertCircle, Trash2 } from "lucide-react";
-import { deleteInspection, getInspection, getInspectionImageObjectUrl } from "../api/inspections";
+import {
+  deleteInspection,
+  getInspection,
+  getInspectionImageObjectUrl,
+  getInspectionReport,
+} from "../api/inspections";
 import { useProducts } from "../hooks/useProducts";
 import { ApiError } from "../api/client";
 import { useToast } from "../components/Toast/ToastProvider";
@@ -39,6 +44,7 @@ export function InspectionDetailPage() {
   const { showToast } = useToast();
 
   const [inspection, setInspection] = useState(null);
+  const [report, setReport] = useState(null);
   const [imageUrl, setImageUrl] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -54,10 +60,20 @@ export function InspectionDetailPage() {
       setIsLoading(true);
       setError(null);
       setImageError(null);
+      setReport(null);
       try {
         const data = await getInspection(id);
         if (isCancelled) return;
         setInspection(data);
+
+        // Best-effort: the production quality report (Milestone 3 Phase 4) only adds a
+        // summary on top of data already shown below, so its own failure must not block
+        // the rest of the page from rendering.
+        getInspectionReport(id)
+          .then((reportData) => {
+            if (!isCancelled) setReport(reportData);
+          })
+          .catch(() => {});
 
         try {
           const url = await getInspectionImageObjectUrl(id);
@@ -175,6 +191,32 @@ export function InspectionDetailPage() {
           </div>
 
           <div className={styles.sideColumn}>
+            <Card className={styles.metaCard}>
+              <h2 className={styles.metaCardTitle}>Production Quality Report</h2>
+              <p className={styles.aiCaption}>
+                Overall result restates the existing quality decision below - it is not a
+                separately computed outcome.
+              </p>
+              {report ? (
+                <dl className={styles.metaList}>
+                  <div className={styles.metaRow}>
+                    <dt>Overall Result</dt>
+                    <dd>
+                      <Badge tone={qualityDecisionTone(report.report_summary.overall_result)}>
+                        {qualityDecisionLabel(report.report_summary.overall_result)}
+                      </Badge>
+                    </dd>
+                  </div>
+                  <div className={styles.metaRow}>
+                    <dt>Summary</dt>
+                    <dd>{report.report_summary.summary}</dd>
+                  </div>
+                </dl>
+              ) : (
+                <Skeleton height={16} width="70%" />
+              )}
+            </Card>
+
             <Card className={styles.metaCard}>
               <h2 className={styles.metaCardTitle}>Inspection</h2>
               <dl className={styles.metaList}>

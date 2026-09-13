@@ -8,6 +8,10 @@ export function getInspection(id) {
   return apiFetch(`/inspections/${id}`);
 }
 
+export function getInspectionReport(id) {
+  return apiFetch(`/inspections/${id}/report`);
+}
+
 export function uploadInspection({ productId, file }) {
   const formData = new FormData();
   formData.append("product_id", String(productId));
