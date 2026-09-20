@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+import time
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -6,10 +8,20 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user, require_role
 from app.database import get_db
 from app.dataset.service import build_dataset_relative_path
-from app.inspections.analytics import InspectionAnalyticsSummary, get_inspection_analytics_summary
+from app.inspections.analytics import (
+    ALLOWED_WINDOW_DAYS,
+    TREND_WINDOW_DAYS,
+    InspectionAnalyticsSummary,
+    get_inspection_analytics_summary,
+)
 from app.inspections.report import build_production_quality_report
 from app.inspections.schemas import DatasetImportRequest, InspectionOut, ProductionQualityReport
-from app.inspections.service import apply_quality_assessment, apply_severity_assessment, run_ai_inference
+from app.inspections.service import (
+    apply_quality_assessment,
+    apply_severity_assessment,
+    record_processing_time,
+    run_ai_inference,
+)
 from app.inspections.storage import (
     DATASET_ROOT,
     STORAGE_ROOT,
@@ -26,14 +38,29 @@ router = APIRouter(prefix="/inspections", tags=["inspections"])
 
 @router.get("", response_model=list[InspectionOut])
 def list_inspections(
+    limit: int | None = Query(
+        default=None,
+        ge=1,
+        le=1000,
+        description="Return only the newest `limit` inspections (applied as a SQL LIMIT). "
+        "Omit to return every inspection, as before.",
+    ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return db.execute(select(Inspection).order_by(Inspection.created_at.desc())).scalars().all()
+    query = select(Inspection).order_by(Inspection.created_at.desc())
+    if limit is not None:
+        query = query.limit(limit)
+    return db.execute(query).scalars().all()
 
 
 @router.get("/analytics/summary", response_model=InspectionAnalyticsSummary)
 def get_analytics_summary(
+    days: int = Query(
+        default=TREND_WINDOW_DAYS,
+        description="Trailing window, in days, for the time-windowed sections (trend monitoring, "
+        f"per-product recent trend, performance metrics). One of {list(ALLOWED_WINDOW_DAYS)}.",
+    ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -42,7 +69,10 @@ def get_analytics_summary(
     Placed before the /{inspection_id} routes below so "analytics" is never
     mistaken for an inspection id.
     """
-    return get_inspection_analytics_summary(db)
+    try:
+        return get_inspection_analytics_summary(db, window_days=days)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
 
 
 @router.post("/upload", response_model=InspectionOut, status_code=status.HTTP_201_CREATED)
@@ -52,6 +82,10 @@ async def upload_inspection(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.quality_engineer)),
 ):
+    # Start of the server-side handling time recorded as Inspection.processing_time_ms (see
+    # app.models.inspection for exactly what it does and does not cover).
+    started_at = time.perf_counter()
+
     product = db.get(Product, product_id)
     if product is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
@@ -89,6 +123,9 @@ async def upload_inspection(
     # severity_level - see app.inspections.quality for the evidence-precedence rules.
     apply_quality_assessment(inspection, db)
 
+    # Last, so the recorded time covers everything above (see record_processing_time).
+    record_processing_time(inspection, db, started_at)
+
     return inspection
 
 
@@ -98,6 +135,8 @@ def import_dataset_inspection(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.quality_engineer)),
 ):
+    started_at = time.perf_counter()  # see upload_inspection
+
     product = db.get(Product, payload.product_id)
     if product is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
@@ -134,6 +173,9 @@ def import_dataset_inspection(
     # Quality assessment runs last so it can reason about the settled ai_prediction/
     # severity_level - see app.inspections.quality for the evidence-precedence rules.
     apply_quality_assessment(inspection, db)
+
+    # Last, so the recorded time covers everything above (see record_processing_time).
+    record_processing_time(inspection, db, started_at)
 
     return inspection
 

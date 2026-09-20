@@ -49,6 +49,12 @@ class InspectionOut(BaseModel):
     quality_assessment: Optional[str] = None
     quality_recommendation: Optional[str] = None
 
+    # Inspection performance instrumentation (Milestone 4) - measured wall-clock milliseconds
+    # (see app.models.inspection for exactly what each one covers). NULL means "not
+    # measured", e.g. every inspection recorded before this was added - never zero/estimated.
+    processing_time_ms: Optional[float] = None
+    ai_inference_time_ms: Optional[float] = None
+
     @model_validator(mode="before")
     @classmethod
     def extract_dataset_metadata(cls, data):
@@ -75,6 +81,8 @@ class InspectionOut(BaseModel):
             "quality_decision": data.quality_decision,
             "quality_assessment": data.quality_assessment,
             "quality_recommendation": data.quality_recommendation,
+            "processing_time_ms": data.processing_time_ms,
+            "ai_inference_time_ms": data.ai_inference_time_ms,
         }
 
         if data.source == InspectionSource.mvtec_ad and data.image_path:

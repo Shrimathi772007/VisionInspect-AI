@@ -14,6 +14,7 @@ import { Card } from "../components/Card/Card";
 import { Badge } from "../components/Badge/Badge";
 import { Button } from "../components/Button/Button";
 import { Skeleton } from "../components/Skeleton/Skeleton";
+import { ErrorState } from "../components/ErrorState/ErrorState";
 import { Modal } from "../components/Modal/Modal";
 import { RoleGate } from "../components/RoleGate/RoleGate";
 import { ImageViewer } from "../components/ImageViewer/ImageViewer";
@@ -33,8 +34,11 @@ import {
   qualityRiskTone,
   qualityDecisionLabel,
   qualityDecisionTone,
+  reportStatusLabel,
+  reportStatusTone,
 } from "../utils/badgeMaps";
 import { formatDateTime } from "../utils/formatDate";
+import { formatDuration } from "../utils/formatDuration";
 import styles from "./InspectionDetailPage.module.css";
 
 export function InspectionDetailPage() {
@@ -44,13 +48,39 @@ export function InspectionDetailPage() {
   const { showToast } = useToast();
 
   const [inspection, setInspection] = useState(null);
-  const [report, setReport] = useState(null);
   const [imageUrl, setImageUrl] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [imageError, setImageError] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // The production quality report (Milestone 3 Phase 4) only adds a summary on top of data shown
+  // in the cards below, so it loads independently: its failure must not block the rest of the
+  // page - but it is shown as a failure (with Retry), never as an endless loading placeholder.
+  const [reportToken, setReportToken] = useState(0);
+  const reportKey = `${id}:${reportToken}`;
+  const [reportResult, setReportResult] = useState({ key: null, report: null, error: null });
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    getInspectionReport(id)
+      .then((report) => {
+        if (!isCancelled) setReportResult({ key: reportKey, report, error: null });
+      })
+      .catch((err) => {
+        if (!isCancelled) setReportResult({ key: reportKey, report: null, error: err });
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [id, reportKey]);
+
+  const isReportLoading = reportResult.key !== reportKey;
+  const report = isReportLoading ? null : reportResult.report;
+  const reportError = isReportLoading ? null : reportResult.error;
 
   useEffect(() => {
     let cancelledImageUrl = null;
@@ -60,20 +90,10 @@ export function InspectionDetailPage() {
       setIsLoading(true);
       setError(null);
       setImageError(null);
-      setReport(null);
       try {
         const data = await getInspection(id);
         if (isCancelled) return;
         setInspection(data);
-
-        // Best-effort: the production quality report (Milestone 3 Phase 4) only adds a
-        // summary on top of data already shown below, so its own failure must not block
-        // the rest of the page from rendering.
-        getInspectionReport(id)
-          .then((reportData) => {
-            if (!isCancelled) setReport(reportData);
-          })
-          .catch(() => {});
 
         try {
           const url = await getInspectionImageObjectUrl(id);
@@ -195,9 +215,17 @@ export function InspectionDetailPage() {
               <h2 className={styles.metaCardTitle}>Production Quality Report</h2>
               <p className={styles.aiCaption}>
                 Overall result restates the existing quality decision below - it is not a
-                separately computed outcome.
+                separately computed outcome. Report status only says whether that assessment
+                exists; it is not a quality result.
               </p>
-              {report ? (
+              {isReportLoading && <Skeleton height={16} width="70%" />}
+              {reportError && (
+                <ErrorState
+                  message={reportError.message || "The report couldn't be loaded."}
+                  onRetry={() => setReportToken((token) => token + 1)}
+                />
+              )}
+              {report && (
                 <dl className={styles.metaList}>
                   <div className={styles.metaRow}>
                     <dt>Overall Result</dt>
@@ -208,12 +236,18 @@ export function InspectionDetailPage() {
                     </dd>
                   </div>
                   <div className={styles.metaRow}>
+                    <dt>Report status</dt>
+                    <dd>
+                      <Badge tone={reportStatusTone(report.report_summary.report_status)}>
+                        {reportStatusLabel(report.report_summary.report_status)}
+                      </Badge>
+                    </dd>
+                  </div>
+                  <div className={styles.metaRow}>
                     <dt>Summary</dt>
                     <dd>{report.report_summary.summary}</dd>
                   </div>
                 </dl>
-              ) : (
-                <Skeleton height={16} width="70%" />
               )}
             </Card>
 
@@ -252,6 +286,10 @@ export function InspectionDetailPage() {
                   <dt>Recorded</dt>
                   <dd>{formatDateTime(inspection.created_at)}</dd>
                 </div>
+                <div className={styles.metaRow}>
+                  <dt>Processing time</dt>
+                  <dd className={styles.mono}>{formatDuration(inspection.processing_time_ms) ?? "Not recorded"}</dd>
+                </div>
               </dl>
             </Card>
 
@@ -280,6 +318,12 @@ export function InspectionDetailPage() {
                     <div className={styles.metaRow}>
                       <dt>Model</dt>
                       <dd className={styles.mono}>{inspection.ai_model_name}</dd>
+                    </div>
+                    <div className={styles.metaRow}>
+                      <dt>AI analysis time</dt>
+                      <dd className={styles.mono}>
+                        {formatDuration(inspection.ai_inference_time_ms) ?? "Not recorded"}
+                      </dd>
                     </div>
                   </dl>
                 </>

@@ -1,7 +1,12 @@
 import { apiFetch } from "./client";
 
-export function listInspections() {
-  return apiFetch("/inspections");
+/**
+ * @param {{ limit?: number }} [options] `limit` asks the backend for only the newest N
+ *   inspections (a SQL LIMIT). Omitted, every inspection is returned, as before.
+ */
+export function listInspections({ limit } = {}) {
+  const query = limit ? `?limit=${encodeURIComponent(limit)}` : "";
+  return apiFetch(`/inspections${query}`);
 }
 
 export function getInspection(id) {

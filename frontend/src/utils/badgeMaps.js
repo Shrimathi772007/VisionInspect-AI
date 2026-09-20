@@ -163,3 +163,24 @@ export function qualityDecisionLabel(decision) {
 export function qualityDecisionTone(decision) {
   return QUALITY_DECISION_TONES[decision] || "neutral";
 }
+
+// Production quality report completeness (Milestone 3 Phase 4 `report_summary.report_status`).
+// This is whether the quality assessment behind the report exists - NOT a product quality
+// outcome - so it deliberately uses its own vocabulary and tones, never PASS/FAIL's.
+export const REPORT_STATUS_LABELS = {
+  COMPLETE: "Complete",
+  PARTIAL: "Partial",
+};
+
+export const REPORT_STATUS_TONES = {
+  COMPLETE: "success",
+  PARTIAL: "warning",
+};
+
+export function reportStatusLabel(status) {
+  return REPORT_STATUS_LABELS[status] || status || "Unknown";
+}
+
+export function reportStatusTone(status) {
+  return REPORT_STATUS_TONES[status] || "neutral";
+}

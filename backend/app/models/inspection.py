@@ -70,6 +70,24 @@ class Inspection(Base):
     quality_assessment: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     quality_recommendation: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
+    # Inspection performance instrumentation (Milestone 4) - real, measured wall-clock times
+    # in milliseconds, recorded once per inspection by app.inspections.service. NULL means
+    # "not measured" (every inspection created before these columns existed, and any run
+    # where the measured step did not happen) - never a stand-in for zero and never
+    # backfilled with an estimate.
+    #
+    # processing_time_ms: the server-side handling time of the inspection request, from the
+    #   start of the upload/import endpoint handler to the end of quality assessment. It
+    #   covers image storage (uploads), the database insert, the AI inference attempt,
+    #   severity assessment and quality assessment. It does NOT cover receiving/parsing the
+    #   request body (done by FastAPI before the handler runs) or serializing the response.
+    # ai_inference_time_ms: the time reported by app.ai.inference.predict_image for this
+    #   inspection (PredictionResult.processing_time_ms) - i.e. everything that call does,
+    #   including loading the model and deriving the threshold. NULL whenever no AI
+    #   prediction ran (uploads have no MVTec category, so they never get one today).
+    processing_time_ms: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    ai_inference_time_ms: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
     product: Mapped["Product"] = relationship(back_populates="inspections")
     defects: Mapped[list["Defect"]] = relationship(
         back_populates="inspection", cascade="all, delete-orphan"

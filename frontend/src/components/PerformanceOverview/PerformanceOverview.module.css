@@ -1,0 +1,15 @@
+/* Wider minimum than the plain stat grid: several tiles here hold a range ("8.2 ms - 10.1 s") or a
+   ratio ("144 / 1675") that must not break across two lines. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.footnote {
+  margin: 0 0 var(--space-6);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--color-text-tertiary);
+}

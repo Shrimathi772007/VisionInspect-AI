@@ -8,6 +8,7 @@ import endpoints.
 """
 
 import logging
+import time
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -97,6 +98,10 @@ def run_ai_inference(inspection: Inspection, db: Session) -> None:
     inspection.ai_reconstruction_error = result.reconstruction_error
     inspection.ai_threshold = result.threshold
     inspection.ai_model_name = result.model_name
+    # The time predict_image itself measured for this call (model load + preprocessing +
+    # inference + threshold derivation) - recorded only on this success path, so it stays
+    # NULL whenever no AI prediction actually ran.
+    inspection.ai_inference_time_ms = result.processing_time_ms
     db.commit()
     db.refresh(inspection)
 
@@ -162,3 +167,26 @@ def apply_quality_assessment(inspection: Inspection, db: Session) -> None:
     inspection.quality_recommendation = result.recommendation
     db.commit()
     db.refresh(inspection)
+
+
+def record_processing_time(inspection: Inspection, db: Session, started_at: float) -> None:
+    """Persist the measured server-side handling time of one inspection request.
+
+    `started_at` is a time.perf_counter() reading taken by the endpoint handler when it
+    began working on the inspection; the elapsed time to "now" is stored in milliseconds as
+    Inspection.processing_time_ms. Called last, after quality assessment, so the figure
+    covers everything the handler did for this inspection (see app.models.inspection for
+    exactly what is and is not included).
+
+    Never raises: like the other post-persist steps, a failure to record a timing is logged
+    and swallowed rather than allowed to fail an inspection that is already safely saved -
+    the column simply stays NULL ("not measured") rather than getting a made-up value.
+    """
+    elapsed_ms = (time.perf_counter() - started_at) * 1000
+    try:
+        inspection.processing_time_ms = elapsed_ms
+        db.commit()
+        db.refresh(inspection)
+    except Exception as exc:  # noqa: BLE001 - timing persistence must never break inspection creation
+        db.rollback()
+        logger.warning("Could not record processing time for inspection %s: %s", inspection.id, exc)

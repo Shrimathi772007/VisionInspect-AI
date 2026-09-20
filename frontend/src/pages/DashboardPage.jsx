@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Box,
@@ -29,8 +30,11 @@ import { Card } from "../components/Card/Card";
 import { Badge } from "../components/Badge/Badge";
 import { Button } from "../components/Button/Button";
 import { EmptyState } from "../components/EmptyState/EmptyState";
+import { ErrorState, Unavailable } from "../components/ErrorState/ErrorState";
 import { Skeleton } from "../components/Skeleton/Skeleton";
 import { RoleGate } from "../components/RoleGate/RoleGate";
+import { RangeSelector } from "../components/RangeSelector/RangeSelector";
+import { PerformanceOverview } from "../components/PerformanceOverview/PerformanceOverview";
 import { ActivityChart } from "../components/ActivityChart/ActivityChart";
 import { DistributionBar } from "../components/DistributionBar/DistributionBar";
 import { TrendChart } from "../components/TrendChart/TrendChart";
@@ -49,8 +53,20 @@ import styles from "./DashboardPage.module.css";
 
 const MAX_VISIBLE_PRODUCTS = 6;
 
+// The dashboard only ever shows the newest few inspections, so it asks the backend for exactly
+// that many (a SQL LIMIT) instead of downloading every inspection ever recorded.
 const RECENT_COUNT = 5;
-const WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Trailing windows the backend supports for the time-windowed sections (see
+// app.inspections.analytics.ALLOWED_WINDOW_DAYS); 14 is its default.
+const DEFAULT_WINDOW_DAYS = 14;
+const WINDOW_OPTIONS = [
+  { value: 7, label: "7 days" },
+  { value: 14, label: "14 days" },
+  { value: 30, label: "30 days" },
+];
+
+const DAYS_PER_WEEK = 7;
 
 // Milestone 3 Phase 6 - category-trend bars need a distinct tone per tracked category.
 // "success" is deliberately excluded here: these are always real DEFECT categories (the
@@ -72,18 +88,15 @@ function buildCategoryTrendDays(categoryTrends) {
   return days;
 }
 
-function computeTrend(inspections, predicate) {
-  const now = Date.now();
-  let current = 0;
-  let previous = 0;
+// Week-over-week chip for a stat card, from the backend's own per-day activity series
+// (oldest -> newest): the newest 7 days against the 7 before. Returns null - no chip - when the
+// series is too short to compare, rather than guessing.
+function computeWeeklyTrend(activityDays, key) {
+  if (!activityDays || activityDays.length < DAYS_PER_WEEK * 2) return null;
 
-  inspections.forEach((inspection) => {
-    if (predicate && !predicate(inspection)) return;
-    const age = now - new Date(inspection.created_at).getTime();
-    if (age < 0) return;
-    if (age <= WINDOW_MS) current += 1;
-    else if (age <= WINDOW_MS * 2) previous += 1;
-  });
+  const sum = (days) => days.reduce((total, day) => total + (day[key] || 0), 0);
+  const current = sum(activityDays.slice(-DAYS_PER_WEEK));
+  const previous = sum(activityDays.slice(-DAYS_PER_WEEK * 2, -DAYS_PER_WEEK));
 
   if (previous === 0) {
     if (current === 0) return { direction: "flat", label: "" };
@@ -98,33 +111,41 @@ function computeTrend(inspections, predicate) {
   };
 }
 
-function AnalyticsErrorBlock({ onRetry }) {
-  return (
-    <div className={styles.aiError}>
-      <p>Analytics data unavailable.</p>
-      <Button size="sm" variant="secondary" onClick={onRetry}>
-        Retry
-      </Button>
-    </div>
-  );
-}
+const errorMessage = (error, fallback) => (error && error.message ? error.message : fallback);
 
 export function DashboardPage() {
   const { user } = useAuth();
-  const { products, isLoading: productsLoading, getProductById } = useProducts();
-  const { inspections, isLoading: inspectionsLoading } = useInspections();
-  const { data: analytics, isLoading: analyticsLoading, error: analyticsError, refetch: refetchAnalytics } =
-    useAnalyticsSummary();
+  const [days, setDays] = useState(DEFAULT_WINDOW_DAYS);
 
-  const recentInspections = inspections.slice(0, RECENT_COUNT);
+  // Three independent data sources: each has its own loading and error state, and each section
+  // below depends only on the source(s) it actually uses.
+  const { products, isLoading: productsLoading, error: productsError, getProductById } = useProducts();
+  const {
+    inspections: recentInspections,
+    isLoading: recentLoading,
+    error: recentError,
+    refetch: refetchRecent,
+  } = useInspections({ limit: RECENT_COUNT });
+  const {
+    data: analytics,
+    isLoading: analyticsLoading,
+    isRefreshing: analyticsRefreshing,
+    error: analyticsError,
+    refetch: refetchAnalytics,
+  } = useAnalyticsSummary({ days });
+
+  const analyticsFailed = !analyticsLoading && Boolean(analyticsError);
+  const analyticsReady = !analyticsLoading && !analyticsError && Boolean(analytics);
+
   const aiAnalyzedCount = analytics?.ai_analyzed_count ?? 0;
   const aiDefectRate = analytics?.ai_defect_rate;
   const aiGoodCount = analytics?.ai_prediction_counts?.good ?? 0;
   const aiDefectiveCount = analytics?.ai_prediction_counts?.defective ?? 0;
   const firstName = user?.name?.split(" ")[0];
 
-  const inspectionsTrend = computeTrend(inspections);
-  const pendingTrend = computeTrend(inspections, (i) => i.status === "pending");
+  const activityDays = analytics?.activity_by_day ?? [];
+  const inspectionsTrend = computeWeeklyTrend(activityDays, "total");
+  const pendingTrend = computeWeeklyTrend(activityDays, "pending");
 
   const trendMonitoring = analytics?.trend_monitoring;
   const trendDaily = trendMonitoring?.daily ?? [];
@@ -136,7 +157,7 @@ export function DashboardPage() {
     tone: CATEGORY_TREND_TONES[index % CATEGORY_TREND_TONES.length],
   }));
   const trendInsights = trendMonitoring?.insights ?? [];
-  const trendPeriodDays = trendMonitoring?.period_days ?? 14;
+  const trendPeriodDays = trendMonitoring?.period_days ?? days;
 
   return (
     <div>
@@ -153,29 +174,52 @@ export function DashboardPage() {
         }
       />
 
+      {analyticsFailed && (
+        <ErrorState
+          variant="banner"
+          title="Analytics couldn't be loaded"
+          message={errorMessage(analyticsError, "Something went wrong while loading analytics.")}
+          onRetry={refetchAnalytics}
+        />
+      )}
+
       <div className={styles.statsGrid}>
-        <StatCard icon={Box} label="Products" value={products.length} loading={productsLoading} tone="accent" />
+        <StatCard
+          icon={Box}
+          label="Products"
+          value={products.length}
+          loading={productsLoading}
+          error={Boolean(productsError)}
+          note="Registered"
+          tone="accent"
+        />
         <StatCard
           icon={ScanEye}
           label="Inspections"
-          value={inspections.length}
-          loading={inspectionsLoading}
+          value={analytics?.total_inspections ?? 0}
+          loading={analyticsLoading}
+          error={analyticsFailed}
+          note="All time"
           tone="info"
-          trend={inspectionsLoading ? null : inspectionsTrend}
+          trend={analyticsReady ? inspectionsTrend : null}
         />
         <StatCard
           icon={Clock}
           label="Pending review"
-          value={inspections.filter((i) => i.status === "pending").length}
-          loading={inspectionsLoading}
+          value={analytics?.by_status?.pending ?? 0}
+          loading={analyticsLoading}
+          error={analyticsFailed}
+          note="No ground truth yet"
           tone="warning"
-          trend={inspectionsLoading ? null : pendingTrend}
+          trend={analyticsReady ? pendingTrend : null}
         />
         <StatCard
           icon={Cpu}
           label="AI analyzed"
           value={aiAnalyzedCount}
           loading={analyticsLoading}
+          error={analyticsFailed}
+          note="All time"
           tone="info"
         />
         <StatCard
@@ -183,6 +227,8 @@ export function DashboardPage() {
           label="AI defect rate"
           value={aiDefectRate == null ? "No data" : `${(aiDefectRate * 100).toFixed(1)}%`}
           loading={analyticsLoading}
+          error={analyticsFailed}
+          note="Of AI-analyzed inspections"
           tone="warning"
         />
       </div>
@@ -190,13 +236,11 @@ export function DashboardPage() {
       <Card className={styles.activityCard}>
         <div className={styles.cardHeader}>
           <h2 className={styles.cardTitle}>Inspection activity</h2>
-          <span className={styles.cardSubtitle}>Last 14 days</span>
+          <span className={styles.cardSubtitle}>Last {activityDays.length || 14} days</span>
         </div>
-        {inspectionsLoading ? (
-          <Skeleton variant="block" height={160} />
-        ) : (
-          <ActivityChart inspections={inspections} />
-        )}
+        {analyticsLoading && <Skeleton variant="block" height={160} />}
+        {analyticsFailed && <Unavailable />}
+        {analyticsReady && <ActivityChart days={activityDays} />}
       </Card>
 
       <Card className={styles.aiCard}>
@@ -207,16 +251,9 @@ export function DashboardPage() {
 
         {analyticsLoading && <Skeleton variant="block" height={56} />}
 
-        {!analyticsLoading && analyticsError && (
-          <div className={styles.aiError}>
-            <p>AI monitoring data unavailable.</p>
-            <Button size="sm" variant="secondary" onClick={refetchAnalytics}>
-              Retry
-            </Button>
-          </div>
-        )}
+        {analyticsFailed && <Unavailable />}
 
-        {!analyticsLoading && !analyticsError && aiAnalyzedCount === 0 && (
+        {analyticsReady && aiAnalyzedCount === 0 && (
           <EmptyState
             icon={Cpu}
             title="No AI predictions yet"
@@ -224,7 +261,7 @@ export function DashboardPage() {
           />
         )}
 
-        {!analyticsLoading && !analyticsError && aiAnalyzedCount > 0 && (
+        {analyticsReady && aiAnalyzedCount > 0 && (
           <div className={styles.aiDistribution}>
             <div className={styles.aiBar}>
               <div
@@ -257,6 +294,7 @@ export function DashboardPage() {
           label="Good (ground truth)"
           value={analytics?.by_status?.good ?? 0}
           loading={analyticsLoading}
+          error={analyticsFailed}
           tone="success"
         />
         <StatCard
@@ -264,6 +302,7 @@ export function DashboardPage() {
           label="Defective (ground truth)"
           value={analytics?.by_status?.defective ?? 0}
           loading={analyticsLoading}
+          error={analyticsFailed}
           tone="danger"
         />
         <StatCard
@@ -271,6 +310,7 @@ export function DashboardPage() {
           label="Pending (no ground truth yet)"
           value={analytics?.by_status?.pending ?? 0}
           loading={analyticsLoading}
+          error={analyticsFailed}
           tone="warning"
         />
       </div>
@@ -282,10 +322,10 @@ export function DashboardPage() {
             <span className={styles.cardSubtitle}>MVTec ground truth</span>
           </div>
           {analyticsLoading && <Skeleton variant="block" height={56} />}
-          {!analyticsLoading && analyticsError && <AnalyticsErrorBlock onRetry={refetchAnalytics} />}
-          {!analyticsLoading && !analyticsError && (
+          {analyticsFailed && <Unavailable />}
+          {analyticsReady && (
             <DistributionBar
-              segments={(analytics?.defect_categories ?? []).map((entry) => ({
+              segments={(analytics.defect_categories ?? []).map((entry) => ({
                 key: entry.category ?? "uncategorized",
                 label: defectCategoryLabel(entry.category),
                 count: entry.count,
@@ -304,10 +344,10 @@ export function DashboardPage() {
             <span className={styles.cardSubtitle}>Phase 3 quality engine</span>
           </div>
           {analyticsLoading && <Skeleton variant="block" height={56} />}
-          {!analyticsLoading && analyticsError && <AnalyticsErrorBlock onRetry={refetchAnalytics} />}
-          {!analyticsLoading && !analyticsError && (
+          {analyticsFailed && <Unavailable />}
+          {analyticsReady && (
             <DistributionBar
-              segments={(analytics?.quality_decisions ?? []).map((entry) => ({
+              segments={(analytics.quality_decisions ?? []).map((entry) => ({
                 key: entry.decision,
                 label: qualityDecisionLabel(entry.decision),
                 count: entry.count,
@@ -326,10 +366,10 @@ export function DashboardPage() {
             <span className={styles.cardSubtitle}>Phase 2 severity engine</span>
           </div>
           {analyticsLoading && <Skeleton variant="block" height={56} />}
-          {!analyticsLoading && analyticsError && <AnalyticsErrorBlock onRetry={refetchAnalytics} />}
-          {!analyticsLoading && !analyticsError && (
+          {analyticsFailed && <Unavailable />}
+          {analyticsReady && (
             <DistributionBar
-              segments={(analytics?.severity_distribution ?? []).map((entry) => ({
+              segments={(analytics.severity_distribution ?? []).map((entry) => ({
                 key: entry.level,
                 label: severityLabel(entry.level),
                 count: entry.count,
@@ -354,15 +394,15 @@ export function DashboardPage() {
               ))}
             </div>
           )}
-          {!analyticsLoading && analyticsError && <AnalyticsErrorBlock onRetry={refetchAnalytics} />}
-          {!analyticsLoading && !analyticsError && (analytics?.by_product?.length ?? 0) === 0 && (
+          {analyticsFailed && <Unavailable />}
+          {analyticsReady && (analytics.by_product?.length ?? 0) === 0 && (
             <EmptyState
               icon={Box}
               title="No product data yet"
               description="Product quality statistics appear once inspections are recorded."
             />
           )}
-          {!analyticsLoading && !analyticsError && (analytics?.by_product?.length ?? 0) > 0 && (
+          {analyticsReady && (analytics.by_product?.length ?? 0) > 0 && (
             <div className={styles.productList}>
               {analytics.by_product.slice(0, MAX_VISIBLE_PRODUCTS).map((product) => (
                 <div key={product.product_id} className={styles.productRow}>
@@ -388,112 +428,142 @@ export function DashboardPage() {
                   </div>
                 </div>
               ))}
-              {analytics.by_product.length > MAX_VISIBLE_PRODUCTS && (
-                <p className={styles.productListNote}>
-                  Showing the {MAX_VISIBLE_PRODUCTS} highest-volume products of {analytics.by_product.length}.
-                </p>
-              )}
+              <p className={styles.productListNote}>
+                Percentages are all-time; arrows compare the last {trendPeriodDays} days with the previous{" "}
+                {trendPeriodDays}.
+                {analytics.by_product.length > MAX_VISIBLE_PRODUCTS &&
+                  ` Showing the ${MAX_VISIBLE_PRODUCTS} highest-volume products of ${analytics.by_product.length}.`}
+              </p>
             </div>
           )}
         </Card>
       </div>
 
-      <div className={styles.analyticsSectionHeader}>
-        <h2 className={styles.analyticsSectionTitle}>Historical Trend Monitoring</h2>
-        <p className={styles.analyticsSectionSubtitle}>
-          Last {trendPeriodDays} days, compared with the previous {trendPeriodDays}-day period.
-        </p>
+      <div className={styles.trendHeader}>
+        <div>
+          <h2 className={styles.analyticsSectionTitle}>Trends &amp; Performance</h2>
+          <p className={styles.analyticsSectionSubtitle}>
+            Last {trendPeriodDays} days, compared with the previous {trendPeriodDays}-day period.
+          </p>
+        </div>
+        <div className={styles.trendControls}>
+          {analyticsRefreshing && (
+            <span className={styles.updating} role="status">
+              Updating&hellip;
+            </span>
+          )}
+          <RangeSelector label="Time range" value={days} options={WINDOW_OPTIONS} onChange={setDays} />
+        </div>
       </div>
 
-      <Card className={styles.activityCard}>
-        <div className={styles.cardHeader}>
-          <h2 className={styles.cardTitle}>Inspection &amp; Quality Trend</h2>
-          <span className={styles.cardSubtitle}>Ground truth, last {trendPeriodDays} days</span>
+      <div className={analyticsRefreshing ? styles.refreshing : undefined} aria-busy={analyticsRefreshing}>
+        <div className={styles.subsectionHeader}>
+          <h3 className={styles.subsectionTitle}>Inspection performance</h3>
+          <p className={styles.analyticsSectionSubtitle}>
+            Server-side processing time and AI analysis coverage over the last {trendPeriodDays} days.
+          </p>
         </div>
-        {analyticsLoading && <Skeleton variant="block" height={160} />}
-        {!analyticsLoading && analyticsError && <AnalyticsErrorBlock onRetry={refetchAnalytics} />}
-        {!analyticsLoading && !analyticsError && (
-          <TrendChart
-            days={trendDaily}
-            series={[
-              { key: "good", label: "Good", tone: "success" },
-              { key: "defective", label: "Defective", tone: "danger" },
-              { key: "pending", label: "Pending", tone: "warning" },
-            ]}
-            emptyIcon={Activity}
-            emptyTitle="No trend data available"
-            emptyDescription="Historical trends appear once inspections are recorded."
-          />
-        )}
-      </Card>
+        <PerformanceOverview
+          performance={analytics?.performance}
+          isLoading={analyticsLoading}
+          error={analyticsFailed}
+        />
 
-      <div className={styles.analyticsGrid}>
-        <Card className={styles.analyticsCard}>
+        <Card className={styles.activityCard}>
           <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Defect Category Trend</h2>
-            <span className={styles.cardSubtitle}>Top {categoryTrends.length || 0} categories by volume</span>
+            <h2 className={styles.cardTitle}>Inspection &amp; Quality Trend</h2>
+            <span className={styles.cardSubtitle}>Ground truth, last {trendPeriodDays} days</span>
           </div>
-          {analyticsLoading && <Skeleton variant="block" height={56} />}
-          {!analyticsLoading && analyticsError && <AnalyticsErrorBlock onRetry={refetchAnalytics} />}
-          {!analyticsLoading && !analyticsError && (
-            <TrendChart
-              days={categoryTrendDays}
-              series={categoryTrendSeries}
-              emptyIcon={Layers}
-              emptyTitle="No category trend data"
-              emptyDescription="Category trends appear once categorized defects are recorded in this window."
-            />
-          )}
-        </Card>
-
-        <Card className={styles.analyticsCard}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Quality Decision Trend</h2>
-            <span className={styles.cardSubtitle}>PASS / FAIL / NOT ASSESSED</span>
-          </div>
-          {analyticsLoading && <Skeleton variant="block" height={56} />}
-          {!analyticsLoading && analyticsError && <AnalyticsErrorBlock onRetry={refetchAnalytics} />}
-          {!analyticsLoading && !analyticsError && (
+          {analyticsLoading && <Skeleton variant="block" height={160} />}
+          {analyticsFailed && <Unavailable />}
+          {analyticsReady && (
             <TrendChart
               days={trendDaily}
               series={[
-                { key: "quality_pass", label: "PASS", tone: "success" },
-                { key: "quality_fail", label: "FAIL", tone: "danger" },
-                { key: "quality_not_assessed", label: "Not assessed", tone: "warning" },
+                { key: "good", label: "Good", tone: "success" },
+                { key: "defective", label: "Defective", tone: "danger" },
+                { key: "pending", label: "Pending", tone: "warning" },
               ]}
-              emptyIcon={ShieldCheck}
-              emptyTitle="No quality decision trend data"
-              emptyDescription="Quality decision trends appear once inspections are recorded in this window."
+              ariaLabel="Inspection ground-truth trend"
+              emptyIcon={Activity}
+              emptyTitle="No trend data available"
+              emptyDescription="Historical trends appear once inspections are recorded."
             />
           )}
         </Card>
-      </div>
 
-      <Card className={styles.insightsCard}>
-        <div className={styles.cardHeader}>
-          <h2 className={styles.cardTitle}>Trend Insights</h2>
-          <span className={styles.cardSubtitle}>Historical observations, last {trendPeriodDays} vs previous {trendPeriodDays} days</span>
+        <div className={styles.analyticsGrid}>
+          <Card className={styles.analyticsCard}>
+            <div className={styles.cardHeader}>
+              <h2 className={styles.cardTitle}>Defect Category Trend</h2>
+              <span className={styles.cardSubtitle}>Top {categoryTrends.length || 0} categories by volume</span>
+            </div>
+            {analyticsLoading && <Skeleton variant="block" height={56} />}
+            {analyticsFailed && <Unavailable />}
+            {analyticsReady && (
+              <TrendChart
+                days={categoryTrendDays}
+                series={categoryTrendSeries}
+                ariaLabel="Defect category trend"
+                emptyIcon={Layers}
+                emptyTitle="No category trend data"
+                emptyDescription="Category trends appear once categorized defects are recorded in this window."
+              />
+            )}
+          </Card>
+
+          <Card className={styles.analyticsCard}>
+            <div className={styles.cardHeader}>
+              <h2 className={styles.cardTitle}>Quality Decision Trend</h2>
+              <span className={styles.cardSubtitle}>PASS / FAIL / NOT ASSESSED</span>
+            </div>
+            {analyticsLoading && <Skeleton variant="block" height={56} />}
+            {analyticsFailed && <Unavailable />}
+            {analyticsReady && (
+              <TrendChart
+                days={trendDaily}
+                series={[
+                  { key: "quality_pass", label: "PASS", tone: "success" },
+                  { key: "quality_fail", label: "FAIL", tone: "danger" },
+                  { key: "quality_not_assessed", label: "Not assessed", tone: "warning" },
+                ]}
+                ariaLabel="Quality decision trend"
+                emptyIcon={ShieldCheck}
+                emptyTitle="No quality decision trend data"
+                emptyDescription="Quality decision trends appear once inspections are recorded in this window."
+              />
+            )}
+          </Card>
         </div>
-        {analyticsLoading && <Skeleton variant="block" height={56} />}
-        {!analyticsLoading && analyticsError && <AnalyticsErrorBlock onRetry={refetchAnalytics} />}
-        {!analyticsLoading && !analyticsError && trendInsights.length === 0 && (
-          <EmptyState
-            icon={History}
-            title="Insufficient historical data"
-            description="Trend insights appear once there is enough historical data to compare periods."
-          />
-        )}
-        {!analyticsLoading && !analyticsError && trendInsights.length > 0 && (
-          <ul className={styles.insightsList}>
-            {trendInsights.map((insight) => (
-              <li key={insight.type} className={styles.insightItem}>
-                <History size={14} strokeWidth={1.75} aria-hidden="true" />
-                <span>{insight.message}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+
+        <Card className={styles.insightsCard}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>Trend Insights</h2>
+            <span className={styles.cardSubtitle}>
+              Historical observations, last {trendPeriodDays} vs previous {trendPeriodDays} days
+            </span>
+          </div>
+          {analyticsLoading && <Skeleton variant="block" height={56} />}
+          {analyticsFailed && <Unavailable />}
+          {analyticsReady && trendInsights.length === 0 && (
+            <EmptyState
+              icon={History}
+              title="Insufficient historical data"
+              description="Trend insights appear once there is enough historical data to compare periods."
+            />
+          )}
+          {analyticsReady && trendInsights.length > 0 && (
+            <ul className={styles.insightsList}>
+              {trendInsights.map((insight) => (
+                <li key={insight.type} className={styles.insightItem}>
+                  <History size={14} strokeWidth={1.75} aria-hidden="true" />
+                  <span>{insight.message}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
 
       <Card className={styles.insightsCard}>
         <div className={styles.cardHeader}>
@@ -501,15 +571,15 @@ export function DashboardPage() {
           <span className={styles.cardSubtitle}>Deterministic, evidence-based observations</span>
         </div>
         {analyticsLoading && <Skeleton variant="block" height={56} />}
-        {!analyticsLoading && analyticsError && <AnalyticsErrorBlock onRetry={refetchAnalytics} />}
-        {!analyticsLoading && !analyticsError && (analytics?.operational_insights?.length ?? 0) === 0 && (
+        {analyticsFailed && <Unavailable />}
+        {analyticsReady && (analytics.operational_insights?.length ?? 0) === 0 && (
           <EmptyState
             icon={Lightbulb}
             title="No insights yet"
             description="Insights appear once there is enough inspection data to summarize."
           />
         )}
-        {!analyticsLoading && !analyticsError && (analytics?.operational_insights?.length ?? 0) > 0 && (
+        {analyticsReady && (analytics.operational_insights?.length ?? 0) > 0 && (
           <ul className={styles.insightsList}>
             {analytics.operational_insights.map((insight) => (
               <li key={insight.type} className={styles.insightItem}>
@@ -530,7 +600,7 @@ export function DashboardPage() {
             </Link>
           </div>
 
-          {inspectionsLoading && (
+          {recentLoading && (
             <div className={styles.recentList}>
               {[1, 2, 3].map((key) => (
                 <div key={key} className={styles.recentRow}>
@@ -544,7 +614,14 @@ export function DashboardPage() {
             </div>
           )}
 
-          {!inspectionsLoading && recentInspections.length === 0 && (
+          {!recentLoading && recentError && (
+            <ErrorState
+              message={errorMessage(recentError, "Couldn't load recent inspections.")}
+              onRetry={refetchRecent}
+            />
+          )}
+
+          {!recentLoading && !recentError && recentInspections.length === 0 && (
             <EmptyState
               icon={ScanEye}
               title="No inspections yet"
@@ -559,7 +636,7 @@ export function DashboardPage() {
             />
           )}
 
-          {!inspectionsLoading && recentInspections.length > 0 && (
+          {!recentLoading && !recentError && recentInspections.length > 0 && (
             <div className={styles.recentList}>
               {recentInspections.map((inspection) => {
                 const product = getProductById(inspection.product_id);

@@ -8,4 +8,10 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
   },
+  // Vitest (dev-only): component tests render into jsdom; nothing here affects the production build.
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.js'],
+    include: ['src/**/*.test.{js,jsx}'],
+  },
 })
