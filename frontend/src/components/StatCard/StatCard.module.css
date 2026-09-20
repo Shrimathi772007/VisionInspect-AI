@@ -60,6 +60,18 @@
   flex-wrap: wrap;
 }
 
+.muted {
+  color: var(--color-text-tertiary);
+}
+
+.note {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--color-text-tertiary);
+  overflow-wrap: anywhere;
+}
+
 .trend {
   display: inline-flex;
   align-items: center;

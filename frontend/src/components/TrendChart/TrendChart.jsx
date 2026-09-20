@@ -2,21 +2,42 @@ import { useMemo, useState } from "react";
 import { EmptyState } from "../EmptyState/EmptyState";
 import styles from "./TrendChart.module.css";
 
+const formatDay = (isoDate) =>
+  new Date(`${isoDate}T00:00:00Z`).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+
+/**
+ * Keeps the tooltip inside the chart: near either end it is anchored to that end instead of
+ * being centred on its bar, which would push it past the card edge on a narrow screen.
+ */
+function tooltipPosition(index, count) {
+  const barWidth = 100 / count;
+  if (index < count * 0.2) return { left: `${index * barWidth}%` };
+  if (index >= count * 0.8) return { right: `${(count - index - 1) * barWidth}%` };
+  return { left: `${(index + 0.5) * barWidth}%`, transform: "translateX(-50%)" };
+}
+
 /**
  * A stacked daily bar chart driven by pre-aggregated backend data - the same stacked-bar
  * visual idiom as ActivityChart (Milestone 2), generalized to any set of named series over
  * any pre-bucketed `days` array, so it can render the Milestone 3 Phase 6 trend_monitoring
  * series (ground truth, AI, quality decisions, defect categories) without a new chart
- * library. Unlike ActivityChart, this never buckets raw inspections itself - the backend
- * has already done that (see app.inspections.analytics), so the same day boundaries the
- * API used are the ones rendered here.
+ * library. It never buckets raw inspections itself - the backend has already done that (see
+ * app.inspections.analytics), so the same day boundaries the API used are the ones rendered.
  *
  * `days`: [{ date: "YYYY-MM-DD", [seriesKey]: number, ... }]
  * `series`: [{ key, label, tone }] - `tone` matches Badge/DistributionBar's tone
  * vocabulary (success/danger/warning/info/accent/neutral).
+ *
+ * Reading a day's values works with a mouse (hover) and by touch (tap): each bar has a click
+ * handler, which is also what makes iOS deliver taps as mouse events at all. The plot as a
+ * whole carries a text summary for assistive technology, since the bars are plain divs.
  */
-export function TrendChart({ days, series, emptyIcon, emptyTitle, emptyDescription }) {
-  const [hoverIndex, setHoverIndex] = useState(null);
+export function TrendChart({ days, series, emptyIcon, emptyTitle, emptyDescription, ariaLabel }) {
+  const [activeIndex, setActiveIndex] = useState(null);
 
   const dayTotals = useMemo(
     () => days.map((day) => series.reduce((sum, s) => sum + (day[s.key] || 0), 0)),
@@ -30,7 +51,13 @@ export function TrendChart({ days, series, emptyIcon, emptyTitle, emptyDescripti
 
   const maxTotal = Math.max(1, ...dayTotals);
   const barWidth = 100 / days.length;
-  const hovered = hoverIndex !== null ? days[hoverIndex] : null;
+  const active = activeIndex !== null ? days[activeIndex] : null;
+  const midIndex = Math.floor((days.length - 1) / 2);
+
+  const seriesSummary = series
+    .map((s) => `${s.label} ${days.reduce((sum, day) => sum + (day[s.key] || 0), 0)}`)
+    .join(", ");
+  const plotLabel = `${ariaLabel ?? "Stacked bar chart"}, last ${days.length} days. Totals: ${seriesSummary}.`;
 
   return (
     <div className={styles.chart}>
@@ -43,7 +70,7 @@ export function TrendChart({ days, series, emptyIcon, emptyTitle, emptyDescripti
         ))}
       </div>
 
-      <div className={styles.plot} style={{ height: 120 }}>
+      <div className={styles.plot} style={{ height: 120 }} role="img" aria-label={plotLabel}>
         <div className={styles.gridlines} aria-hidden="true">
           <span />
           <span />
@@ -51,18 +78,12 @@ export function TrendChart({ days, series, emptyIcon, emptyTitle, emptyDescripti
           <span />
         </div>
 
-        {hovered && (
-          <div className={styles.tooltip} style={{ left: `${(hoverIndex + 0.5) * barWidth}%` }} role="status">
-            <p className={styles.tooltipDate}>
-              {new Date(`${hovered.date}T00:00:00Z`).toLocaleDateString(undefined, {
-                month: "short",
-                day: "numeric",
-                timeZone: "UTC",
-              })}
-            </p>
+        {active && (
+          <div className={styles.tooltip} style={tooltipPosition(activeIndex, days.length)} role="status">
+            <p className={styles.tooltipDate}>{formatDay(active.date)}</p>
             {series.map((s) => (
               <p key={s.key}>
-                {s.label}: {hovered[s.key] || 0}
+                {s.label}: {active[s.key] || 0}
               </p>
             ))}
           </div>
@@ -77,8 +98,10 @@ export function TrendChart({ days, series, emptyIcon, emptyTitle, emptyDescripti
                 key={day.date}
                 className={styles.barGroup}
                 style={{ width: `${barWidth}%` }}
-                onMouseEnter={() => setHoverIndex(index)}
-                onMouseLeave={() => setHoverIndex((prev) => (prev === index ? null : prev))}
+                data-testid="trend-bar"
+                onMouseEnter={() => setActiveIndex(index)}
+                onMouseLeave={() => setActiveIndex((prev) => (prev === index ? null : prev))}
+                onClick={() => setActiveIndex(index)}
               >
                 <div className={styles.barStack} style={{ height: `${totalHeight}%` }}>
                   {dayTotal > 0 &&
@@ -101,13 +124,8 @@ export function TrendChart({ days, series, emptyIcon, emptyTitle, emptyDescripti
       </div>
 
       <div className={styles.axisLabels}>
-        <span>
-          {new Date(`${days[0].date}T00:00:00Z`).toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-            timeZone: "UTC",
-          })}
-        </span>
+        <span>{formatDay(days[0].date)}</span>
+        {days.length >= 10 && <span>{formatDay(days[midIndex].date)}</span>}
         <span>Today</span>
       </div>
     </div>
