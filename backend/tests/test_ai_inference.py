@@ -1,6 +1,5 @@
 import pytest
 
-from app.ai.evaluation import compute_reconstruction_error, compute_threshold
 from app.ai.inference import (
     DEFECTIVE_PREDICTION,
     GOOD_PREDICTION,
@@ -8,34 +7,49 @@ from app.ai.inference import (
     PredictionResult,
     predict_image,
 )
+from app.ai.inference.serving import SERVING_CONFIGS, CategoryServingConfig, clear_model_cache
 from app.ai.preprocessing.errors import ImageDecodeError, ImageNotFoundError
-from app.ai.training import build_model, discover_train_samples, save_model
+from app.ai.training import build_model, save_model
 from app.ai.training.artifacts import get_model_path
 from tests.conftest import make_image_bytes
 
 CATEGORY = "widget"
 IMAGE_SIZE = (32, 32)
+CONFIGURED_THRESHOLD = 0.0123
 
 
-def _make_fake_train_only(dataset_root, category, good_count):
-    """A category with ONLY train/good images - no test/ directory at all, so it is
-    impossible for inference to accidentally use test images or labels."""
-    good_dir = dataset_root / category / "train" / "good"
-    good_dir.mkdir(parents=True)
-    for i in range(good_count):
-        (good_dir / f"{i:03d}.png").write_bytes(make_image_bytes("PNG", size=IMAGE_SIZE, color=(i * 5, 40, 90)))
+def _register_widget(monkeypatch, threshold=CONFIGURED_THRESHOLD):
+    """Give the throwaway category a serving configuration, exactly as a real validated
+    category would have one. Without an entry a category has no AI support at all."""
+    config = CategoryServingConfig(
+        category=CATEGORY,
+        artifact_name="autoencoder",
+        model_name="autoencoder",
+        threshold=threshold,
+        threshold_method="mean_std",
+        threshold_parameter=1.5,
+        expected_md5=None,
+        provenance="test fixture",
+    )
+    monkeypatch.setitem(SERVING_CONFIGS, CATEGORY, config)
+    return config
+
+
+@pytest.fixture(autouse=True)
+def _fresh_model_cache():
+    clear_model_cache()
+    yield
+    clear_model_cache()
 
 
 @pytest.fixture
 def fake_category(tmp_path, monkeypatch):
-    """A saved model + a train/good-only dataset for a throwaway category, wired up the
-    same way test_ai_evaluation.py does it: monkeypatch the artifact/dataset roots rather
-    than touching the real bottle model or the real MVTec dataset."""
-    dataset_root = tmp_path / "dataset"
-    _make_fake_train_only(dataset_root, CATEGORY, good_count=6)
-    monkeypatch.setattr("app.ai.training.dataset.DATASET_ROOT", dataset_root)
-
+    """A saved model + serving configuration for a throwaway category. Deliberately NO
+    dataset at all (no train/good, no test/): inference must not need one, so any attempt
+    to read training or test data would fail these tests. The artifact root is monkeypatched
+    rather than touching the real bottle model."""
     monkeypatch.setattr("app.ai.training.artifacts.ARTIFACTS_ROOT", tmp_path / "ai_models")
+    _register_widget(monkeypatch)
     model = build_model()
     save_model(model, get_model_path(CATEGORY))
 
@@ -83,16 +97,27 @@ def test_predict_image_uses_existing_model_loader(fake_category):
 
 
 def test_missing_model_artifact_raises_clear_error(tmp_path, monkeypatch):
-    dataset_root = tmp_path / "dataset"
-    _make_fake_train_only(dataset_root, CATEGORY, good_count=3)
-    monkeypatch.setattr("app.ai.training.dataset.DATASET_ROOT", dataset_root)
     monkeypatch.setattr("app.ai.training.artifacts.ARTIFACTS_ROOT", tmp_path / "ai_models")  # empty - no saved model
+    _register_widget(monkeypatch)
 
     image_path = tmp_path / "sample.png"
     image_path.write_bytes(make_image_bytes("PNG", size=(32, 32)))
 
     with pytest.raises(ModelArtifactNotFoundError, match=CATEGORY):
         predict_image(image_path, CATEGORY, image_size=IMAGE_SIZE)
+
+
+def test_unconfigured_category_raises_model_artifact_not_found(tmp_path, monkeypatch):
+    """A model file on disk is not enough - without a serving configuration the category has
+    no AI support (an untrained/unvalidated category must never appear to have it)."""
+    monkeypatch.setattr("app.ai.training.artifacts.ARTIFACTS_ROOT", tmp_path / "ai_models")
+    save_model(build_model(), get_model_path("gadget"))  # artifact exists, configuration does not
+
+    image_path = tmp_path / "sample.png"
+    image_path.write_bytes(make_image_bytes("PNG", size=(32, 32)))
+
+    with pytest.raises(ModelArtifactNotFoundError, match="gadget"):
+        predict_image(image_path, "gadget", image_size=IMAGE_SIZE)
 
 
 # ---------------------------------------------------------------------------
@@ -122,60 +147,52 @@ def test_repeated_inference_on_same_image_gives_same_result(fake_category):
 
 
 # ---------------------------------------------------------------------------
-# Threshold integration (reuses the existing Phase 5 threshold logic)
+# Threshold (configured, never recomputed)
 # ---------------------------------------------------------------------------
 
-def test_threshold_matches_existing_phase5_threshold_logic(tmp_path, monkeypatch):
-    dataset_root = tmp_path / "dataset"
-    _make_fake_train_only(dataset_root, CATEGORY, good_count=6)
-    monkeypatch.setattr("app.ai.training.dataset.DATASET_ROOT", dataset_root)
-    monkeypatch.setattr("app.ai.training.artifacts.ARTIFACTS_ROOT", tmp_path / "ai_models")
-
-    model = build_model()
-    save_model(model, get_model_path(CATEGORY))
-
-    image_path = tmp_path / "sample.png"
-    image_path.write_bytes(make_image_bytes("PNG", size=(32, 32)))
-
-    result = predict_image(image_path, CATEGORY, image_size=IMAGE_SIZE)
-
-    from app.ai.inference.predict import _image_to_tensor
-
-    train_samples = discover_train_samples(CATEGORY)
-    expected_errors = [compute_reconstruction_error(model, _image_to_tensor(s.path, IMAGE_SIZE)) for s in train_samples]
-    expected_threshold = compute_threshold(expected_errors)
-
-    assert result.threshold == pytest.approx(expected_threshold)
+def test_threshold_is_the_configured_threshold(fake_category):
+    result = predict_image(fake_category, CATEGORY, image_size=IMAGE_SIZE)
+    assert result.threshold == CONFIGURED_THRESHOLD
 
 
-def test_threshold_is_independent_of_test_set(fake_category):
-    """The fake category has no test/ directory at all - if inference ever touched test
-    data or labels, this would raise before reaching a prediction."""
+def test_inference_needs_no_dataset(fake_category, monkeypatch):
+    """The fake category has no dataset directory at all, and dataset discovery is booby-trapped -
+    if inference ever touched training/test data or labels, this would raise."""
+
+    def _forbidden(*args, **kwargs):
+        raise AssertionError("inference must not read dataset images")
+
+    monkeypatch.setattr("app.ai.training.dataset.discover_train_samples", _forbidden)
+    monkeypatch.setattr("app.ai.training.dataset.discover_test_samples", _forbidden)
+    monkeypatch.setattr("app.ai.evaluation.threshold.compute_threshold", _forbidden)
+
     result = predict_image(fake_category, CATEGORY, image_size=IMAGE_SIZE)
     assert result.prediction in (GOOD_PREDICTION, DEFECTIVE_PREDICTION)
 
 
 # ---------------------------------------------------------------------------
-# Prediction rule / boundary behavior (must match Phase 5 exactly)
+# Prediction rule / boundary behavior (must match the validated evaluation exactly)
 # ---------------------------------------------------------------------------
 
+def _pin_error(monkeypatch, error):
+    _register_widget(monkeypatch, threshold=0.05)
+    monkeypatch.setattr("app.ai.inference.predict.compute_reconstruction_error", lambda *a, **k: error)
+
+
 def test_boundary_error_equal_to_threshold_is_good(fake_category, monkeypatch):
-    monkeypatch.setattr("app.ai.inference.predict._get_threshold", lambda *a, **k: 0.05)
-    monkeypatch.setattr("app.ai.inference.predict.compute_reconstruction_error", lambda *a, **k: 0.05)
+    _pin_error(monkeypatch, 0.05)
     result = predict_image(fake_category, CATEGORY, image_size=IMAGE_SIZE)
     assert result.prediction == GOOD_PREDICTION
 
 
 def test_boundary_error_just_above_threshold_is_defective(fake_category, monkeypatch):
-    monkeypatch.setattr("app.ai.inference.predict._get_threshold", lambda *a, **k: 0.05)
-    monkeypatch.setattr("app.ai.inference.predict.compute_reconstruction_error", lambda *a, **k: 0.0501)
+    _pin_error(monkeypatch, 0.0501)
     result = predict_image(fake_category, CATEGORY, image_size=IMAGE_SIZE)
     assert result.prediction == DEFECTIVE_PREDICTION
 
 
 def test_boundary_error_just_below_threshold_is_good(fake_category, monkeypatch):
-    monkeypatch.setattr("app.ai.inference.predict._get_threshold", lambda *a, **k: 0.05)
-    monkeypatch.setattr("app.ai.inference.predict.compute_reconstruction_error", lambda *a, **k: 0.0499)
+    _pin_error(monkeypatch, 0.0499)
     result = predict_image(fake_category, CATEGORY, image_size=IMAGE_SIZE)
     assert result.prediction == GOOD_PREDICTION
 

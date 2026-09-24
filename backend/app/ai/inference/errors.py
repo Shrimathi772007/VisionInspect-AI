@@ -19,3 +19,10 @@ class ModelArtifactNotFoundError(InferenceError):
     is missing on disk - callers only need to know inference isn't possible,
     not the underlying filesystem reason.
     """
+
+
+class ModelIntegrityError(InferenceError):
+    """The configured model artifact exists but is not the validated model it is configured as.
+
+    Raised instead of serving a replaced/retrained file under a validated threshold.
+    """

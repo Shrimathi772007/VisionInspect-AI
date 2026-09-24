@@ -1,16 +1,19 @@
-"""Single-image AI inference using an existing trained autoencoder + the Phase 5 threshold rule.
+"""Single-image AI inference using a category's configured, validated model and threshold.
 
-    inspection image -> existing preprocessing -> existing trained model
-    -> reconstruction error -> existing Phase 5 threshold -> good/defective
+    inspection image -> existing preprocessing -> category's configured trained model
+    (cached) -> reconstruction error -> category's configured validated threshold
+    -> good/defective
+
+Which model and which threshold serve a category is decided entirely by
+app.ai.inference.serving (SERVING_CONFIGS) - a constant-time lookup. Inference never
+derives a threshold from data: it does not touch train/good (or any other dataset) images,
+so its cost no longer grows with the size of a category's training set.
 
 Reuses, rather than duplicates:
 - app.ai.preprocessing.process_image for image loading/validation/preprocessing
   (same decode -> RGB -> resize -> normalize pipeline used everywhere else).
-- app.ai.training.artifacts.load_model_for_category for loading the trained model.
 - app.ai.evaluation.evaluate.compute_reconstruction_error for the reconstruction-error
-  definition - identical formula to the one used in Phase 5 evaluation.
-- app.ai.evaluation.threshold.compute_threshold and app.ai.training.dataset for deriving
-  the same train/good-only threshold used in Phase 5 - never test images or labels.
+  definition - identical to the one used by every evaluation.
 
 Does not train, retrain, or otherwise modify any model or its architecture, and never
 uses MVTec ground-truth labels to influence a prediction. See app.ai.evaluation for the
@@ -23,17 +26,15 @@ from pathlib import Path
 import torch
 
 from app.ai.evaluation.evaluate import DEFAULT_IMAGE_SIZE, compute_reconstruction_error
-from app.ai.evaluation.threshold import DEFAULT_THRESHOLD_K, compute_threshold
 from app.ai.inference.errors import ModelArtifactNotFoundError
 from app.ai.inference.schemas import DEFECTIVE_PREDICTION, GOOD_PREDICTION, PredictionResult
+from app.ai.inference.serving import get_serving_config, get_supported_categories, load_serving_model
 from app.ai.preprocessing import process_image
-from app.ai.training.artifacts import load_model_for_category
-from app.ai.training.dataset import discover_train_samples
 
-# Category with a trained artifact today. predict_image itself is generic - it works for
-# any category that has both a saved model under ai_models/<category>/ and a matching
-# dataset/<category>/train/good directory to derive the threshold from.
-SUPPORTED_CATEGORIES = ("bottle",)
+# Categories with a configured, validated model today (a snapshot of SERVING_CONFIGS at
+# import time; get_supported_categories() is the live view). predict_image itself is
+# generic: a category is served if and only if it has a serving configuration.
+SUPPORTED_CATEGORIES = get_supported_categories()
 
 
 def _image_to_tensor(path: Path, image_size: tuple[int, int]) -> torch.Tensor:
@@ -42,51 +43,57 @@ def _image_to_tensor(path: Path, image_size: tuple[int, int]) -> torch.Tensor:
     return torch.from_numpy(result.preprocessing.normalized_image).permute(2, 0, 1).contiguous()
 
 
-def _get_threshold(
-    category: str,
-    model: torch.nn.Module,
-    image_size: tuple[int, int],
-    threshold_k: float,
-) -> float:
-    """The Phase 5 threshold rule (mean + k*std of train/good reconstruction error),
-    recomputed from `model`'s own train/good reconstruction error - never from test data."""
-    train_samples = discover_train_samples(category)
-    train_errors = [compute_reconstruction_error(model, _image_to_tensor(s.path, image_size)) for s in train_samples]
-    return compute_threshold(train_errors, k=threshold_k)
-
-
 def predict_image(
     image_path: Path,
     category: str,
     model_name: str = "autoencoder",
     image_size: tuple[int, int] = DEFAULT_IMAGE_SIZE,
-    threshold_k: float = DEFAULT_THRESHOLD_K,
+    threshold_k: float | None = None,
 ) -> PredictionResult:
     """Run AI anomaly-detection inference for one inspection image.
 
-    Loads the existing trained autoencoder for `category`, reconstructs the image, and
-    compares its reconstruction error against the existing Phase 5 threshold rule to
-    decide "good" vs "defective". Takes no ground-truth label and produces none - this is
-    an AI prediction, not an evaluation against MVTec ground truth.
+    Looks up `category`'s serving configuration, reconstructs the image with its configured
+    autoencoder, and compares the reconstruction error against its configured validated
+    threshold (error <= threshold -> "good", otherwise "defective"). Takes no ground-truth
+    label and produces none - this is an AI prediction, not an evaluation against MVTec
+    ground truth.
+
+    `model_name` and `threshold_k` exist only so pre-serving-registry callers keep working
+    (same names and positions as before). Neither can select a different model or threshold -
+    the serving configuration is authoritative:
+      - `model_name` must equal the category's configured model name ("autoencoder", which
+        is also the default). Any other value is refused, never used to pick an artifact.
+      - `threshold_k` must be None. The old K-sigma threshold (recomputed from all train/good
+        images on every call) no longer exists; silently ignoring a K would hand the caller a
+        different threshold than the one it asked for, so a non-None value is rejected.
 
     Raises:
-        ModelArtifactNotFoundError: no trained model for `category`/`model_name`.
+        ValueError: `threshold_k` was given (see above).
+        ModelArtifactNotFoundError: `category` has no configured model, `model_name` is not
+            the configured one, or the configured artifact is missing on disk. Never falls
+            back to any other model.
+        ModelIntegrityError: the configured artifact is not the validated model (MD5 mismatch).
         app.ai.preprocessing.errors.ImageProcessingError: image missing/unsupported/undecodable.
-        app.ai.training.errors.TrainingDataError: dataset misconfigured (used only to derive
-            the train/good threshold - never to look at the input image's label).
     """
+    if threshold_k is not None:
+        raise ValueError(
+            "threshold_k is no longer supported: the decision threshold comes from the category's "
+            "serving configuration (app.ai.inference.serving) and is never recomputed per call."
+        )
+
     start = time.perf_counter()
 
-    try:
-        model = load_model_for_category(category, model_name=model_name)
-    except FileNotFoundError as exc:
+    config = get_serving_config(category)
+    if model_name != config.model_name:
         raise ModelArtifactNotFoundError(
-            f"No trained model artifact available for category '{category}' (model '{model_name}')."
-        ) from exc
+            f"No model named '{model_name}' is configured for category '{category}' "
+            f"(configured model: '{config.model_name}')."
+        )
+    model = load_serving_model(config)
 
     image_tensor = _image_to_tensor(Path(image_path), image_size)
     reconstruction_error = compute_reconstruction_error(model, image_tensor)
-    threshold = _get_threshold(category, model, image_size, threshold_k)
+    threshold = config.threshold
 
     prediction = GOOD_PREDICTION if reconstruction_error <= threshold else DEFECTIVE_PREDICTION
 
@@ -95,7 +102,7 @@ def predict_image(
         prediction=prediction,
         reconstruction_error=reconstruction_error,
         threshold=threshold,
-        model_name=model_name,
+        model_name=config.model_name,
         input_size=image_size,
         processing_time_ms=(time.perf_counter() - start) * 1000,
     )

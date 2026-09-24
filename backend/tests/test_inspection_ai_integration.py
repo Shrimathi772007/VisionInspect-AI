@@ -228,6 +228,9 @@ def test_mvtec_bottle_import_runs_real_ai_inference(client, qe_headers, test_pro
     assert isinstance(body["ai_threshold"], float)
     assert body["ai_reconstruction_error"] >= 0.0
     assert body["ai_model_name"] == "autoencoder"
+    # Served from the validated Phase 3 configuration (app.ai.inference.serving), not the
+    # old K=3 threshold recomputed from train/good.
+    assert body["ai_threshold"] == 0.0028031117030001018
 
 
 def test_mvtec_import_without_trained_model_succeeds_with_null_ai_fields(client, qe_headers, test_product):
