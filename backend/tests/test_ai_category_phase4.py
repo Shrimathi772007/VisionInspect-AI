@@ -522,6 +522,6 @@ def test_report_records_every_candidate_and_never_claims_serving(world):
 def test_phase4_never_registers_serving():
     from app.ai.inference.serving import SERVING_CONFIGS
 
-    assert set(SERVING_CONFIGS) == {"bottle"}
+    assert set(SERVING_CONFIGS) == {"bottle", "tile", "cable"}  # tile/cable: deliberate registrations (test_ai_tile_serving, test_ai_cable_serving)
     for module in (engine,):
         assert module_references(module, {"SERVING_CONFIGS", "get_serving_config"}) == set()

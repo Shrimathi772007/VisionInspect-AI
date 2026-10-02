@@ -19,7 +19,9 @@ class PredictionResult:
     `reconstruction_error` and `threshold` are the real, measured/derived
     values the decision was made from; `prediction` is a deterministic
     function of the two (see app.ai.inference.predict.predict_image), not a
-    calibrated probability.
+    calibrated probability. For a patch-anomaly category (e.g. Tile)
+    `reconstruction_error` holds that model's anomaly score - the field keeps
+    its name because it is the existing API/database contract.
     """
 
     category: str

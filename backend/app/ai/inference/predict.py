@@ -1,8 +1,9 @@
 """Single-image AI inference using a category's configured, validated model and threshold.
 
-    inspection image -> existing preprocessing -> category's configured trained model
-    (cached) -> reconstruction error -> category's configured validated threshold
-    -> good/defective
+    inspection image -> existing preprocessing (at the category's configured input size)
+    -> category's configured trained model (cached) -> anomaly score (reconstruction error
+    for ConvAE, patch nearest-neighbour score for patch-anomaly models) -> category's
+    configured validated threshold -> good/defective
 
 Which model and which threshold serve a category is decided entirely by
 app.ai.inference.serving (SERVING_CONFIGS) - a constant-time lookup. Inference never
@@ -25,10 +26,15 @@ from pathlib import Path
 
 import torch
 
-from app.ai.evaluation.evaluate import DEFAULT_IMAGE_SIZE, compute_reconstruction_error
+from app.ai.evaluation.evaluate import compute_reconstruction_error
 from app.ai.inference.errors import ModelArtifactNotFoundError
 from app.ai.inference.schemas import DEFECTIVE_PREDICTION, GOOD_PREDICTION, PredictionResult
-from app.ai.inference.serving import get_serving_config, get_supported_categories, load_serving_model
+from app.ai.inference.serving import (
+    MODEL_FAMILY_PATCH_ANOMALY,
+    get_serving_config,
+    get_supported_categories,
+    load_serving_model,
+)
 from app.ai.preprocessing import process_image
 
 # Categories with a configured, validated model today (a snapshot of SERVING_CONFIGS at
@@ -46,29 +52,36 @@ def _image_to_tensor(path: Path, image_size: tuple[int, int]) -> torch.Tensor:
 def predict_image(
     image_path: Path,
     category: str,
-    model_name: str = "autoencoder",
-    image_size: tuple[int, int] = DEFAULT_IMAGE_SIZE,
+    model_name: str | None = None,
+    image_size: tuple[int, int] | None = None,
     threshold_k: float | None = None,
 ) -> PredictionResult:
     """Run AI anomaly-detection inference for one inspection image.
 
-    Looks up `category`'s serving configuration, reconstructs the image with its configured
-    autoencoder, and compares the reconstruction error against its configured validated
-    threshold (error <= threshold -> "good", otherwise "defective"). Takes no ground-truth
-    label and produces none - this is an AI prediction, not an evaluation against MVTec
-    ground truth.
+    Looks up `category`'s serving configuration, scores the image with its configured model
+    (ConvAE: reconstruction error; patch-anomaly: frozen-ResNet-18 patch nearest-neighbour
+    score), and compares the score against its configured validated threshold
+    (score <= threshold -> "good", otherwise "defective"). The score is reported in
+    PredictionResult.reconstruction_error (the existing field/column name). Takes no
+    ground-truth label and produces none - this is an AI prediction, not an evaluation
+    against MVTec ground truth.
 
     `model_name` and `threshold_k` exist only so pre-serving-registry callers keep working
     (same names and positions as before). Neither can select a different model or threshold -
     the serving configuration is authoritative:
-      - `model_name` must equal the category's configured model name ("autoencoder", which
-        is also the default). Any other value is refused, never used to pick an artifact.
+      - `model_name`, if given, must equal the category's configured model name
+        ("autoencoder" for ConvAE categories). Any other value is refused, never used to
+        pick an artifact. None (the default) means the configured model.
       - `threshold_k` must be None. The old K-sigma threshold (recomputed from all train/good
         images on every call) no longer exists; silently ignoring a K would hand the caller a
         different threshold than the one it asked for, so a non-None value is rejected.
 
+    `image_size` defaults to the category's configured input size. A patch-anomaly model is
+    only valid at its locked input size, so any other value is refused for it.
+
     Raises:
-        ValueError: `threshold_k` was given (see above).
+        ValueError: `threshold_k` was given, or a patch-anomaly category got a different
+            `image_size` (see above).
         ModelArtifactNotFoundError: `category` has no configured model, `model_name` is not
             the configured one, or the configured artifact is missing on disk. Never falls
             back to any other model.
@@ -84,15 +97,27 @@ def predict_image(
     start = time.perf_counter()
 
     config = get_serving_config(category)
-    if model_name != config.model_name:
+    if model_name is not None and model_name != config.model_name:
         raise ModelArtifactNotFoundError(
             f"No model named '{model_name}' is configured for category '{category}' "
             f"(configured model: '{config.model_name}')."
         )
+    patch = config.model_family == MODEL_FAMILY_PATCH_ANOMALY
+    if image_size is None:
+        image_size = config.input_size
+    elif patch and tuple(image_size) != tuple(config.input_size):
+        raise ValueError(
+            f"Category '{category}' is served at its validated input size {config.input_size}; "
+            f"image_size {tuple(image_size)} is not allowed."
+        )
     model = load_serving_model(config)
 
     image_tensor = _image_to_tensor(Path(image_path), image_size)
-    reconstruction_error = compute_reconstruction_error(model, image_tensor)
+    if patch:
+        # [0,1] RGB at the locked size; ImageNet normalization happens inside the detector.
+        reconstruction_error = model.score_images(image_tensor.unsqueeze(0))[0]
+    else:
+        reconstruction_error = compute_reconstruction_error(model, image_tensor)
     threshold = config.threshold
 
     prediction = GOOD_PREDICTION if reconstruction_error <= threshold else DEFECTIVE_PREDICTION

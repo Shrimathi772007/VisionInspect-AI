@@ -420,5 +420,5 @@ def test_final_test_runs_once_with_the_locked_threshold_and_a_clean_audit(world,
 
 
 def test_final_test_result_is_not_written_into_serving_and_serving_is_unchanged():
-    assert set(SERVING_CONFIGS) == {"bottle"}
+    assert set(SERVING_CONFIGS) == {"bottle", "tile", "cable"}  # tile/cable: deliberate registrations (test_ai_tile_serving, test_ai_cable_serving)
     assert math.isclose(SERVING_CONFIGS["bottle"].threshold, 0.0028031117030001018)

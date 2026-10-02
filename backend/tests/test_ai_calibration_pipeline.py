@@ -270,5 +270,5 @@ def test_final_test_runs_once_with_the_locked_threshold_gates_audit_and_baseline
 
 
 def test_serving_registry_is_untouched():
-    assert set(SERVING_CONFIGS) == {"bottle"}
+    assert set(SERVING_CONFIGS) == {"bottle", "tile", "cable"}  # tile/cable: deliberate registrations (test_ai_tile_serving, test_ai_cable_serving)
     assert dataclasses.is_dataclass(cs.ConfigRow) and discover_test_samples is not None

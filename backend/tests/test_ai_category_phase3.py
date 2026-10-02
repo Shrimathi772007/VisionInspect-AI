@@ -106,7 +106,7 @@ def test_phase3_config_matches_the_bottle_methodology_exactly():
 
 
 def test_runner_never_registers_serving(run):
-    assert set(SERVING_CONFIGS) == {"bottle"}
+    assert set(SERVING_CONFIGS) == {"bottle", "tile", "cable"}  # tile/cable: deliberate registrations (test_ai_tile_serving, test_ai_cable_serving)
     tree = ast.parse(Path(runner.__file__).read_text(encoding="utf-8"))
     imported = {
         node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) and node.module

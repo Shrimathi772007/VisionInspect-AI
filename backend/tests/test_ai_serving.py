@@ -110,10 +110,11 @@ def test_serving_configuration_is_deterministic_and_immutable():
         get_serving_config("bottle").threshold = 1.0  # type: ignore[misc]
 
 
-def test_only_bottle_has_an_active_serving_configuration():
-    """No fake configuration for categories without a validated model."""
-    assert set(SERVING_CONFIGS) == {"bottle"}
-    assert get_supported_categories() == ("bottle",)
+def test_only_validated_categories_have_an_active_serving_configuration():
+    """No fake configuration for categories without a validated model (Tile / Cable: see test_ai_tile_serving /
+    test_ai_cable_serving)."""
+    assert set(SERVING_CONFIGS) == {"bottle", "tile", "cable"}
+    assert get_supported_categories() == ("bottle", "tile", "cable")
 
 
 # ---------------------------------------------------------------------------
@@ -122,7 +123,7 @@ def test_only_bottle_has_an_active_serving_configuration():
 
 @pytest.mark.parametrize(
     "category",
-    ["cable", "capsule", "carpet", "grid", "hazelnut", "leather", "metal_nut", "pill", "screw", "tile",
+    ["capsule", "carpet", "grid", "hazelnut", "leather", "metal_nut", "pill", "screw",
      "toothbrush", "transistor", "wood", "zipper", "not_a_category"],
 )
 def test_unconfigured_category_never_uses_the_bottle_model(category, tmp_path, monkeypatch):

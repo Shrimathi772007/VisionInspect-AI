@@ -79,7 +79,7 @@ def test_mvtec_import_with_unsupported_category_leaves_fields_null(monkeypatch):
     from app.ai.inference.errors import ModelArtifactNotFoundError
 
     def _raise_not_found(*args, **kwargs):
-        raise ModelArtifactNotFoundError("no trained model for category 'cable'")
+        raise ModelArtifactNotFoundError("no trained model for category 'capsule'")
 
     monkeypatch.setattr("app.inspections.service.predict_image", _raise_not_found)
     monkeypatch.setattr(
@@ -88,7 +88,7 @@ def test_mvtec_import_with_unsupported_category_leaves_fields_null(monkeypatch):
     )
 
     inspection = Inspection(
-        id=2, product_id=1, image_path="cable/test/good/000.png", source=InspectionSource.mvtec_ad
+        id=2, product_id=1, image_path="capsule/test/good/000.png", source=InspectionSource.mvtec_ad
     )
     run_ai_inference(inspection, _FakeSession())
 
@@ -234,13 +234,14 @@ def test_mvtec_bottle_import_runs_real_ai_inference(client, qe_headers, test_pro
 
 
 def test_mvtec_import_without_trained_model_succeeds_with_null_ai_fields(client, qe_headers, test_product):
-    """cable has no trained artifact under ai_models/ - import must still succeed."""
+    """capsule has no served model - import must still succeed. (Not cable: cable is served since the
+    Cable serving registration, and its test/ images are the consumed Cable final test - never read here.)"""
     response = client.post(
         "/inspections/import",
         headers=qe_headers,
         json={
             "product_id": test_product["id"],
-            "category": "cable",
+            "category": "capsule",
             "split": "test",
             "defect_type": "good",
             "filename": "000.png",
