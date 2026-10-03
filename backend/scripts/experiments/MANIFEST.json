@@ -1,0 +1,1252 @@
+{
+  "description": "Per-category experiment runner and helper scripts, copied byte-for-byte from Claude Code session scratchpads. sha256 is of the archived file and equals the original.",
+  "archived_on": "2026-10-03",
+  "source_commit": "9a44113",
+  "match_status_legend": {
+    "MATCH": "sha256 recorded in at least one backend/ai_models JSON report",
+    "NO MATCH": "file name referenced by a report but no report records this sha256",
+    "NOT REFERENCED": "no report records this sha256 or file name"
+  },
+  "missing_scripts": [],
+  "excluded_from_archive": [
+    {
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\1fc1406d-8aca-4c27-9d82-9d642d6aed80\\scratchpad\\phase7_sanity_check.py",
+      "sha256": "12f6a16c559749885f8eec530cfd8b51df7626a541e712c9a721554659c3e7ec",
+      "size_bytes": 2069,
+      "reason": "contains a hard-coded test-account password; not an experiment runner; not referenced by any report"
+    }
+  ],
+  "scripts": [
+    {
+      "script": "audit.py",
+      "category": "_shared",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\21723cc7-7f9d-4135-a726-895f1dc9c203\\scratchpad\\audit.py",
+      "repo_path": "backend/scripts/experiments/_shared/audit.py",
+      "sha256": "aa5dd50b9b1b55aac934a5c4aded4e2ef8dcc8d16ec5c6f886445a829a95ffec",
+      "size_bytes": 2987,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "calc.py",
+      "category": "_shared",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\21723cc7-7f9d-4135-a726-895f1dc9c203\\scratchpad\\calc.py",
+      "repo_path": "backend/scripts/experiments/_shared/calc.py",
+      "sha256": "bd0a86e2374e9788ee6b6b92a66993163ee14e8ead02ab4672979422dcbf5f0b",
+      "size_bytes": 994,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "heldout_tests_block.py",
+      "category": "_shared",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\21723cc7-7f9d-4135-a726-895f1dc9c203\\scratchpad\\heldout_tests_block.py",
+      "repo_path": "backend/scripts/experiments/_shared/heldout_tests_block.py",
+      "sha256": "715868f4104d4c57d9f8637d202173b9bb8bb7d6154da0317f8732763201e4d0",
+      "size_bytes": 18229,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "patch_analytics.py",
+      "category": "_shared",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\b8d99f28-c0b6-4fb3-bd14-a49e0f01a10e\\scratchpad\\patch_analytics.py",
+      "repo_path": "backend/scripts/experiments/_shared/patch_analytics.py",
+      "sha256": "0b87929d3a423eec73398ecc9d4b52524d45430b1ddae6476c6521230520787d",
+      "size_bytes": 9910,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "patch_cli.py",
+      "category": "_shared",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\21723cc7-7f9d-4135-a726-895f1dc9c203\\scratchpad\\patch_cli.py",
+      "repo_path": "backend/scripts/experiments/_shared/patch_cli.py",
+      "sha256": "ac77639556dc25de01db1f2f394edd2ba98bda3838e02d2a985507a9aa45caf8",
+      "size_bytes": 2383,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "patch_final.py",
+      "category": "_shared",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\21723cc7-7f9d-4135-a726-895f1dc9c203\\scratchpad\\patch_final.py",
+      "repo_path": "backend/scripts/experiments/_shared/patch_final.py",
+      "sha256": "74b31ab88715a25d26292d2d5d8b31eda5b5a9fbad0e88ce784289f7976c1c70",
+      "size_bytes": 775,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "patch_generalise.py",
+      "category": "_shared",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\21723cc7-7f9d-4135-a726-895f1dc9c203\\scratchpad\\patch_generalise.py",
+      "repo_path": "backend/scripts/experiments/_shared/patch_generalise.py",
+      "sha256": "283adf9bb4519e1b99b75def3e0633658d3730456f0236d820157f8ebd68ddd9",
+      "size_bytes": 4525,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "patch_phase1.py",
+      "category": "_shared",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\21723cc7-7f9d-4135-a726-895f1dc9c203\\scratchpad\\patch_phase1.py",
+      "repo_path": "backend/scripts/experiments/_shared/patch_phase1.py",
+      "sha256": "971edff0914b235aaa2cd6a002cce354758f7df2a266c399534cecf741eeb701",
+      "size_bytes": 3165,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "sanity_check.py",
+      "category": "_shared",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\1fc1406d-8aca-4c27-9d82-9d642d6aed80\\scratchpad\\sanity_check.py",
+      "repo_path": "backend/scripts/experiments/_shared/sanity_check.py",
+      "sha256": "b10c810f8f83ad623744e6e5668fd1371ef9c672fd7a5581d6979dfb3acc3db6",
+      "size_bytes": 1432,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "smoke_analytics.py",
+      "category": "_shared",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\b8d99f28-c0b6-4fb3-bd14-a49e0f01a10e\\scratchpad\\smoke_analytics.py",
+      "repo_path": "backend/scripts/experiments/_shared/smoke_analytics.py",
+      "sha256": "7daa3af86b850e44b8784d666997cdff91ebe6ac1cf75d467b519693084a9f2b",
+      "size_bytes": 1772,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "verify.py",
+      "category": "bottle",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\21723cc7-7f9d-4135-a726-895f1dc9c203\\scratchpad\\verify.py",
+      "repo_path": "backend/scripts/experiments/bottle/verify.py",
+      "sha256": "872935ab7115e451af9669beb90c1bf356c6a9f201e06feddea663fff397030c",
+      "size_bytes": 2450,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "run_cable_final.py",
+      "category": "cable",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\fd6e8b9c-df6c-4b03-9484-08926a598566\\scratchpad\\run_cable_final.py",
+      "repo_path": "backend/scripts/experiments/cable/run_cable_final.py",
+      "sha256": "6f164291742e8fa87325c95bbc1c29f34cda68a2e1873653932d29b97c3884de",
+      "size_bytes": 13796,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/cable/model_family_study/reports/final_test_supplement.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/cable/model_family_study/reports/final_test_supplement.json::wrapper_sha256"
+      ],
+      "name_mentioned_in": [
+        "backend/ai_models/cable/model_family_study/reports/final_test_supplement.json"
+      ],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "run_cable_model_family.py",
+      "category": "cable",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\fd6e8b9c-df6c-4b03-9484-08926a598566\\scratchpad\\run_cable_model_family.py",
+      "repo_path": "backend/scripts/experiments/cable/run_cable_model_family.py",
+      "sha256": "07594d5818e0581941b5fbffd3d866142ac23127b84f2692a7001827f309fc37",
+      "size_bytes": 5799,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "run_cable_phase1.py",
+      "category": "cable",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\fd6e8b9c-df6c-4b03-9484-08926a598566\\scratchpad\\run_cable_phase1.py",
+      "repo_path": "backend/scripts/experiments/cable/run_cable_phase1.py",
+      "sha256": "911587664b7dd693947c337748176a1e43bd77d713c14830430284e3b94a5183",
+      "size_bytes": 12251,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/cable/phase1_baseline/reports/phase1_report.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/cable/phase1_baseline/reports/phase1_report.json::runner_sha256"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "serving_verify.py",
+      "category": "cable",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\fd6e8b9c-df6c-4b03-9484-08926a598566\\scratchpad\\serving_verify.py",
+      "repo_path": "backend/scripts/experiments/cable/serving_verify.py",
+      "sha256": "b75f21ff35b7d2c37b187ff71f349a7084ee7864f19aee6753f335a84681e864",
+      "size_bytes": 3973,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "run_capsule_final.py",
+      "category": "capsule",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\mfs\\run_capsule_final.py",
+      "repo_path": "backend/scripts/experiments/capsule/run_capsule_final.py",
+      "sha256": "6df7a2c7f8a4b6f3bf5b305b3ad79242275950caef6b9bbfb726f852e796ce4c",
+      "size_bytes": 15177,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/capsule/model_family_study/reports/final_test_supplement.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/capsule/model_family_study/reports/final_test_supplement.json::wrapper_sha256"
+      ],
+      "name_mentioned_in": [
+        "backend/ai_models/capsule/model_family_study/reports/final_test_supplement.json"
+      ],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "run_capsule_model_family.py",
+      "category": "capsule",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\mfs\\run_capsule_model_family.py",
+      "repo_path": "backend/scripts/experiments/capsule/run_capsule_model_family.py",
+      "sha256": "e3f37d279104f8fbf1fac6cd106bb85a8b4e153a9860c053d68c24d48596267b",
+      "size_bytes": 6471,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "run_capsule_phase1.py",
+      "category": "capsule",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\run_capsule_phase1.py",
+      "repo_path": "backend/scripts/experiments/capsule/run_capsule_phase1.py",
+      "sha256": "341bbe58e313b2f9591857ccc6a4e1a57c7be5a7e6ab0dae42480cbc83058b7d",
+      "size_bytes": 16895,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/capsule/phase1_baseline/reports/phase1_report.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/capsule/phase1_baseline/reports/phase1_report.json::runner_sha256"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "train_convae256.py",
+      "category": "carpet",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\21723cc7-7f9d-4135-a726-895f1dc9c203\\scratchpad\\train_convae256.py",
+      "repo_path": "backend/scripts/experiments/carpet/train_convae256.py",
+      "sha256": "d7b4da7da195a580fdc218e433ffba0f410c29c71fe9277402a7f43740669503",
+      "size_bytes": 1116,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "run_grid_final.py",
+      "category": "grid",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\grid\\run_grid_final.py",
+      "repo_path": "backend/scripts/experiments/grid/run_grid_final.py",
+      "sha256": "629b1bb6ccf4a3b71c5b56977192bf5cac65def587a01c8f97a694e64d8942e3",
+      "size_bytes": 15423,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/grid/model_family_study/reports/final_test_supplement.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/grid/model_family_study/reports/final_test_supplement.json::wrapper_sha256"
+      ],
+      "name_mentioned_in": [
+        "backend/ai_models/grid/model_family_study/reports/final_test_supplement.json"
+      ],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "run_grid_model_family.py",
+      "category": "grid",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\grid\\run_grid_model_family.py",
+      "repo_path": "backend/scripts/experiments/grid/run_grid_model_family.py",
+      "sha256": "592d51e0ac94e769cbcaf332c24e46203723238b6d04db73bcd3881fece5d2eb",
+      "size_bytes": 6314,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/grid/study_declaration.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/grid/study_declaration.json::runners.run_grid_model_family.py"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "run_grid_phase1.py",
+      "category": "grid",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\grid\\run_grid_phase1.py",
+      "repo_path": "backend/scripts/experiments/grid/run_grid_phase1.py",
+      "sha256": "bc0d898b7808de691b6d901db7e4df52e308d65d4bcd7d95fdc96945e87e06c0",
+      "size_bytes": 16939,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/grid/phase1_baseline/reports/phase1_report.json",
+        "backend/ai_models/grid/study_declaration.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/grid/study_declaration.json::runners.run_grid_phase1.py",
+        "backend/ai_models/grid/phase1_baseline/reports/phase1_report.json::runner_sha256"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "write_grid_declaration.py",
+      "category": "grid",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\grid\\write_grid_declaration.py",
+      "repo_path": "backend/scripts/experiments/grid/write_grid_declaration.py",
+      "sha256": "e826731d6951e3e0afed8a1f29b1f71f3d1e8926104ab67c9166e69d6e686e4d",
+      "size_bytes": 7765,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "timing.py",
+      "category": "hazelnut",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\21723cc7-7f9d-4135-a726-895f1dc9c203\\scratchpad\\timing.py",
+      "repo_path": "backend/scripts/experiments/hazelnut/timing.py",
+      "sha256": "6c8d191ecefa1447207635fac6d00b8fd4a9e7febe86da8d5584867c763877aa",
+      "size_bytes": 1841,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "gen_pill_tests.py",
+      "category": "pill",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\21723cc7-7f9d-4135-a726-895f1dc9c203\\scratchpad\\gen_pill_tests.py",
+      "repo_path": "backend/scripts/experiments/pill/gen_pill_tests.py",
+      "sha256": "9d9bf40f360cc97fc41f6b1765f7ce1a375b897aae09a3dea253c2fb1d140004",
+      "size_bytes": 10727,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "pill_extract1.py",
+      "category": "pill",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\21723cc7-7f9d-4135-a726-895f1dc9c203\\scratchpad\\pill_extract1.py",
+      "repo_path": "backend/scripts/experiments/pill/pill_extract1.py",
+      "sha256": "0955de1399c43d5602d4217cc61120b1fe4cc0165ac7d655a23f6bdbf084493e",
+      "size_bytes": 5109,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "pill_extract2.py",
+      "category": "pill",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\21723cc7-7f9d-4135-a726-895f1dc9c203\\scratchpad\\pill_extract2.py",
+      "repo_path": "backend/scripts/experiments/pill/pill_extract2.py",
+      "sha256": "eec340533dfccf0e2029981d296c321d64068608b89b1ce630be1fd13c0fda71",
+      "size_bytes": 3905,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "pill_verify.py",
+      "category": "pill",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\21723cc7-7f9d-4135-a726-895f1dc9c203\\scratchpad\\pill_verify.py",
+      "repo_path": "backend/scripts/experiments/pill/pill_verify.py",
+      "sha256": "88690b338b7fb84278eeb0fa7bef383f199882f1e7e9698e13fe692b395888b4",
+      "size_bytes": 2213,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "run_screw_final.py",
+      "category": "screw",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\screw\\run_screw_final.py",
+      "repo_path": "backend/scripts/experiments/screw/run_screw_final.py",
+      "sha256": "2efca75ecaa05da7faaceb1cc02ee050133b6ec194c8e3f50cce286560ae84d9",
+      "size_bytes": 21429,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/screw/model_family_study/reports/final_test_supplement.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/screw/model_family_study/reports/final_test_supplement.json::wrapper_sha256"
+      ],
+      "name_mentioned_in": [
+        "backend/ai_models/screw/model_family_study/reports/final_test_supplement.json"
+      ],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "run_screw_model_family.py",
+      "category": "screw",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\screw\\run_screw_model_family.py",
+      "repo_path": "backend/scripts/experiments/screw/run_screw_model_family.py",
+      "sha256": "057a12443327b1d5b2383056c8541bffc6f0c96798c603dac8d6ec0ace07a10e",
+      "size_bytes": 6558,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/screw/model_family_study/study_declaration.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/screw/model_family_study/study_declaration.json::framework_versions.wrapper run_screw_model_family.py"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "run_screw_phase1.py",
+      "category": "screw",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\screw\\run_screw_phase1.py",
+      "repo_path": "backend/scripts/experiments/screw/run_screw_phase1.py",
+      "sha256": "1b3d6d9223a0c67f42984d803802277901692e5ae60caebec6a118b7f0a7b8c3",
+      "size_bytes": 16986,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/screw/phase1_baseline/reports/phase1_report.json",
+        "backend/ai_models/screw/phase1_declaration.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/screw/phase1_declaration.json::runner_sha256",
+        "backend/ai_models/screw/phase1_baseline/reports/phase1_report.json::runner_sha256"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "run_screw_repro_capture.py",
+      "category": "screw",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\screw\\run_screw_repro_capture.py",
+      "repo_path": "backend/scripts/experiments/screw/run_screw_repro_capture.py",
+      "sha256": "ba0ef294e6943073e96c8d6f280bdd5613163cffc4685a4ea98f2ff9678a5fac",
+      "size_bytes": 936,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "verify_screw_selection.py",
+      "category": "screw",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\screw\\verify_screw_selection.py",
+      "repo_path": "backend/scripts/experiments/screw/verify_screw_selection.py",
+      "sha256": "a4299510f04fd691424dfb4539107787f64ff4477a08464f9e43f83f5f05cec5",
+      "size_bytes": 6195,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "write_lock_supplement.py",
+      "category": "screw",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\screw\\write_lock_supplement.py",
+      "repo_path": "backend/scripts/experiments/screw/write_lock_supplement.py",
+      "sha256": "d602995e93d1a9e473fdcc200f556cb52fd6c1355c974e3d72814c309d816b53",
+      "size_bytes": 3227,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "write_repro_artifact.py",
+      "category": "screw",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\screw\\write_repro_artifact.py",
+      "repo_path": "backend/scripts/experiments/screw/write_repro_artifact.py",
+      "sha256": "cd144edf200952d2e000fb0cf3a02dadd55befbdc1e275ccfcc256ecde59625f",
+      "size_bytes": 6537,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "write_screw_declaration.py",
+      "category": "screw",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\screw\\write_screw_declaration.py",
+      "repo_path": "backend/scripts/experiments/screw/write_screw_declaration.py",
+      "sha256": "80d66137e394617d5716b454be62e1cbf06e44ff0b62f8cac0d82c153bbfc30a",
+      "size_bytes": 5082,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "write_screw_mfs_declaration.py",
+      "category": "screw",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\screw\\write_screw_mfs_declaration.py",
+      "repo_path": "backend/scripts/experiments/screw/write_screw_mfs_declaration.py",
+      "sha256": "8571e86914f7a97c723086207b7c4745fe27baa0b42fcc027423ba39de648e04",
+      "size_bytes": 8839,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "run_tile_final.py",
+      "category": "tile",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\a7fd380d-fc0a-46ba-8ac8-bf0582adf3ff\\scratchpad\\run_tile_final.py",
+      "repo_path": "backend/scripts/experiments/tile/run_tile_final.py",
+      "sha256": "8bdd5d8ff4665f686eb6c8149eb2dc15412e3fa5194077ccfd54b2125c1aaad2",
+      "size_bytes": 7108,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/tile/model_family_study/reports/final_test_supplement.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/tile/model_family_study/reports/final_test_supplement.json::wrapper_sha256"
+      ],
+      "name_mentioned_in": [
+        "backend/ai_models/tile/model_family_study/reports/final_test_supplement.json"
+      ],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "run_tile_model_family.py",
+      "category": "tile",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\a7fd380d-fc0a-46ba-8ac8-bf0582adf3ff\\scratchpad\\run_tile_model_family.py",
+      "repo_path": "backend/scripts/experiments/tile/run_tile_model_family.py",
+      "sha256": "708b682c2b7fd885644249eeec3e09e6df2477492537a25132ee975c466d7fee",
+      "size_bytes": 4357,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "run_tile_phase1.py",
+      "category": "tile",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\a7fd380d-fc0a-46ba-8ac8-bf0582adf3ff\\scratchpad\\run_tile_phase1.py",
+      "repo_path": "backend/scripts/experiments/tile/run_tile_phase1.py",
+      "sha256": "956972b9c7325886fd8471c55f7f887593408bbf0b0c8f6f82303f6daced68cd",
+      "size_bytes": 12249,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/tile/phase1_baseline/reports/phase1_report.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/tile/phase1_baseline/reports/phase1_report.json::runner_sha256"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "run_toothbrush_final.py",
+      "category": "toothbrush",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\toothbrush\\run_toothbrush_final.py",
+      "repo_path": "backend/scripts/experiments/toothbrush/run_toothbrush_final.py",
+      "sha256": "e7a14d9bd7a9ede08019c47bcaeeb2ed2d565b40d6d0095210d9ad4b473554b6",
+      "size_bytes": 21437,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/toothbrush/model_family_study/reports/final_test_supplement.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/toothbrush/model_family_study/reports/final_test_supplement.json::wrapper_sha256"
+      ],
+      "name_mentioned_in": [
+        "backend/ai_models/toothbrush/model_family_study/reports/final_test_supplement.json"
+      ],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "run_toothbrush_model_family.py",
+      "category": "toothbrush",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\toothbrush\\run_toothbrush_model_family.py",
+      "repo_path": "backend/scripts/experiments/toothbrush/run_toothbrush_model_family.py",
+      "sha256": "dec86dfbe21a1057aa1a90c271fc7f5f2053f5f7ca46ffae61e1d9a58e6e4199",
+      "size_bytes": 6507,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/toothbrush/model_family_study/reports/study_execution_record.json",
+        "backend/ai_models/toothbrush/model_family_study/selection_lock_supplement.json",
+        "backend/ai_models/toothbrush/model_family_study/study_declaration.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/toothbrush/model_family_study/selection_lock_supplement.json::provenance.wrapper_sha256",
+        "backend/ai_models/toothbrush/model_family_study/study_declaration.json::framework_versions.wrapper run_toothbrush_model_family.py",
+        "backend/ai_models/toothbrush/model_family_study/reports/study_execution_record.json::wrapper_sha256"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "run_toothbrush_phase1.py",
+      "category": "toothbrush",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\toothbrush\\run_toothbrush_phase1.py",
+      "repo_path": "backend/scripts/experiments/toothbrush/run_toothbrush_phase1.py",
+      "sha256": "3bc91d3997a4f9ee8bd0d78f90444d52add892fa56f9da99dbeb48733c5340b0",
+      "size_bytes": 19625,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/toothbrush/phase1_baseline/reports/phase1_report.json",
+        "backend/ai_models/toothbrush/phase1_declaration.json",
+        "backend/ai_models/toothbrush/phase1_declaration_addendum.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/toothbrush/phase1_declaration.json::runner_sha256",
+        "backend/ai_models/toothbrush/phase1_declaration_addendum.json::runner.sha256",
+        "backend/ai_models/toothbrush/phase1_baseline/reports/phase1_report.json::runner_sha256"
+      ],
+      "name_mentioned_in": [
+        "backend/ai_models/toothbrush/phase1_declaration_addendum.json"
+      ],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "run_toothbrush_repro_capture.py",
+      "category": "toothbrush",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\toothbrush\\run_toothbrush_repro_capture.py",
+      "repo_path": "backend/scripts/experiments/toothbrush/run_toothbrush_repro_capture.py",
+      "sha256": "3a73d43173b5e92c540440ad2f1e0b4038ea5f4e6e5b65de7c6308ba622cf9f0",
+      "size_bytes": 946,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "run_toothbrush_study_launcher.py",
+      "category": "toothbrush",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\toothbrush\\run_toothbrush_study_launcher.py",
+      "repo_path": "backend/scripts/experiments/toothbrush/run_toothbrush_study_launcher.py",
+      "sha256": "9798bbc56b243c2ddc32b411849974dad9ac3870b558658b41c3546b8c80707e",
+      "size_bytes": 2323,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/toothbrush/model_family_study/reports/study_execution_record.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/toothbrush/model_family_study/reports/study_execution_record.json::launcher_sha256"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "verify_toothbrush_selection.py",
+      "category": "toothbrush",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\toothbrush\\verify_toothbrush_selection.py",
+      "repo_path": "backend/scripts/experiments/toothbrush/verify_toothbrush_selection.py",
+      "sha256": "a26877fccf62365f69940806ad83903fc8ec234e33e2f38947c71d9a4ea35739",
+      "size_bytes": 6205,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/toothbrush/model_family_study/selection_lock_supplement.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/toothbrush/model_family_study/selection_lock_supplement.json::provenance.verifier_sha256"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "write_addendum.py",
+      "category": "toothbrush",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\toothbrush\\write_addendum.py",
+      "repo_path": "backend/scripts/experiments/toothbrush/write_addendum.py",
+      "sha256": "35c1f2ffd27d25b2d11a157b688ae6ac2bf241e2c641667dc2fe6ebfb844e6bf",
+      "size_bytes": 2353,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "write_lock_supplement.py",
+      "category": "toothbrush",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\toothbrush\\write_lock_supplement.py",
+      "repo_path": "backend/scripts/experiments/toothbrush/write_lock_supplement.py",
+      "sha256": "494a2a369557c26d68b8dc0878d69db47674ca8c30eaeac622b98869b4506b25",
+      "size_bytes": 4883,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "write_repro_artifact.py",
+      "category": "toothbrush",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\toothbrush\\write_repro_artifact.py",
+      "repo_path": "backend/scripts/experiments/toothbrush/write_repro_artifact.py",
+      "sha256": "e426e1acf52f68094cf7d052f2b19e738c9df224cf81b97749267cf6b9a756ca",
+      "size_bytes": 6542,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "write_toothbrush_declaration.py",
+      "category": "toothbrush",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\toothbrush\\write_toothbrush_declaration.py",
+      "repo_path": "backend/scripts/experiments/toothbrush/write_toothbrush_declaration.py",
+      "sha256": "dd25b97f8fa85bc2a81139fb47e99e664d9e3977904dcd02672f5e4cacf40180",
+      "size_bytes": 5147,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "write_toothbrush_mfs_declaration.py",
+      "category": "toothbrush",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\toothbrush\\write_toothbrush_mfs_declaration.py",
+      "repo_path": "backend/scripts/experiments/toothbrush/write_toothbrush_mfs_declaration.py",
+      "sha256": "d9a78bc28b8c0ce8b548819dc20ae392fd021f4be96cd4c37449ed7417db1259",
+      "size_bytes": 10622,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "run_transistor_final.py",
+      "category": "transistor",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\transistor\\run_transistor_final.py",
+      "repo_path": "backend/scripts/experiments/transistor/run_transistor_final.py",
+      "sha256": "ded7e3b1198bafe5777683d8acbd1a7554a4f8b8ce8c65b00945108dbf000ff7",
+      "size_bytes": 21500,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/transistor/model_family_study/reports/final_test_supplement.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/transistor/model_family_study/reports/final_test_supplement.json::wrapper_sha256"
+      ],
+      "name_mentioned_in": [
+        "backend/ai_models/transistor/model_family_study/reports/final_test_supplement.json"
+      ],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "run_transistor_model_family.py",
+      "category": "transistor",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\transistor\\run_transistor_model_family.py",
+      "repo_path": "backend/scripts/experiments/transistor/run_transistor_model_family.py",
+      "sha256": "1df50e5209a8bb2c93ff07756e9a773b1423a3e3e6b9aa46470dce5f631a9b62",
+      "size_bytes": 6572,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/transistor/model_family_study/reports/study_execution_record.json",
+        "backend/ai_models/transistor/model_family_study/selection_lock_supplement.json",
+        "backend/ai_models/transistor/model_family_study/study_declaration.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/transistor/model_family_study/selection_lock_supplement.json::provenance.wrapper_sha256",
+        "backend/ai_models/transistor/model_family_study/study_declaration.json::framework_versions.wrapper run_transistor_model_family.py",
+        "backend/ai_models/transistor/model_family_study/reports/study_execution_record.json::wrapper_sha256"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "run_transistor_phase1.py",
+      "category": "transistor",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\transistor\\run_transistor_phase1.py",
+      "repo_path": "backend/scripts/experiments/transistor/run_transistor_phase1.py",
+      "sha256": "90f5d54df8cd5f91efe627b64f9d001a9cd196048bafa9438601d56d3dc613ba",
+      "size_bytes": 19740,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/transistor/phase1_baseline/reports/phase1_report.json",
+        "backend/ai_models/transistor/phase1_declaration.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/transistor/phase1_declaration.json::runner_sha256",
+        "backend/ai_models/transistor/phase1_baseline/reports/phase1_report.json::runner_sha256"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "run_transistor_repro_capture.py",
+      "category": "transistor",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\transistor\\run_transistor_repro_capture.py",
+      "repo_path": "backend/scripts/experiments/transistor/run_transistor_repro_capture.py",
+      "sha256": "d19a4178a2193e36c28cb6e733e88403523d97c6a7ac42c04c2dd91953d8c5a1",
+      "size_bytes": 946,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "run_transistor_study_launcher.py",
+      "category": "transistor",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\transistor\\run_transistor_study_launcher.py",
+      "repo_path": "backend/scripts/experiments/transistor/run_transistor_study_launcher.py",
+      "sha256": "79907ecb7a16175996a3425c959bf8f5f386d5ea9dcdfe391a2462703a11010b",
+      "size_bytes": 2323,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/transistor/model_family_study/reports/study_execution_record.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/transistor/model_family_study/reports/study_execution_record.json::launcher_sha256"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "verify_transistor_selection.py",
+      "category": "transistor",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\transistor\\verify_transistor_selection.py",
+      "repo_path": "backend/scripts/experiments/transistor/verify_transistor_selection.py",
+      "sha256": "845c226f0ca5227a3a44b5fe47604ca0064be470738a89ac84ce8a7ca43bc707",
+      "size_bytes": 6204,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/transistor/model_family_study/selection_lock_supplement.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/transistor/model_family_study/selection_lock_supplement.json::provenance.verifier_sha256"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "write_lock_supplement.py",
+      "category": "transistor",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\transistor\\write_lock_supplement.py",
+      "repo_path": "backend/scripts/experiments/transistor/write_lock_supplement.py",
+      "sha256": "152e8173b1c67fa92f79ce924505ce5b3b74d2d1020ef1c8c4f7d0cdaf413b72",
+      "size_bytes": 4883,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "write_repro_artifact.py",
+      "category": "transistor",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\transistor\\write_repro_artifact.py",
+      "repo_path": "backend/scripts/experiments/transistor/write_repro_artifact.py",
+      "sha256": "dcc0b2dde23346fac2d4884ce461cc69010c17849d24025fa44da3e315d6e1e0",
+      "size_bytes": 6542,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "write_transistor_declaration.py",
+      "category": "transistor",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\transistor\\write_transistor_declaration.py",
+      "repo_path": "backend/scripts/experiments/transistor/write_transistor_declaration.py",
+      "sha256": "8fa3336e77bce8bb9ba51bb0777418dd36d0947a3db95bcab6ff3da4646294bb",
+      "size_bytes": 6469,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "write_transistor_mfs_declaration.py",
+      "category": "transistor",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\transistor\\write_transistor_mfs_declaration.py",
+      "repo_path": "backend/scripts/experiments/transistor/write_transistor_mfs_declaration.py",
+      "sha256": "321a82917e2a87cafb3c7b24afcb124e6dad7c1fa981fcd08d606af4a7a4ef72",
+      "size_bytes": 10998,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "run_wood_final.py",
+      "category": "wood",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\wood\\run_wood_final.py",
+      "repo_path": "backend/scripts/experiments/wood/run_wood_final.py",
+      "sha256": "d6d6ae93391bad8b5c406cc07bfe835ba87a838d2b44f2ed0c333f76c440c2af",
+      "size_bytes": 21428,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/wood/model_family_study/reports/final_test_supplement.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/wood/model_family_study/reports/final_test_supplement.json::wrapper_sha256"
+      ],
+      "name_mentioned_in": [
+        "backend/ai_models/wood/model_family_study/reports/final_test_supplement.json"
+      ],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "run_wood_model_family.py",
+      "category": "wood",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\wood\\run_wood_model_family.py",
+      "repo_path": "backend/scripts/experiments/wood/run_wood_model_family.py",
+      "sha256": "a190cceccef4298929d58bb28b6c47e3100a21cc3f8e7dbf2281cbf8130b19cd",
+      "size_bytes": 6528,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/wood/model_family_study/reports/study_execution_record.json",
+        "backend/ai_models/wood/model_family_study/selection_lock_supplement.json",
+        "backend/ai_models/wood/model_family_study/study_declaration.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/wood/model_family_study/selection_lock_supplement.json::provenance.wrapper_sha256",
+        "backend/ai_models/wood/model_family_study/study_declaration.json::framework_versions.wrapper run_wood_model_family.py",
+        "backend/ai_models/wood/model_family_study/reports/study_execution_record.json::wrapper_sha256"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "run_wood_phase1.py",
+      "category": "wood",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\wood\\run_wood_phase1.py",
+      "repo_path": "backend/scripts/experiments/wood/run_wood_phase1.py",
+      "sha256": "19fc10e6fdfb3c66e1773272a0c7b814f602369bcf4ff948a91451951fb02563",
+      "size_bytes": 19697,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/wood/phase1_baseline/reports/phase1_report.json",
+        "backend/ai_models/wood/phase1_declaration.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/wood/phase1_declaration.json::runner_sha256",
+        "backend/ai_models/wood/phase1_baseline/reports/phase1_report.json::runner_sha256"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "run_wood_repro_capture.py",
+      "category": "wood",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\wood\\run_wood_repro_capture.py",
+      "repo_path": "backend/scripts/experiments/wood/run_wood_repro_capture.py",
+      "sha256": "d62eeb63f3fbca5ea04a96fe4834fafc137f4c35ce2314819c97cefe8bb5d1bd",
+      "size_bytes": 934,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "run_wood_study_launcher.py",
+      "category": "wood",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\wood\\run_wood_study_launcher.py",
+      "repo_path": "backend/scripts/experiments/wood/run_wood_study_launcher.py",
+      "sha256": "fc24ddf1a840ed7310bf88cc4165a6f0aeec54b9feab837edbd078c72b33dd35",
+      "size_bytes": 2269,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/wood/model_family_study/reports/study_execution_record.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/wood/model_family_study/reports/study_execution_record.json::launcher_sha256"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "verify_wood_selection.py",
+      "category": "wood",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\wood\\verify_wood_selection.py",
+      "repo_path": "backend/scripts/experiments/wood/verify_wood_selection.py",
+      "sha256": "1bf831b72f2ab963fe5bfd1d49765f3c4a7699fa6b04b7092a5f51887621090a",
+      "size_bytes": 6195,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/wood/model_family_study/selection_lock_supplement.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/wood/model_family_study/selection_lock_supplement.json::provenance.verifier_sha256"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "write_lock_supplement.py",
+      "category": "wood",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\wood\\write_lock_supplement.py",
+      "repo_path": "backend/scripts/experiments/wood/write_lock_supplement.py",
+      "sha256": "4bf322d52e3c59ad3b77eafe107ecddfcd4dabf9fb0cb22485cbe345ead5e484",
+      "size_bytes": 4847,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "write_repro_artifact.py",
+      "category": "wood",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\wood\\write_repro_artifact.py",
+      "repo_path": "backend/scripts/experiments/wood/write_repro_artifact.py",
+      "sha256": "3b729a8d7dd2e344952375a3834ea5fa8326e15734ad940f7411a5ea3f31fd14",
+      "size_bytes": 6536,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "write_wood_declaration.py",
+      "category": "wood",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\wood\\write_wood_declaration.py",
+      "repo_path": "backend/scripts/experiments/wood/write_wood_declaration.py",
+      "sha256": "c35f37983484305504d220fe851d3f683b97ea0516d7b4c2b5e09d79ca36acc0",
+      "size_bytes": 6424,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "write_wood_mfs_declaration.py",
+      "category": "wood",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\wood\\write_wood_mfs_declaration.py",
+      "repo_path": "backend/scripts/experiments/wood/write_wood_mfs_declaration.py",
+      "sha256": "8e9416d20c3bee2c6b6e407ae927a1dae0f5558ba82a65e85ad87d958559b885",
+      "size_bytes": 10888,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "run_zipper_final.py",
+      "category": "zipper",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\zipper\\run_zipper_final.py",
+      "repo_path": "backend/scripts/experiments/zipper/run_zipper_final.py",
+      "sha256": "835e6382215679e99d9c9c0ef2afbe7c9cdd470f83a8c9d1853e0705744b58e2",
+      "size_bytes": 21892,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/zipper/model_family_study/reports/final_test_supplement.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/zipper/model_family_study/reports/final_test_supplement.json::wrapper_sha256"
+      ],
+      "name_mentioned_in": [
+        "backend/ai_models/zipper/model_family_study/reports/final_test_supplement.json"
+      ],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "run_zipper_model_family.py",
+      "category": "zipper",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\zipper\\run_zipper_model_family.py",
+      "repo_path": "backend/scripts/experiments/zipper/run_zipper_model_family.py",
+      "sha256": "8c76e1d7223ae2b67216070d802d4ebbeb6db936fad476a3ab82758b04feb643",
+      "size_bytes": 6774,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/zipper/model_family_study/reports/study_execution_record.json",
+        "backend/ai_models/zipper/model_family_study/selection_lock_supplement.json",
+        "backend/ai_models/zipper/model_family_study/study_declaration.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/zipper/model_family_study/selection_lock_supplement.json::provenance.wrapper_sha256",
+        "backend/ai_models/zipper/model_family_study/study_declaration.json::framework_versions.wrapper run_zipper_model_family.py",
+        "backend/ai_models/zipper/model_family_study/reports/study_execution_record.json::wrapper_sha256"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "run_zipper_phase1.py",
+      "category": "zipper",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\zipper\\run_zipper_phase1.py",
+      "repo_path": "backend/scripts/experiments/zipper/run_zipper_phase1.py",
+      "sha256": "3376e86d51aa22d430a0e504cd46af66f9bb99cd75723c08f1b93a2bf432644c",
+      "size_bytes": 20102,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/zipper/phase1_baseline/reports/phase1_report.json",
+        "backend/ai_models/zipper/phase1_declaration.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/zipper/phase1_declaration.json::runner_sha256",
+        "backend/ai_models/zipper/phase1_baseline/reports/phase1_report.json::runner_sha256"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "run_zipper_repro_capture.py",
+      "category": "zipper",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\zipper\\run_zipper_repro_capture.py",
+      "repo_path": "backend/scripts/experiments/zipper/run_zipper_repro_capture.py",
+      "sha256": "c222b334a77906adc27cb9c3b1bdcee8d3cb748e7904ddb227f322119125c590",
+      "size_bytes": 938,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "run_zipper_study_launcher.py",
+      "category": "zipper",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\zipper\\run_zipper_study_launcher.py",
+      "repo_path": "backend/scripts/experiments/zipper/run_zipper_study_launcher.py",
+      "sha256": "32a5f3b42a1d6c7cf61f84d5fa2cb2716f6c438bdbbc7eb329ef5e40e902b171",
+      "size_bytes": 2329,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/zipper/model_family_study/reports/study_execution_record.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/zipper/model_family_study/reports/study_execution_record.json::launcher_sha256"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "verify_zipper_selection.py",
+      "category": "zipper",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\zipper\\verify_zipper_selection.py",
+      "repo_path": "backend/scripts/experiments/zipper/verify_zipper_selection.py",
+      "sha256": "0052f3d15af08a5f81603959329788809d00f2c343dfdf65c38aa7f874e923dc",
+      "size_bytes": 6655,
+      "copy_hash_verified": true,
+      "matched_reports": [
+        "backend/ai_models/zipper/model_family_study/selection_lock_supplement.json"
+      ],
+      "matched_report_keys": [
+        "backend/ai_models/zipper/model_family_study/selection_lock_supplement.json::provenance.verifier_sha256"
+      ],
+      "name_mentioned_in": [],
+      "match_status": "MATCH"
+    },
+    {
+      "script": "write_lock_supplement.py",
+      "category": "zipper",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\zipper\\write_lock_supplement.py",
+      "repo_path": "backend/scripts/experiments/zipper/write_lock_supplement.py",
+      "sha256": "13b4ac2322e8b6fceb4244bf7092060009bf9e0383117a3ddd7ab19566ebf60f",
+      "size_bytes": 4859,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "write_repro_artifact.py",
+      "category": "zipper",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\zipper\\write_repro_artifact.py",
+      "repo_path": "backend/scripts/experiments/zipper/write_repro_artifact.py",
+      "sha256": "7cf9e075935d589bc63daecd5c967f01d8953f3d927bce95a42ff42192b2aba4",
+      "size_bytes": 6538,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "write_zipper_declaration.py",
+      "category": "zipper",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\zipper\\write_zipper_declaration.py",
+      "repo_path": "backend/scripts/experiments/zipper/write_zipper_declaration.py",
+      "sha256": "fcbddebabe7cf668a903257b50bfe165ed47adc164a3e0e38c249ecf006f277e",
+      "size_bytes": 6553,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    },
+    {
+      "script": "write_zipper_mfs_declaration.py",
+      "category": "zipper",
+      "original_path": "C:\\Users\\SHRIMATHI S\\AppData\\Local\\Temp\\claude\\c--Users-SHRIMATHI-S-Documents-VisionInspect-AI\\e9872b61-6d28-4dd0-9d7e-c6540bb7082b\\scratchpad\\zipper\\write_zipper_mfs_declaration.py",
+      "repo_path": "backend/scripts/experiments/zipper/write_zipper_mfs_declaration.py",
+      "sha256": "9a71cae986071ab8678bb31b5fa39a8d6f34e9948072468f7a7e4995c26125bd",
+      "size_bytes": 11984,
+      "copy_hash_verified": true,
+      "matched_reports": [],
+      "matched_report_keys": [],
+      "name_mentioned_in": [],
+      "match_status": "NOT REFERENCED"
+    }
+  ]
+}
