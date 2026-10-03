@@ -4,12 +4,18 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.models.user import UserRole
 
+# bcrypt only uses the first 72 bytes of a password; shared with app.auth.bootstrap.
+PASSWORD_MIN_LENGTH = 8
+PASSWORD_MAX_LENGTH = 72
+NAME_MAX_LENGTH = 255
+
 
 class UserCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=255)
+    # No `role` field: self-registration always creates a factory_supervisor. A `role` sent
+    # by the client is ignored (Pydantic's default extra="ignore"), never an error.
+    name: str = Field(min_length=1, max_length=NAME_MAX_LENGTH)
     email: EmailStr
-    password: str = Field(min_length=8, max_length=72)
-    role: UserRole
+    password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
 
 
 class UserLogin(BaseModel):

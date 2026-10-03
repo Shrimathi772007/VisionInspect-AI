@@ -286,12 +286,13 @@ def test_phase7_added_zero_api_routes(client):
     # Phase 8 adds exactly one new operation (GET /inspections/analytics/summary), and
     # Milestone 3 Phase 4 adds exactly one more (GET /inspections/{id}/report) - the count
     # below reflects both, not a Phase 7 regression.
+    # The role-escalation fix adds exactly two more (GET /users, PATCH /users/{user_id}/role).
     schema = client.get("/openapi.json").json()
     paths = schema["paths"]
     operations = sum(
         1 for methods in paths.values() for m in methods if m.lower() in ("get", "post", "put", "patch", "delete")
     )
-    assert operations == 20
+    assert operations == 22
     assert set(paths.keys()) == {
         "/auth/register",
         "/auth/login",
@@ -311,4 +312,6 @@ def test_phase7_added_zero_api_routes(client):
         "/dataset/categories/{category}/preview",
         "/health",
         "/health/db",
+        "/users",
+        "/users/{user_id}/role",
     }

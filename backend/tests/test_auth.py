@@ -1,19 +1,60 @@
-def test_register_quality_engineer(client):
-    response = client.post(
+import pytest
+from sqlalchemy import select
+
+from app.auth.bootstrap import BootstrapError, UserAlreadyExistsError, create_or_promote_quality_engineer
+from app.auth.security import verify_password
+from app.database import SessionLocal
+from app.models.user import User, UserRole
+
+
+def _stored_role(email: str) -> UserRole:
+    with SessionLocal() as session:
+        return session.execute(select(User.role).where(User.email == email)).scalar_one()
+
+
+def _register(client, email: str, **extra):
+    return client.post(
         "/auth/register",
-        json={
-            "name": "Temp QE",
-            "email": "temp.qe.auth.test@example.com",
-            "password": "TempPass123",
-            "role": "quality_engineer",
-        },
+        json={"name": "Temp Registrant", "email": email, "password": "TempPass123", **extra},
     )
-    assert response.status_code in (201, 409)
-    if response.status_code == 201:
-        body = response.json()
-        assert body["role"] == "quality_engineer"
-        assert "password" not in body
-        assert "password_hash" not in body
+
+
+def test_register_cannot_choose_quality_engineer_role(client, temp_users):
+    email = temp_users.email()
+    response = _register(client, email, role="quality_engineer")
+    assert response.status_code == 201
+    body = response.json()
+    assert body["role"] == "factory_supervisor"
+    assert "password" not in body
+    assert "password_hash" not in body
+    assert _stored_role(email) == UserRole.factory_supervisor
+
+
+def test_register_without_role_creates_factory_supervisor(client, temp_users):
+    email = temp_users.email()
+    response = _register(client, email)
+    assert response.status_code == 201
+    assert response.json()["role"] == "factory_supervisor"
+    assert _stored_role(email) == UserRole.factory_supervisor
+
+
+def test_register_with_invalid_role_is_ignored(client, temp_users):
+    # `role` is not part of the request schema at all, so any value is ignored rather than rejected.
+    email = temp_users.email()
+    response = _register(client, email, role="superuser")
+    assert response.status_code == 201
+    assert response.json()["role"] == "factory_supervisor"
+    assert _stored_role(email) == UserRole.factory_supervisor
+
+
+def test_register_login_and_me_never_expose_password_hash(client, temp_users):
+    email = temp_users.email()
+    register_body = _register(client, email).json()
+    login_body = client.post("/auth/login", json={"email": email, "password": "TempPass123"}).json()
+    me_body = client.get("/auth/me", headers={"Authorization": f"Bearer {login_body['access_token']}"}).json()
+    for user_body in (register_body, login_body["user"], me_body):
+        assert set(user_body.keys()) == {"id", "name", "email", "role", "created_at"}
+    assert set(login_body.keys()) == {"access_token", "token_type", "user"}
 
 
 def test_register_factory_supervisor(client):
@@ -84,3 +125,76 @@ def test_me_with_valid_token(client, qe_headers):
     assert response.status_code == 200
     body = response.json()
     assert set(body.keys()) == {"id", "name", "email", "role", "created_at"}
+
+
+# ---------------------------------------------------------------------------
+# Quality-engineer bootstrap (app.auth.bootstrap). Each test runs in a transaction that is
+# rolled back, so nothing is written to the database.
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def rollback_session():
+    session = SessionLocal()
+    try:
+        yield session
+    finally:
+        session.rollback()
+        session.close()
+
+
+def test_bootstrap_creates_quality_engineer(rollback_session, temp_users):
+    email = temp_users.email()
+    user = create_or_promote_quality_engineer(
+        rollback_session, "Bootstrap QE", email, "BootstrapPass123", promote_existing=False
+    )
+    stored = rollback_session.execute(select(User).where(User.email == email)).scalar_one()
+    assert stored.id == user.id
+    assert stored.role == UserRole.quality_engineer
+    assert stored.password_hash != "BootstrapPass123"
+    assert verify_password("BootstrapPass123", stored.password_hash)
+
+
+def test_bootstrap_refuses_existing_email_without_promote(rollback_session, temp_users):
+    email = temp_users.email()
+    rollback_session.add(User(name="Existing", email=email, password_hash="x", role=UserRole.factory_supervisor))
+    rollback_session.flush()
+    with pytest.raises(UserAlreadyExistsError):
+        create_or_promote_quality_engineer(rollback_session, "Existing", email, "BootstrapPass123", promote_existing=False)
+    stored = rollback_session.execute(select(User).where(User.email == email)).scalar_one()
+    assert stored.role == UserRole.factory_supervisor
+
+
+def test_bootstrap_promotes_existing_user(rollback_session, temp_users):
+    email = temp_users.email()
+    existing = User(name="Existing", email=email, password_hash="unchanged", role=UserRole.factory_supervisor)
+    rollback_session.add(existing)
+    rollback_session.flush()
+    user = create_or_promote_quality_engineer(rollback_session, "Ignored", email, None, promote_existing=True)
+    assert user.id == existing.id
+    assert user.role == UserRole.quality_engineer
+    assert user.name == "Existing"
+    assert user.password_hash == "unchanged"
+
+
+@pytest.mark.parametrize("password", ["Short7!", "x" * 73, ""])
+def test_bootstrap_rejects_password_outside_8_to_72_characters(rollback_session, temp_users, password):
+    email = temp_users.email()
+    with pytest.raises(BootstrapError) as exc_info:
+        create_or_promote_quality_engineer(rollback_session, "Bootstrap QE", email, password, promote_existing=False)
+    assert "between 8 and 72" in str(exc_info.value)
+    if password:
+        assert password not in str(exc_info.value)
+    assert rollback_session.execute(select(User).where(User.email == email)).scalar_one_or_none() is None
+
+
+def test_bootstrap_accepts_password_at_8_and_72_characters(rollback_session, temp_users):
+    for password in ("x" * 8, "x" * 72):
+        user = create_or_promote_quality_engineer(
+            rollback_session, "Bootstrap QE", temp_users.email(), password, promote_existing=False
+        )
+        assert user.role == UserRole.quality_engineer
+
+
+def test_bootstrap_requires_password_for_new_user(rollback_session, temp_users):
+    with pytest.raises(BootstrapError):
+        create_or_promote_quality_engineer(rollback_session, "Bootstrap QE", temp_users.email(), None, promote_existing=True)

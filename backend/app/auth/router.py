@@ -6,7 +6,7 @@ from app.auth.dependencies import get_current_user
 from app.auth.schemas import Token, UserCreate, UserLogin, UserOut
 from app.auth.security import create_access_token, hash_password, verify_password
 from app.database import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -21,7 +21,9 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
         name=payload.name,
         email=payload.email,
         password_hash=hash_password(payload.password),
-        role=payload.role,
+        # Never client-chosen. Quality engineers are created with scripts/create_quality_engineer.py
+        # or promoted by an existing quality engineer via PATCH /users/{user_id}/role.
+        role=UserRole.factory_supervisor,
     )
     db.add(user)
     db.commit()

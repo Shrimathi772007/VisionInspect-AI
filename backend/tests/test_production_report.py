@@ -278,5 +278,7 @@ def test_phase4_adds_exactly_one_new_api_route(client):
     operations = sum(
         1 for methods in paths.values() for m in methods if m.lower() in ("get", "post", "put", "patch", "delete")
     )
-    assert operations == 20  # 19 existing (through Phase 3) + this phase's /report route
+    # 19 existing (through Phase 3) + this phase's /report route + the role-escalation fix's
+    # two (GET /users, PATCH /users/{user_id}/role).
+    assert operations == 22
     assert "/inspections/{inspection_id}/report" in paths

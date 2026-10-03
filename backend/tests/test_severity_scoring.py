@@ -396,9 +396,10 @@ def test_supervisor_can_read_severity_fields(client, qe_headers, supervisor_head
 def test_phase2_adds_zero_api_routes(client):
     # Milestone 3 Phase 4 later adds exactly one new operation (GET
     # /inspections/{id}/report) - the count below reflects that, not a Phase 2 regression.
+    # The role-escalation fix adds exactly two more (GET /users, PATCH /users/{user_id}/role).
     schema = client.get("/openapi.json").json()
     paths = schema["paths"]
     operations = sum(
         1 for methods in paths.values() for m in methods if m.lower() in ("get", "post", "put", "patch", "delete")
     )
-    assert operations == 20
+    assert operations == 22
