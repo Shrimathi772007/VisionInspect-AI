@@ -56,6 +56,49 @@
   color: var(--color-danger);
 }
 
+.cardActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.editButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.editButton:hover {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.categoryLabel {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.categoryValue {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.categoryUnset {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--color-text-tertiary);
+}
+
 .productName {
   font-size: 15px;
   font-weight: 700;

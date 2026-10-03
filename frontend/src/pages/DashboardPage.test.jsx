@@ -291,6 +291,21 @@ describe("DashboardPage", () => {
   });
 
   describe("empty state", () => {
+    it("describes the AI empty state without listing categories", () => {
+      mockData({
+        analytics: {
+          data: makeAnalytics({ ai_analyzed_count: 0, ai_prediction_counts: { good: 0, defective: 0 }, ai_defect_rate: null }),
+        },
+      });
+      renderDashboard();
+
+      expect(screen.getByRole("heading", { name: "No AI predictions yet" })).toBeInTheDocument();
+      expect(
+        screen.getByText("AI predictions appear for inspections whose category has a deployed model.")
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/currently bottle/i)).not.toBeInTheDocument();
+    });
+
     it("explains each empty section instead of showing bare zeros", () => {
       mockData({
         recent: { inspections: [] },

@@ -257,7 +257,7 @@ export function DashboardPage() {
           <EmptyState
             icon={Cpu}
             title="No AI predictions yet"
-            description="AI predictions appear here once inspections for a supported product category (currently bottle) are analyzed."
+            description="AI predictions appear for inspections whose category has a deployed model."
           />
         )}
 

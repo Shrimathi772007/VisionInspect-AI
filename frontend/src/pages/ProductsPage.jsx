@@ -1,14 +1,15 @@
 import { useMemo, useState } from "react";
-import { Plus, Search, Box, Hash, Calendar, ScanEye, Trash2 } from "lucide-react";
+import { Plus, Search, Box, Hash, Calendar, ScanEye, Trash2, Pencil, Tag } from "lucide-react";
 import { useProducts } from "../hooks/useProducts";
 import { useInspections } from "../hooks/useInspections";
-import { createProduct, deleteProduct } from "../api/products";
+import { createProduct, deleteProduct, updateProductCategory } from "../api/products";
 import { ApiError } from "../api/client";
 import { useToast } from "../components/Toast/ToastProvider";
 import { PageHeader } from "../components/PageHeader/PageHeader";
 import { Card } from "../components/Card/Card";
 import { Button } from "../components/Button/Button";
 import { Input } from "../components/Input/Input";
+import { Select } from "../components/Select/Select";
 import { Modal } from "../components/Modal/Modal";
 import { EmptyState } from "../components/EmptyState/EmptyState";
 import { Skeleton } from "../components/Skeleton/Skeleton";
@@ -16,6 +17,7 @@ import { Badge } from "../components/Badge/Badge";
 import { RoleGate } from "../components/RoleGate/RoleGate";
 import { ProductDetailModal } from "../components/ProductDetailModal/ProductDetailModal";
 import { formatDateTime } from "../utils/formatDate";
+import { MVTEC_CATEGORIES, categoryLabel } from "../constants/mvtecCategories";
 import styles from "./ProductsPage.module.css";
 
 export function ProductsPage() {
@@ -25,12 +27,15 @@ export function ProductsPage() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formValues, setFormValues] = useState({ productName: "", productCode: "" });
+  const [formValues, setFormValues] = useState({ productName: "", productCode: "", category: "" });
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  // { product, category } while the change-category dialog is open; category "" means None.
+  const [pendingCategory, setPendingCategory] = useState(null);
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
 
   const inspectionCountByProduct = useMemo(() => {
     const counts = new Map();
@@ -54,7 +59,7 @@ export function ProductsPage() {
   }, [products, searchTerm]);
 
   const openModal = () => {
-    setFormValues({ productName: "", productCode: "" });
+    setFormValues({ productName: "", productCode: "", category: "" });
     setFormErrors({});
     setIsModalOpen(true);
   };
@@ -134,6 +139,43 @@ export function ProductsPage() {
       }
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const closeCategoryModal = () => {
+    if (isSavingCategory) return;
+    setPendingCategory(null);
+  };
+
+  const confirmCategoryChange = async () => {
+    if (!pendingCategory) return;
+    const { product, category } = pendingCategory;
+    setIsSavingCategory(true);
+    try {
+      await updateProductCategory(product.id, category || null);
+      showToast({
+        type: "success",
+        title: "Category updated",
+        message: category
+          ? `${product.product_name} now uses the ${categoryLabel(category)} category.`
+          : `${product.product_name} no longer has a category.`,
+      });
+      setPendingCategory(null);
+      refetch();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        showToast({ type: "error", title: "Product not found", message: "It may have been deleted." });
+        setPendingCategory(null);
+        refetch();
+      } else {
+        showToast({
+          type: "error",
+          title: "Couldn't update category",
+          message: err instanceof ApiError ? err.message : "Something went wrong.",
+        });
+      }
+    } finally {
+      setIsSavingCategory(false);
     }
   };
 
@@ -228,23 +270,46 @@ export function ProductsPage() {
                   <Box size={18} />
                 </div>
                 <RoleGate allow={["quality_engineer"]}>
-                  <button
-                    type="button"
-                    className={styles.deleteButton}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setPendingDelete(product);
-                    }}
-                    aria-label={`Delete ${product.product_name}`}
-                  >
-                    <Trash2 size={15} />
-                  </button>
+                  <div className={styles.cardActions}>
+                    <button
+                      type="button"
+                      className={styles.editButton}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setPendingCategory({ product, category: product.category || "" });
+                      }}
+                      aria-label={`Change category for ${product.product_name}`}
+                      title="Change MVTec category"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.deleteButton}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setPendingDelete(product);
+                      }}
+                      aria-label={`Delete ${product.product_name}`}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
                 </RoleGate>
               </div>
               <h3 className={styles.productName}>{product.product_name}</h3>
               <div className={styles.productMetaRow}>
                 <Hash size={12} />
                 <span className={styles.productCode}>{product.product_code}</span>
+              </div>
+              <div className={styles.productMetaRow}>
+                <Tag size={12} />
+                <span className={styles.categoryLabel}>Category:</span>
+                {product.category ? (
+                  <span className={styles.categoryValue}>{categoryLabel(product.category)}</span>
+                ) : (
+                  <span className={styles.categoryUnset}>Not set</span>
+                )}
               </div>
               <div className={styles.productFooter}>
                 <span className={styles.footerItem}>
@@ -293,6 +358,19 @@ export function ProductsPage() {
             error={formErrors.productCode}
             helperText={!formErrors.productCode ? "Must be unique across all products." : undefined}
           />
+          <Select
+            label="MVTec category"
+            value={formValues.category}
+            onChange={(e) => setFormValues((v) => ({ ...v, category: e.target.value }))}
+            helperText="Selects the AI model used for uploaded images. Optional."
+          >
+            <option value="">None (no AI analysis)</option>
+            {MVTEC_CATEGORIES.map((category) => (
+              <option key={category} value={category}>
+                {categoryLabel(category)}
+              </option>
+            ))}
+          </Select>
         </form>
       </Modal>
 
@@ -316,6 +394,42 @@ export function ProductsPage() {
           <p className={styles.deleteConfirmText}>
             Product code: <strong className={styles.mono}>{pendingDelete.product_code}</strong>
           </p>
+        )}
+      </Modal>
+
+      <Modal
+        open={Boolean(pendingCategory)}
+        onClose={closeCategoryModal}
+        title={pendingCategory ? `Change category for ${pendingCategory.product.product_name}?` : ""}
+        description="Only inspections uploaded after this change are affected. Existing inspections keep their AI results."
+        footer={
+          <>
+            <Button variant="ghost" onClick={closeCategoryModal} disabled={isSavingCategory}>
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmCategoryChange}
+              loading={isSavingCategory}
+              disabled={!pendingCategory || pendingCategory.category === (pendingCategory.product.category || "")}
+            >
+              Save Category
+            </Button>
+          </>
+        }
+      >
+        {pendingCategory && (
+          <Select
+            label="MVTec category"
+            value={pendingCategory.category}
+            onChange={(e) => setPendingCategory((current) => ({ ...current, category: e.target.value }))}
+          >
+            <option value="">None (no AI analysis)</option>
+            {MVTEC_CATEGORIES.map((category) => (
+              <option key={category} value={category}>
+                {categoryLabel(category)}
+              </option>
+            ))}
+          </Select>
         )}
       </Modal>
 

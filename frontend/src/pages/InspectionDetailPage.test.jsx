@@ -230,4 +230,58 @@ describe("InspectionDetailPage", () => {
       expect(screen.queryByRole("heading", { name: "Dataset reference" })).not.toBeInTheDocument();
     });
   });
+
+  describe("AI prediction card for uploads", () => {
+    const aiCard = () => within(screen.getByRole("heading", { name: "AI Prediction" }).parentElement);
+
+    it("shows the result with 'Anomaly score' and the product's current category", async () => {
+      getInspection.mockResolvedValue({
+        ...AI_INSPECTION,
+        id: 7,
+        source: "upload",
+        dataset_category: null,
+        dataset_split: null,
+        dataset_defect_type: null,
+        dataset_filename: null,
+        defect_category: null,
+        product_category: "metal_nut",
+      });
+      const { container } = renderPage(7);
+      await loaded();
+
+      expect(aiCard().getByText("Anomaly score")).toBeInTheDocument();
+      expect(aiCard().getByText("0.004100")).toBeInTheDocument();
+      expect(aiCard().getByText("Metal Nut")).toBeInTheDocument();
+      expect(aiCard().getByText("Category shown is the product's current category.")).toBeInTheDocument();
+      expect(container.textContent).not.toMatch(/reconstruction error/i);
+    });
+
+    it("says an upload without a product category was not analysed", async () => {
+      getInspection.mockResolvedValue({ ...UPLOAD_INSPECTION, product_category: null });
+      renderPage(6);
+      await loaded();
+
+      expect(aiCard().getByText("Not analysed - this product has no MVTec category.")).toBeInTheDocument();
+      expect(screen.queryByText("Not yet analyzed")).not.toBeInTheDocument();
+    });
+
+    it("says no model is available when the product has a category but there is no AI result", async () => {
+      getInspection.mockResolvedValue({ ...UPLOAD_INSPECTION, product_category: "screw" });
+      renderPage(6);
+      await loaded();
+
+      expect(aiCard().getByText("No AI model is available for the Screw category yet.")).toBeInTheDocument();
+      expect(aiCard().queryByText(/missing/i)).not.toBeInTheDocument();
+    });
+
+    it("keeps the MVTec import display: 'Anomaly score', no category row or note", async () => {
+      const { container } = renderPage();
+      await loaded();
+
+      expect(aiCard().getByText("Anomaly score")).toBeInTheDocument();
+      expect(aiCard().queryByText("Category")).not.toBeInTheDocument();
+      expect(aiCard().queryByText("Category shown is the product's current category.")).not.toBeInTheDocument();
+      expect(container.textContent).not.toMatch(/reconstruction error/i);
+    });
+  });
 });

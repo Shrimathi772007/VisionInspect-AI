@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { CheckCircle2, AlertCircle, Box, ArrowRight, RotateCcw, Plus } from "lucide-react";
+import { CheckCircle2, AlertCircle, Box, ArrowRight, RotateCcw, Plus, Info, TriangleAlert } from "lucide-react";
 import { useProducts } from "../hooks/useProducts";
 import { uploadInspection } from "../api/inspections";
 import { ApiError } from "../api/client";
@@ -13,6 +13,9 @@ import { FileDropzone } from "../components/FileDropzone/FileDropzone";
 import { ImagePreview } from "../components/ImagePreview/ImagePreview";
 import { EmptyState } from "../components/EmptyState/EmptyState";
 import { Skeleton } from "../components/Skeleton/Skeleton";
+import { Badge } from "../components/Badge/Badge";
+import { categoryLabel } from "../constants/mvtecCategories";
+import { aiPredictionLabel, aiPredictionTone } from "../utils/badgeMaps";
 import styles from "./InspectionUploadPage.module.css";
 
 export function InspectionUploadPage() {
@@ -25,6 +28,8 @@ export function InspectionUploadPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
   const [createdInspection, setCreatedInspection] = useState(null);
+
+  const selectedProduct = products.find((product) => String(product.id) === String(productId));
 
   const handleFileAccepted = (accepted) => {
     setFile(accepted);
@@ -75,6 +80,23 @@ export function InspectionUploadPage() {
           <p className={styles.successDescription}>
             Inspection <strong>#{createdInspection.id}</strong> has been uploaded and stored successfully.
           </p>
+          <div className={styles.aiSummary}>
+            {createdInspection.ai_prediction ? (
+              <>
+                <span>AI result:</span>
+                <Badge tone={aiPredictionTone(createdInspection.ai_prediction)}>
+                  {aiPredictionLabel(createdInspection.ai_prediction)}
+                </Badge>
+              </>
+            ) : typeof createdInspection.product_category === "string" ? (
+              <span>
+                No AI result: no AI model is available for the {categoryLabel(createdInspection.product_category)}{" "}
+                category yet.
+              </span>
+            ) : createdInspection.product_category === null ? (
+              <span>No AI result: this product has no MVTec category.</span>
+            ) : null}
+          </div>
           <div className={styles.successActions}>
             <Button as={Link} to={`/inspections/${createdInspection.id}`} rightIcon={<ArrowRight size={16} />}>
               View Inspection
@@ -126,11 +148,31 @@ export function InspectionUploadPage() {
                 </option>
                 {products.map((product) => (
                   <option key={product.id} value={product.id}>
-                    {product.product_name} ({product.product_code})
+                    {product.product_name} ({product.product_code}) -{" "}
+                    {product.category ? categoryLabel(product.category) : "No category"}
                   </option>
                 ))}
               </Select>
             )}
+
+            {selectedProduct && (
+              <p className={styles.categoryNote} aria-live="polite">
+                <Info size={14} aria-hidden="true" />
+                <span>
+                  {selectedProduct.category
+                    ? `AI analysis will run using the ${categoryLabel(selectedProduct.category)} model if one is available.`
+                    : "No category set. The image will be stored but not analysed by AI. Ask a Quality Engineer to set a category on this product."}
+                </span>
+              </p>
+            )}
+
+            <p className={styles.cautionNote}>
+              <TriangleAlert size={14} aria-hidden="true" />
+              <span>
+                Upload an image of the same product type as the selected category. A different object type gives
+                unreliable results.
+              </span>
+            </p>
 
             <div className={styles.fileField}>
               <span className={styles.fileFieldLabel}>Inspection image</span>

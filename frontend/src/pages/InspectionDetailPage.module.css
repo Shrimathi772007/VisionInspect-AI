@@ -143,6 +143,12 @@
   margin: -8px 0 var(--space-3);
 }
 
+.aiCategoryNote {
+  font-size: 11.5px;
+  color: var(--color-text-tertiary);
+  margin: var(--space-3) 0 0;
+}
+
 .errorCard {
   padding: var(--space-10);
   display: flex;

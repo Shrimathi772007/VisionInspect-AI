@@ -38,6 +38,7 @@ import {
   reportStatusTone,
 } from "../utils/badgeMaps";
 import { formatDateTime } from "../utils/formatDate";
+import { categoryLabel } from "../constants/mvtecCategories";
 import { formatDuration } from "../utils/formatDuration";
 import styles from "./InspectionDetailPage.module.css";
 
@@ -308,7 +309,7 @@ export function InspectionDetailPage() {
                       </dd>
                     </div>
                     <div className={styles.metaRow}>
-                      <dt>Reconstruction error</dt>
+                      <dt>Anomaly score</dt>
                       <dd className={styles.mono}>{inspection.ai_reconstruction_error.toFixed(6)}</dd>
                     </div>
                     <div className={styles.metaRow}>
@@ -325,8 +326,25 @@ export function InspectionDetailPage() {
                         {formatDuration(inspection.ai_inference_time_ms) ?? "Not recorded"}
                       </dd>
                     </div>
+                    {inspection.source === "upload" && (
+                      <div className={styles.metaRow}>
+                        <dt>Category</dt>
+                        <dd>{inspection.product_category ? categoryLabel(inspection.product_category) : "Not set"}</dd>
+                      </div>
+                    )}
                   </dl>
+                  {inspection.source === "upload" && (
+                    <p className={styles.aiCategoryNote}>Category shown is the product&apos;s current category.</p>
+                  )}
                 </>
+              ) : inspection.source === "upload" && inspection.product_category === null ? (
+                // Only when the API explicitly says the product has no category; a response
+                // without the field falls through to the generic "Not yet analyzed".
+                <p className={styles.metaFallback}>Not analysed - this product has no MVTec category.</p>
+              ) : inspection.source === "upload" && typeof inspection.product_category === "string" ? (
+                <p className={styles.metaFallback}>
+                  No AI model is available for the {categoryLabel(inspection.product_category)} category yet.
+                </p>
               ) : (
                 <p className={styles.metaFallback}>Not yet analyzed</p>
               )}
