@@ -84,7 +84,8 @@ class Inspection(Base):
     # ai_inference_time_ms: the time reported by app.ai.inference.predict_image for this
     #   inspection (PredictionResult.processing_time_ms) - i.e. everything that call does,
     #   including loading the model and deriving the threshold. NULL whenever no AI
-    #   prediction ran (uploads have no MVTec category, so they never get one today).
+    #   prediction ran (e.g. an upload whose product has no MVTec category, or a category
+    #   with no served model).
     processing_time_ms: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     ai_inference_time_ms: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 

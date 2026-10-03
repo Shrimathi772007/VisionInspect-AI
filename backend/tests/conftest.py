@@ -9,6 +9,8 @@ from sqlalchemy import delete, select
 from app.auth.security import hash_password
 from app.database import SessionLocal
 from app.main import app
+from app.models.inspection import Inspection
+from app.models.product import Product
 from app.models.user import User, UserRole
 
 QE_EMAIL = "pytest.qe@example.com"
@@ -133,3 +135,56 @@ def temp_users():
     users = TemporaryUsers()
     yield users
     users.cleanup()
+
+
+class CategoryProducts:
+    """Throwaway products (code PYTEST-CAT-<hex>) with an optional MVTec category.
+
+    Teardown deletes every inspection of these products through the API (which also removes
+    uploaded files from storage, and never touches the dataset), then the products themselves.
+    """
+
+    def __init__(self, client: TestClient, qe_headers: dict):
+        self.client = client
+        self.qe_headers = qe_headers
+        self.product_ids: list[int] = []
+
+    def create(self, category: str | None = None) -> dict:
+        payload = {"product_name": "Pytest Category Widget", "product_code": f"PYTEST-CAT-{uuid4().hex[:12]}"}
+        if category is not None:
+            payload["category"] = category
+        response = self.client.post("/products", json=payload, headers=self.qe_headers)
+        assert response.status_code == 201, response.text
+        product = response.json()
+        self.product_ids.append(product["id"])
+        return product
+
+    def upload(self, product: dict, image_bytes: bytes, filename: str = "sample.png"):
+        return self.client.post(
+            "/inspections/upload",
+            headers=self.qe_headers,
+            data={"product_id": str(product["id"])},
+            files={"file": (filename, image_bytes, "image/png")},
+        )
+
+    def cleanup(self) -> None:
+        if not self.product_ids:
+            return
+        with SessionLocal() as session:
+            inspection_ids = session.execute(
+                select(Inspection.id).where(Inspection.product_id.in_(self.product_ids))
+            ).scalars().all()
+        for inspection_id in inspection_ids:
+            self.client.delete(f"/inspections/{inspection_id}", headers=self.qe_headers)
+        for product_id in self.product_ids:
+            self.client.delete(f"/products/{product_id}", headers=self.qe_headers)
+        with SessionLocal() as session:
+            leftover = session.execute(select(Product.id).where(Product.id.in_(self.product_ids))).scalars().all()
+        assert not leftover, f"test products not cleaned up: {leftover}"
+
+
+@pytest.fixture
+def category_products(client, qe_headers):
+    products = CategoryProducts(client, qe_headers)
+    yield products
+    products.cleanup()

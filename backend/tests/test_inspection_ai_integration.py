@@ -7,6 +7,8 @@ images to prove the wiring actually works end to end - they do not assert anythi
 model accuracy, only that AI fields get populated (or safely don't) as expected.
 """
 
+from pathlib import Path
+
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm import Session
 
@@ -58,19 +60,91 @@ class _FakeSession:
         self.refreshed = obj
 
 
-def test_upload_source_never_calls_predict_image(monkeypatch):
+# Uploads get an AI prediction only through their product's MVTec category (see
+# app.inspections.service._resolve_category). These two replace the earlier
+# test_upload_source_never_calls_predict_image, which asserted that uploads were never scored.
+
+def test_upload_for_product_without_category_never_calls_predict_image(
+    client, category_products, monkeypatch
+):
     def _fail_if_called(*args, **kwargs):
-        raise AssertionError("predict_image must not be called for an upload with no derivable category")
+        raise AssertionError("predict_image must not be called for a product with no category")
 
     monkeypatch.setattr("app.inspections.service.predict_image", _fail_if_called)
+    product = category_products.create(category=None)
 
-    inspection = Inspection(id=1, product_id=1, image_path="1/abcd.png", source=InspectionSource.upload)
-    run_ai_inference(inspection, _FakeSession())
+    response = category_products.upload(product, make_image_bytes("PNG"))
 
-    assert inspection.ai_prediction is None
-    assert inspection.ai_reconstruction_error is None
-    assert inspection.ai_threshold is None
-    assert inspection.ai_model_name is None
+    assert response.status_code == 201
+    body = response.json()
+    for field in AI_COLUMNS | {"ai_inference_time_ms"}:
+        assert body[field] is None, field
+    assert body["product_category"] is None
+    assert body["status"] == "pending"
+    assert body["quality_decision"] == "NOT_ASSESSED"
+
+
+def test_upload_for_product_with_category_is_scored_and_assessed(client, category_products, monkeypatch):
+    from app.ai.inference import PredictionResult
+    from app.database import SessionLocal
+    from app.inspections import router as inspections_router
+    from app.inspections.storage import STORAGE_ROOT
+
+    calls = []
+
+    def _fake_predict(image_path, category, *args, **kwargs):
+        calls.append({"path": Path(image_path), "category": category, "existed": Path(image_path).is_file()})
+        return PredictionResult(
+            category=category,
+            prediction="defective",
+            reconstruction_error=2.5,
+            threshold=1.7393077017650718,
+            model_name="knn_l23_256",
+            input_size=(256, 256),
+            processing_time_ms=42.0,
+        )
+
+    steps = []
+    for name in ("apply_severity_assessment", "apply_quality_assessment"):
+        original = getattr(inspections_router, name)
+
+        def _spy(inspection, db, _original=original, _name=name):
+            steps.append(_name)
+            return _original(inspection, db)
+
+        monkeypatch.setattr(inspections_router, name, _spy)
+    monkeypatch.setattr("app.inspections.service.predict_image", _fake_predict)
+
+    product = category_products.create(category="tile")
+    response = category_products.upload(product, make_image_bytes("PNG"))
+
+    assert response.status_code == 201
+    body = response.json()
+
+    # Called exactly once, with the product's category and the stored upload file.
+    assert len(calls) == 1
+    assert calls[0]["category"] == "tile"
+    with SessionLocal() as session:
+        stored = session.get(Inspection, body["id"])
+        expected_path = (STORAGE_ROOT / stored.image_path).resolve()
+        assert stored.ai_prediction == "defective"
+        assert stored.ai_reconstruction_error == 2.5
+        assert stored.ai_threshold == 1.7393077017650718
+        assert stored.ai_model_name == "knn_l23_256"
+        assert stored.ai_inference_time_ms == 42.0
+    assert calls[0]["path"] == expected_path
+    assert calls[0]["path"].is_relative_to(STORAGE_ROOT)
+    assert calls[0]["existed"] is True
+
+    # The same post-processing as imports, in order, after inference.
+    assert steps == ["apply_severity_assessment", "apply_quality_assessment"]
+    assert body["ai_prediction"] == "defective"
+    assert body["product_category"] == "tile"
+    assert body["status"] == "pending"
+    assert body["severity_level"] is None  # uploads have no defect_category -> "not assessed"
+    assert body["quality_decision"] == "FAIL"
+    assert body["quality_assessment"]
+    assert body["processing_time_ms"] is not None
 
 
 def test_mvtec_import_with_unsupported_category_leaves_fields_null(monkeypatch):
@@ -287,18 +361,20 @@ def test_phase7_added_zero_api_routes(client):
     # Milestone 3 Phase 4 adds exactly one more (GET /inspections/{id}/report) - the count
     # below reflects both, not a Phase 7 regression.
     # The role-escalation fix adds exactly two more (GET /users, PATCH /users/{user_id}/role).
+    # The upload-AI change adds exactly one more (PATCH /products/{product_id}/category).
     schema = client.get("/openapi.json").json()
     paths = schema["paths"]
     operations = sum(
         1 for methods in paths.values() for m in methods if m.lower() in ("get", "post", "put", "patch", "delete")
     )
-    assert operations == 22
+    assert operations == 23
     assert set(paths.keys()) == {
         "/auth/register",
         "/auth/login",
         "/auth/me",
         "/products",
         "/products/{product_id}",
+        "/products/{product_id}/category",
         "/inspections",
         "/inspections/analytics/summary",
         "/inspections/upload",

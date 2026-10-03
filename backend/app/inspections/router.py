@@ -3,7 +3,7 @@ import time
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.auth.dependencies import get_current_user, require_role
 from app.database import get_db
@@ -48,7 +48,9 @@ def list_inspections(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    query = select(Inspection).order_by(Inspection.created_at.desc())
+    # selectinload: InspectionOut.product_category reads each inspection's product; load them
+    # all in one extra query instead of one lazy load per inspection.
+    query = select(Inspection).options(selectinload(Inspection.product)).order_by(Inspection.created_at.desc())
     if limit is not None:
         query = query.limit(limit)
     return db.execute(query).scalars().all()
@@ -113,6 +115,9 @@ async def upload_inspection(
     # to fail or roll back the creation above (see app.inspections.service.run_ai_inference).
     run_ai_inference(inspection, db)
 
+    # Best-effort AI prediction above uses the product's MVTec category (None -> no prediction);
+    # see app.inspections.service._resolve_category.
+    #
     # Severity assessment runs after AI inference so it can see ai_prediction/defect_category
     # once those are settled - today it uses only defect_category (see app.inspections.severity
     # for why the other three factors are currently unavailable) and stays honestly

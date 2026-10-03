@@ -23,15 +23,22 @@ logger = logging.getLogger(__name__)
 
 
 def _resolve_category(inspection: Inspection) -> str | None:
-    """The MVTec category for `inspection`, if one is safely derivable.
+    """The MVTec category whose AI model should score `inspection`, if there is one.
 
-    Only mvtec_ad inspections carry a recoverable category - their image_path
-    is "<category>/<split>/<defect_type>/<filename>" by construction (see
-    app.dataset.service.build_dataset_relative_path). Uploaded images have no
-    such structure and no other field ties them to an MVTec category, so
-    there is nothing to safely derive - returning None there is intentional,
-    not a bug: this project deliberately does not guess or fabricate one.
+    - mvtec_ad imports: derived from image_path, which is
+      "<category>/<split>/<defect_type>/<filename>" by construction (see
+      app.dataset.service.build_dataset_relative_path). The dataset path always wins over
+      the product's category - an import is scored by the model of the category it came from.
+    - uploads: the category a quality engineer set on the inspection's product (validated
+      against app.dataset.categories.MVTEC_CATEGORIES when it was set), or None when the
+      product has none. Nothing is guessed from the image itself, so the result is only as
+      right as that product setting: an upload of a different kind of object is still scored
+      by the product's category model.
     """
+    if inspection.source == InspectionSource.upload:
+        product = inspection.product
+        return product.category if product is not None else None
+
     if inspection.source != InspectionSource.mvtec_ad:
         return None
 

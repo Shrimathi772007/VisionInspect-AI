@@ -55,6 +55,13 @@ class InspectionOut(BaseModel):
     processing_time_ms: Optional[float] = None
     ai_inference_time_ms: Optional[float] = None
 
+    # The product's CURRENT MVTec category (read-only, from the related product - not stored on
+    # the inspection). Lets a client tell "no category set" (None) apart from "category set but
+    # no AI result" (e.g. no served model for it, or inference failed). Because it reflects the
+    # product now, it can differ from the category that was in effect when this inspection was
+    # scored.
+    product_category: Optional[str] = None
+
     @model_validator(mode="before")
     @classmethod
     def extract_dataset_metadata(cls, data):
@@ -83,6 +90,7 @@ class InspectionOut(BaseModel):
             "quality_recommendation": data.quality_recommendation,
             "processing_time_ms": data.processing_time_ms,
             "ai_inference_time_ms": data.ai_inference_time_ms,
+            "product_category": data.product.category if data.product is not None else None,
         }
 
         if data.source == InspectionSource.mvtec_ad and data.image_path:

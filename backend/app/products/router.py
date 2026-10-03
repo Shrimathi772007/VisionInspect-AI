@@ -7,7 +7,7 @@ from app.database import get_db
 from app.models.inspection import Inspection
 from app.models.product import Product
 from app.models.user import User, UserRole
-from app.products.schemas import ProductCreate, ProductOut
+from app.products.schemas import ProductCategoryUpdate, ProductCreate, ProductOut
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -24,7 +24,11 @@ def create_product(
     if existing_product is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Product code already exists")
 
-    product = Product(product_name=payload.product_name, product_code=payload.product_code)
+    product = Product(
+        product_name=payload.product_name,
+        product_code=payload.product_code,
+        category=payload.category,
+    )
     db.add(product)
     db.commit()
     db.refresh(product)
@@ -37,6 +41,28 @@ def list_products(
     current_user: User = Depends(get_current_user),
 ):
     return db.execute(select(Product).order_by(Product.id)).scalars().all()
+
+
+@router.patch("/{product_id}/category", response_model=ProductOut)
+def update_product_category(
+    product_id: int,
+    payload: ProductCategoryUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.quality_engineer)),
+):
+    """Set (or clear, with null) the MVTec category that selects the AI model for uploads.
+
+    Only inspections created after this change are affected; existing inspection rows,
+    including their ai_* results, are never touched.
+    """
+    product = db.get(Product, product_id)
+    if product is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+
+    product.category = payload.category
+    db.commit()
+    db.refresh(product)
+    return product
 
 
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
