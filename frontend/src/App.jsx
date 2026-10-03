@@ -28,7 +28,14 @@ function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/inspections" element={<InspectionsPage />} />
-        <Route path="/inspections/upload" element={<InspectionUploadPage />} />
+        <Route
+          path="/inspections/upload"
+          element={
+            <RoleRoute allow={["quality_engineer"]}>
+              <InspectionUploadPage />
+            </RoleRoute>
+          }
+        />
         <Route path="/inspections/:id" element={<InspectionDetailPage />} />
         <Route path="/dataset" element={<DatasetBrowserPage />} />
         <Route
