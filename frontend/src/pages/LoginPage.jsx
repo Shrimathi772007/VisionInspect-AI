@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, ScanLine, ShieldCheck, Layers, Camera } from "lucide-react";
 import { useAuth } from "../auth/useAuth";
 import { Input } from "../components/Input/Input";
@@ -137,7 +137,10 @@ export function LoginPage() {
           </form>
 
           <p className={styles.footerNote}>
-            Access is provisioned internally. Contact your quality lead if you need an account.
+            Don&apos;t have an account?{" "}
+            <Link to="/register" className={styles.footerLink}>
+              Create an account
+            </Link>
           </p>
         </div>
       </div>
