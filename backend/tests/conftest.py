@@ -1,18 +1,139 @@
+"""Shared fixtures - and, BEFORE any app import, the test-isolation setup:
+
+* Database: the suite never uses the development database. It runs against "<dev db name>_test" on the
+  same server (or VISIONINSPECT_TEST_DATABASE_URL when set). pytest_sessionstart creates that database if
+  it does not exist (via the "postgres" maintenance database) and runs `alembic upgrade head` on it once
+  per session. The run is refused if the resolved test database is the development database.
+* Storage: uploads and heatmaps go to a per-session temporary directory (UPLOAD_STORAGE_ROOT /
+  HEATMAP_STORAGE_ROOT), deleted at the end of the session, so tests never write into backend/storage.
+
+app.database.session and app.inspections.storage read these environment variables at import time
+(load_dotenv never overrides a variable that is already set), so they are set here, first.
+"""
+
+import os
+import shutil
+import tempfile
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import unquote
 from uuid import uuid4
 
-import pytest
-from fastapi.testclient import TestClient
-from PIL import Image
-from sqlalchemy import delete, select
+from dotenv import load_dotenv
+from sqlalchemy.engine import make_url
 
-from app.auth.security import hash_password
-from app.database import SessionLocal
-from app.main import app
-from app.models.inspection import Inspection
-from app.models.product import Product
-from app.models.user import User, UserRole
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+TEST_DATABASE_URL_ENV = "VISIONINSPECT_TEST_DATABASE_URL"
+load_dotenv(BACKEND_DIR / ".env")
+
+DEV_DB = {
+    "host": os.getenv("POSTGRES_HOST", "localhost"),
+    "port": str(os.getenv("POSTGRES_PORT", "5432")),
+    "database": os.getenv("POSTGRES_DB", "visioninspect_db"),
+}
+
+
+def _resolve_test_database() -> dict:
+    """{user, password, host, port, database} of the test database (never printed: holds the password)."""
+    url = os.getenv(TEST_DATABASE_URL_ENV)
+    if url:
+        parsed = make_url(url)
+        return {
+            "user": parsed.username or os.getenv("POSTGRES_USER", "postgres"),
+            "password": unquote(parsed.password) if parsed.password else os.getenv("POSTGRES_PASSWORD", ""),
+            "host": parsed.host or "localhost",
+            "port": str(parsed.port or 5432),
+            "database": parsed.database,
+        }
+    return {
+        "user": os.getenv("POSTGRES_USER", "postgres"),
+        "password": os.getenv("POSTGRES_PASSWORD", ""),
+        "host": DEV_DB["host"],
+        "port": DEV_DB["port"],
+        "database": f"{DEV_DB['database']}_test",
+    }
+
+
+def _same_database(a: dict, b: dict) -> bool:
+    local = {"localhost", "127.0.0.1", "::1"}
+    same_host = a["host"] == b["host"] or (a["host"] in local and b["host"] in local)
+    return same_host and str(a["port"]) == str(b["port"]) and a["database"] == b["database"]
+
+
+TEST_DB = _resolve_test_database()
+if not TEST_DB["database"] or _same_database(TEST_DB, DEV_DB):
+    raise RuntimeError(
+        f"Refusing to run the tests: the test database {TEST_DB['database']!r} on {TEST_DB['host']}:{TEST_DB['port']} "
+        "is the development database. Set VISIONINSPECT_TEST_DATABASE_URL to a separate database."
+    )
+os.environ.update({
+    "POSTGRES_USER": TEST_DB["user"],
+    "POSTGRES_PASSWORD": TEST_DB["password"],
+    "POSTGRES_HOST": TEST_DB["host"],
+    "POSTGRES_PORT": TEST_DB["port"],
+    "POSTGRES_DB": TEST_DB["database"],
+})
+
+TEST_STORAGE_DIR = Path(tempfile.mkdtemp(prefix="visioninspect_test_storage_"))
+(TEST_STORAGE_DIR / "uploads").mkdir()
+(TEST_STORAGE_DIR / "heatmaps").mkdir()
+os.environ["UPLOAD_STORAGE_ROOT"] = str(TEST_STORAGE_DIR / "uploads")
+os.environ["HEATMAP_STORAGE_ROOT"] = str(TEST_STORAGE_DIR / "heatmaps")
+
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from PIL import Image  # noqa: E402
+from sqlalchemy import create_engine, delete, select, text  # noqa: E402
+from sqlalchemy.engine import URL  # noqa: E402
+
+from app.auth.security import hash_password  # noqa: E402
+from app.database import SessionLocal, engine  # noqa: E402
+from app.inspections.storage import HEATMAP_ROOT, STORAGE_ROOT  # noqa: E402
+from app.main import app  # noqa: E402
+from app.models.inspection import Inspection  # noqa: E402
+from app.models.product import Product  # noqa: E402
+from app.models.user import User, UserRole  # noqa: E402
+
+
+def _ensure_test_database() -> None:
+    """Create the test database if it does not exist (through the "postgres" maintenance database)."""
+    maintenance = URL.create(
+        "postgresql+psycopg", username=TEST_DB["user"], password=TEST_DB["password"] or None,
+        host=TEST_DB["host"], port=int(TEST_DB["port"]), database="postgres",
+    )
+    admin = create_engine(maintenance, isolation_level="AUTOCOMMIT")
+    try:
+        with admin.connect() as conn:
+            exists = conn.execute(text("SELECT 1 FROM pg_database WHERE datname = :name"),
+                                  {"name": TEST_DB["database"]}).scalar()
+            if not exists:
+                conn.execute(text(f'CREATE DATABASE "{TEST_DB["database"]}"'))
+    finally:
+        admin.dispose()
+
+
+def pytest_sessionstart(session):
+    # The app's engine must point at the test database - checked again after the app import.
+    if engine.url.database != TEST_DB["database"] or _same_database(
+        {"host": engine.url.host, "port": str(engine.url.port), "database": engine.url.database}, DEV_DB
+    ):
+        raise pytest.UsageError("The application engine is not bound to the test database; refusing to run.")
+    if STORAGE_ROOT.resolve() != (TEST_STORAGE_DIR / "uploads").resolve() or HEATMAP_ROOT.resolve() != (TEST_STORAGE_DIR / "heatmaps").resolve():
+        raise pytest.UsageError("Upload/heatmap storage is not the per-session test directory; refusing to run.")
+    _ensure_test_database()
+    from alembic import command
+    from alembic.config import Config
+
+    # No ini file: migrations/env.py then skips logging.fileConfig, so the test session's loggers stay as
+    # they are; env.py takes the URL from app.database.session (the test database).
+    alembic_config = Config()
+    alembic_config.set_main_option("script_location", str(BACKEND_DIR / "migrations"))
+    command.upgrade(alembic_config, "head")
+
+
+def pytest_sessionfinish(session, exitstatus):
+    engine.dispose()
+    shutil.rmtree(TEST_STORAGE_DIR, ignore_errors=True)
 
 QE_EMAIL = "pytest.qe@example.com"
 QE_PASSWORD = "PytestQEPass123"
