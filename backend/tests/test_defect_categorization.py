@@ -119,12 +119,15 @@ def test_import_good_does_not_force_ai_prediction_good(client, qe_headers, test_
 # ---------------------------------------------------------------------------
 
 def test_existing_ai_fields_still_populate_alongside_defect_category(client, qe_headers, test_product):
-    response = _import(client, qe_headers, test_product["id"], "good", filename="004.png")
+    # Updated deliberately (all-categories registration): Bottle is served by its WRN-50 PatchCore model, and
+    # test/ images are each category's consumed final test - so this real-model import uses a train/good image.
+    response = _import(client, qe_headers, test_product["id"], "good", filename="004.png", split="train")
     assert response.status_code == 201
     body = response.json()
+    assert body["defect_category"] == "good"
     assert isinstance(body["ai_reconstruction_error"], float)
     assert isinstance(body["ai_threshold"], float)
-    assert body["ai_model_name"] == "autoencoder"
+    assert body["ai_model_name"] == "wrn50_patchcore_crop224"
 
 
 def test_import_still_requires_quality_engineer_role(client, supervisor_headers, test_product):

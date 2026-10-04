@@ -398,9 +398,10 @@ def test_phase2_adds_zero_api_routes(client):
     # /inspections/{id}/report) - the count below reflects that, not a Phase 2 regression.
     # The role-escalation fix adds exactly two more (GET /users, PATCH /users/{user_id}/role).
     # The upload-AI change adds exactly one more (PATCH /products/{product_id}/category).
+    # The all-categories serving change adds exactly one more (GET /ai/models).
     schema = client.get("/openapi.json").json()
     paths = schema["paths"]
     operations = sum(
         1 for methods in paths.values() for m in methods if m.lower() in ("get", "post", "put", "patch", "delete")
     )
-    assert operations == 23
+    assert operations == 24

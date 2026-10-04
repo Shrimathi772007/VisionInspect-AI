@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.ai.router import router as ai_router
 from app.auth.router import router as auth_router
 from app.database import get_db
 from app.dataset.router import router as dataset_router
@@ -29,6 +30,7 @@ app.include_router(products_router)
 app.include_router(inspections_router)
 app.include_router(dataset_router)
 app.include_router(users_router)
+app.include_router(ai_router)
 
 
 @app.get("/health")

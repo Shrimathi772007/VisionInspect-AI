@@ -18,6 +18,7 @@ import numpy as np
 import pytest
 import torch
 
+from app.ai.inference.serving import SERVING_CONFIGS
 from app.ai.evaluation import model_family_final as final
 from app.ai.evaluation import model_family_pipeline as pipe
 from app.ai.evaluation import model_family_study as mfs
@@ -222,11 +223,14 @@ def test_study_modules_cannot_list_or_score_test_images(module):
     assert not [m for m in imported if m.endswith("model_family_final") or "calibration_final_test" in m]
 
 
-def test_final_module_only_scores_the_locked_candidate_and_serving_has_no_metal_nut():
+def test_final_module_only_scores_the_locked_candidate_and_serving_uses_only_the_locked_winner():
     source = Path(final.__file__).read_text(encoding="utf-8")
     assert "evaluate_candidate_on_final_test" not in source and "candidate_results" not in source
-    serving = (Path(mfs.__file__).parent.parent / "inference" / "serving.py").read_text(encoding="utf-8").lower()
-    assert "metal_nut" not in serving and "metal nut" not in serving
+    # Updated deliberately (all-categories registration): metal_nut IS served now, but only by its locked final model
+    # (this study's locked winner, selected_candidate/) - never by this phase's artifact.
+    metal_nut = SERVING_CONFIGS["metal_nut"]
+    assert metal_nut.artifact_name == "model_family_study/selected_candidate/model_state" and metal_nut.model_name == "knn_l23_256"
+    assert "SERVING_CONFIGS" not in source
 
 
 # ---------------------------------------------------------------------------

@@ -18,6 +18,7 @@ import cv2
 import numpy as np
 import pytest
 
+from app.ai.inference.serving import SERVING_CONFIGS
 from app.ai.evaluation import model_family_pipeline as pipe
 from app.ai.evaluation import model_family_study as mfs
 from app.ai.evaluation import phase2_threshold_calibration as p2
@@ -123,9 +124,12 @@ def test_module_cannot_list_or_score_test_images_and_never_imports_the_final_tes
     assert not [m for m in imported if m and m.endswith("model_family_final")]
 
 
-def test_serving_has_no_pill_registration():
-    serving = (Path(p2.__file__).parent.parent / "inference" / "serving.py").read_text(encoding="utf-8").lower()
-    assert "pill" not in serving.replace("pillow", "")
+def test_serving_never_uses_the_phase2_pill_model():
+    # Updated deliberately (all-categories registration): pill IS served now, but only by its locked final model
+    # (its WRN-50 PatchCore model) - never by this phase's artifact.
+    pill = SERVING_CONFIGS["pill"]
+    assert pill.artifact_name == "patchcore_wrn50/final_model/model_state" and pill.model_name == "wrn50_patchcore_crop224"
+    assert "phase1" not in pill.artifact_name and "phase2" not in pill.artifact_name and "model_family" not in pill.artifact_name
 
 
 # ---------------------------------------------------------------------------

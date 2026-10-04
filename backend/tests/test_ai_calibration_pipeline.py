@@ -30,6 +30,7 @@ from app.ai.inference.serving import SERVING_CONFIGS
 from app.ai.models.patch_anomaly import PatchAnomalyDetector
 from app.ai.models.resnet18 import RESNET18_SHA256, ResNet18
 from app.ai.training import discover_test_samples
+from app.dataset.categories import MVTEC_CATEGORIES
 
 CATEGORY = "widget"
 
@@ -270,5 +271,7 @@ def test_final_test_runs_once_with_the_locked_threshold_gates_audit_and_baseline
 
 
 def test_serving_registry_is_untouched():
-    assert set(SERVING_CONFIGS) == {"bottle", "tile", "cable"}  # tile/cable: deliberate registrations (test_ai_tile_serving, test_ai_cable_serving)
+    # Updated deliberately (all-categories registration): the 15 MVTec categories are the deliberate registrations
+    # (test_ai_all_categories_serving); nothing else may appear.
+    assert set(SERVING_CONFIGS) == set(MVTEC_CATEGORIES) and CATEGORY not in SERVING_CONFIGS
     assert dataclasses.is_dataclass(cs.ConfigRow) and discover_test_samples is not None

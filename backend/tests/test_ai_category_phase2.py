@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from app.ai.inference.serving import SERVING_CONFIGS
 from app.ai.evaluation import category_phase1 as phase1
 from app.ai.evaluation import category_phase2 as p2
 from app.ai.evaluation import category_phase2_final as p2f
@@ -172,9 +173,13 @@ def test_study_module_cannot_list_test_images():
     assert not [m for m in imported if "category_phase2_final" in m or "calibration" in m or "phase4" in m]
 
 
-def test_serving_registry_has_no_leather():
-    serving = Path(p2.__file__).parent.parent / "inference" / "serving.py"
-    assert "leather" not in serving.read_text(encoding="utf-8").lower()
+def test_serving_registry_serves_leather_only_with_its_model_family_winner():
+    # Updated deliberately (all-categories registration): leather IS served now, but only by its locked final model
+    # (the model-family-study winner) - never by this phase's artifact.
+    leather = SERVING_CONFIGS["leather"]
+    assert leather.artifact_name == "model_family_study/selected_candidate/model_state" and leather.model_name == "gauss_l23_128"
+    assert "phase1" not in leather.artifact_name and "phase2" not in leather.artifact_name
+    assert "SERVING_CONFIGS" not in Path(p2.__file__).read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------

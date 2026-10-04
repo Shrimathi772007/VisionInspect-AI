@@ -1,4 +1,5 @@
 from io import BytesIO
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -83,6 +84,30 @@ class TemporaryUsers:
             with SessionLocal() as session:
                 session.execute(delete(User).where(User.email.in_(self.emails)))
                 session.commit()
+
+
+@pytest.fixture(autouse=True)
+def _served_models_never_score_dataset_test_images(monkeypatch):
+    """Every MVTec category has a served final model, and each was scored exactly once on its dataset/<category>/test/
+    split. Many API tests import test/ images (for ground-truth status, severity, analytics), and an import runs
+    real AI inference - so through app.inspections.service, a test/ image is refused before any model sees it and
+    the inspection keeps ai_* NULL, the existing best-effort path. Tests that monkeypatch predict_image themselves
+    replace this guard for their own duration."""
+    import app.inspections.service as inspection_service
+    from app.inspections.storage import DATASET_ROOT
+
+    real_predict = inspection_service.predict_image
+    dataset_root = Path(DATASET_ROOT).resolve()
+
+    def guarded(image_path, category, *args, **kwargs):
+        resolved = Path(image_path).resolve()
+        if resolved.is_relative_to(dataset_root):
+            parts = resolved.relative_to(dataset_root).parts
+            if len(parts) >= 2 and parts[1] == "test":
+                raise RuntimeError("test harness: dataset test/ images are never scored by a served model")
+        return real_predict(image_path, category, *args, **kwargs)
+
+    monkeypatch.setattr(inspection_service, "predict_image", guarded)
 
 
 @pytest.fixture(scope="session")

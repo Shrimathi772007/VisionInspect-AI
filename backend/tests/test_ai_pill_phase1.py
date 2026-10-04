@@ -19,6 +19,7 @@ import pytest
 import torch
 from torch import nn
 
+from app.ai.inference.serving import SERVING_CONFIGS
 from app.ai.evaluation import category_phase1 as phase1
 from app.ai.evaluation.category_phase1 import (
     compare_runs,
@@ -372,10 +373,13 @@ def test_script_stops_when_the_enumerated_defect_types_differ_from_the_declared_
     assert not default_model_path(CATEGORY).exists()  # stopped before any training
 
 
-def test_phase1_module_uses_no_other_phase_machinery_and_serving_does_not_register_pill():
+def test_phase1_module_uses_no_other_phase_machinery_and_serving_never_uses_the_phase1_model():
     tree = ast.parse(Path(phase1.__file__).read_text(encoding="utf-8"))
     imported = {n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module}
     forbidden = ("threshold_experiments", "phase3_threshold_selection", "calibration", "patch_anomaly", "resnet18", "validation_split", "phase4")
     assert not [m for m in imported if any(f in m for f in forbidden)]
-    serving = (Path(phase1.__file__).parent.parent / "inference" / "serving.py").read_text(encoding="utf-8").lower()
-    assert "pill" not in serving.replace("pillow", "")
+    # Updated deliberately (all-categories registration): pill IS served now, but only by its locked final model
+    # (its WRN-50 PatchCore model) - never by this phase's artifact.
+    pill = SERVING_CONFIGS["pill"]
+    assert pill.artifact_name == "patchcore_wrn50/final_model/model_state" and pill.model_name == "wrn50_patchcore_crop224"
+    assert "phase1" not in pill.artifact_name and "phase2" not in pill.artifact_name and "model_family" not in pill.artifact_name

@@ -280,6 +280,6 @@ def test_phase4_adds_exactly_one_new_api_route(client):
     )
     # 19 existing (through Phase 3) + this phase's /report route + the role-escalation fix's
     # two (GET /users, PATCH /users/{user_id}/role) + the upload-AI change's one
-    # (PATCH /products/{product_id}/category).
-    assert operations == 23
+    # (PATCH /products/{product_id}/category) + the all-categories serving change's one (GET /ai/models).
+    assert operations == 24
     assert "/inspections/{inspection_id}/report" in paths

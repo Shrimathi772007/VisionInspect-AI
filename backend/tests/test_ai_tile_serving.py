@@ -25,6 +25,7 @@ from app.ai.inference import ModelArtifactNotFoundError, ModelIntegrityError, Pr
 from app.ai.inference.serving import (
     MODEL_FAMILY_CONVAE,
     MODEL_FAMILY_PATCH_ANOMALY,
+    MODEL_FAMILY_PATCHCORE_WRN50,
     SERVING_CONFIGS,
     CategoryServingConfig,
     clear_model_cache,
@@ -42,6 +43,7 @@ from app.ai.preprocessing import pipeline
 from app.ai.preprocessing.errors import ImageDecodeError, ImageNotFoundError
 from app.ai.training import build_model, save_model
 from app.ai.training.artifacts import ARTIFACTS_ROOT, get_model_path
+from app.dataset.categories import MVTEC_CATEGORIES
 from app.inspections.storage import DATASET_ROOT
 from tests.conftest import make_image_bytes
 
@@ -145,11 +147,14 @@ def test_tile_configuration_matches_the_selection_lock():
 
 
 def test_other_categories_keep_their_existing_configuration():
+    # Updated deliberately (all-categories registration): Bottle's Phase 3 ConvAE was replaced by its WRN-50
+    # PatchCore model, and every MVTec category is registered (test_ai_all_categories_serving).
     bottle = get_serving_config("bottle")
-    assert bottle.model_family == MODEL_FAMILY_CONVAE and bottle.model_name == "autoencoder"
-    assert bottle.artifact_name == "phase3_validation/autoencoder" and bottle.input_size == (128, 128)
-    assert bottle.threshold == 0.0028031117030001018 and bottle.expected_sha256 is None
-    assert set(SERVING_CONFIGS) == {"bottle", "tile", "cable"}  # cable: deliberate registration (test_ai_cable_serving)
+    assert bottle.model_family == MODEL_FAMILY_PATCHCORE_WRN50 and bottle.model_name == "wrn50_patchcore_crop224"
+    assert bottle.artifact_name == "patchcore_wrn50/final_model/model_state" and bottle.input_size == (224, 224)
+    assert bottle.threshold == 1.6858729828595898
+    assert bottle.expected_sha256 == "0c7bd7f45c4769980b7c4e6cb5d6d8762cef35a9088eed045d03bebda8ecb7cb"
+    assert set(SERVING_CONFIGS) == set(MVTEC_CATEGORIES)
 
 
 # ---------------------------------------------------------------------------

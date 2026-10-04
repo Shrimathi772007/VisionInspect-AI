@@ -35,6 +35,7 @@ from app.ai.models.resnet18 import (
 )
 from app.ai.training import discover_train_samples
 from app.ai.training.validation_split import split_train_validation
+from app.dataset.categories import MVTEC_CATEGORIES
 from tests.conftest import make_image_bytes  # noqa: F401  (kept for parity with sibling test modules)
 
 CATEGORY = "widget"
@@ -420,5 +421,7 @@ def test_final_test_runs_once_with_the_locked_threshold_and_a_clean_audit(world,
 
 
 def test_final_test_result_is_not_written_into_serving_and_serving_is_unchanged():
-    assert set(SERVING_CONFIGS) == {"bottle", "tile", "cable"}  # tile/cable: deliberate registrations (test_ai_tile_serving, test_ai_cable_serving)
-    assert math.isclose(SERVING_CONFIGS["bottle"].threshold, 0.0028031117030001018)
+    # Updated deliberately (all-categories registration): the 15 MVTec categories are the deliberate registrations
+    # (test_ai_all_categories_serving); Bottle is served by its WRN-50 model, which replaced the Phase 3 ConvAE.
+    assert set(SERVING_CONFIGS) == set(MVTEC_CATEGORIES) and CATEGORY not in SERVING_CONFIGS
+    assert math.isclose(SERVING_CONFIGS["bottle"].threshold, 1.6858729828595898)

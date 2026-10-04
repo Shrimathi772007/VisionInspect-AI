@@ -1,11 +1,11 @@
 """AI defect prediction (inference) for one inspection image at a time.
 
-    inspection image -> existing preprocessing -> category's configured trained model
-    -> reconstruction error -> category's configured validated threshold -> good/defective
+    inspection image -> the category's preprocessing -> category's configured trained model
+    -> anomaly score -> category's configured locked threshold -> good/defective
 
-The model and threshold for each category come from app.ai.inference.serving - only
-categories with a validated model are configured. Reuses, rather than duplicates, the
-Phase 2 preprocessing pipeline and the Phase 5 reconstruction-error logic. Does not train,
+The model and threshold for each category come from app.ai.inference.serving - every MVTec
+category has one registered final model, and its `gate` says how reliable it is. Reuses, rather
+than duplicates, the existing preprocessing pipelines and the Phase 5 reconstruction-error logic. Does not train,
 retrain, or otherwise modify any model, and never uses MVTec ground-truth labels to
 influence a prediction - see app.ai.evaluation for the separate checkpoint that measures
 AI-prediction-vs-ground-truth agreement.

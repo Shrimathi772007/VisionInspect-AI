@@ -31,6 +31,7 @@ from app.ai.inference import ModelArtifactNotFoundError, ModelIntegrityError, Pr
 from app.ai.inference.serving import (
     MODEL_FAMILY_CONVAE,
     MODEL_FAMILY_PATCH_ANOMALY,
+    MODEL_FAMILY_PATCHCORE_WRN50,
     SERVING_CONFIGS,
     clear_model_cache,
     get_serving_config,
@@ -38,9 +39,11 @@ from app.ai.inference.serving import (
 )
 from app.ai.models.patch_anomaly import AGG_TOP1PCT, KNNPatchScorer, PatchAnomalyDetector, extract_patch_features
 from app.ai.models.resnet18 import pretrained_weights_path
+from app.ai.models.wide_resnet50 import wide_resnet50_weights_path
 from app.ai.preprocessing import pipeline
 from app.ai.training import build_model, save_model
 from app.ai.training.artifacts import ARTIFACTS_ROOT, get_model_path
+from app.dataset.categories import MVTEC_CATEGORIES
 from app.inspections.storage import DATASET_ROOT
 from tests.conftest import make_image_bytes
 
@@ -54,7 +57,7 @@ CABLE_LOCK_DIGEST = "31d1aed63843aa0e316c3343b5a82309b2b349fde803d93219e22d012bc
 CABLE_EXPERIMENT_ID = "cable-model-family-cable-ce2a8f015143"
 CONVAE_PHASE1_THRESHOLD = 0.010599855769247735
 TILE_THRESHOLD = 1.7393077017650718
-BOTTLE_THRESHOLD = 0.0028031117030001018
+BOTTLE_THRESHOLD = 1.6858729828595898  # WRN-50 PatchCore (replaced the Phase 3 ConvAE's 0.0028031117030001018)
 
 STUDY_DIR = ARTIFACTS_ROOT / "cable" / "model_family_study"
 SELECTED_DIR = STUDY_DIR / "selected_candidate"
@@ -62,7 +65,7 @@ CABLE_MODEL_PATH = SELECTED_DIR / "model_state.pt"
 LOCK_PATH = STUDY_DIR / "selection_lock.json"
 PHASE1_DIR = ARTIFACTS_ROOT / "cable" / "phase1_baseline"
 TILE_MODEL_PATH = ARTIFACTS_ROOT / "tile" / "model_family_study" / "selected_candidate" / "model_state.pt"
-BOTTLE_MODEL_PATH = ARTIFACTS_ROOT / "bottle" / "phase3_validation" / "autoencoder.pt"
+BOTTLE_MODEL_PATH = ARTIFACTS_ROOT / "bottle" / "patchcore_wrn50" / "final_model" / "model_state.pt"
 BACKBONE_PATH = pretrained_weights_path()
 TRAIN_GOOD_IMAGE = DATASET_ROOT / "cable" / "train" / "good" / "000.png"
 CABLE_TEST_ROOT = (DATASET_ROOT / "cable" / "test").resolve()
@@ -175,14 +178,17 @@ def test_cable_configuration_matches_the_selection_lock():
 
 
 def test_other_categories_keep_their_existing_configuration():
+    # Updated deliberately (all-categories registration): Bottle's Phase 3 ConvAE was replaced by its WRN-50
+    # PatchCore model, and every MVTec category is registered (test_ai_all_categories_serving).
     bottle = get_serving_config("bottle")
-    assert bottle.model_family == MODEL_FAMILY_CONVAE and bottle.model_name == "autoencoder"
-    assert bottle.artifact_name == "phase3_validation/autoencoder" and bottle.input_size == (128, 128)
-    assert bottle.threshold == BOTTLE_THRESHOLD and bottle.expected_sha256 is None
+    assert bottle.model_family == MODEL_FAMILY_PATCHCORE_WRN50 and bottle.model_name == "wrn50_patchcore_crop224"
+    assert bottle.artifact_name == "patchcore_wrn50/final_model/model_state" and bottle.input_size == (224, 224)
+    assert bottle.threshold == BOTTLE_THRESHOLD
+    assert bottle.expected_sha256 == "0c7bd7f45c4769980b7c4e6cb5d6d8762cef35a9088eed045d03bebda8ecb7cb"
     tile = get_serving_config("tile")
     assert tile.model_name == "knn_l23_256" and tile.threshold == TILE_THRESHOLD and tile.input_size == (256, 256)
     assert tile.expected_sha256 == "de00e2774daf02d97e1414fe75b10305e2ad392696449b1627a250b1ec0dd4d7"
-    assert set(SERVING_CONFIGS) == {"bottle", "tile", "cable"}
+    assert set(SERVING_CONFIGS) == set(MVTEC_CATEGORIES)
 
 
 def test_serving_has_no_threshold_override_or_threshold_computation():
@@ -464,9 +470,13 @@ def test_tile_serving_still_works_next_to_cable(tmp_path):
         assert load_serving_model(get_serving_config("tile")) is not load_serving_model(get_serving_config("cable"))
 
 
-@pytest.mark.skipif(not BOTTLE_MODEL_PATH.is_file(), reason="Bottle Phase 3 artifact not present")
+@pytest.mark.skipif(not (BOTTLE_MODEL_PATH.is_file() and wide_resnet50_weights_path().is_file()),
+                    reason="Bottle WRN-50 artifact or WRN-50-2 backbone not present")
 def test_bottle_serving_still_works_next_to_cable(tmp_path):
+    # Updated deliberately: Bottle is served by its WRN-50 PatchCore model (crop224) since the all-categories
+    # registration.
     image = _png(tmp_path / "noise.png", np.random.default_rng(13).integers(0, 256, (200, 200, 3)))
     bottle = predict_image(image, "bottle")
-    assert bottle.model_name == "autoencoder" and bottle.threshold == BOTTLE_THRESHOLD and bottle.input_size == (128, 128)
+    assert bottle.model_name == "wrn50_patchcore_crop224" and bottle.threshold == BOTTLE_THRESHOLD
+    assert bottle.input_size == (224, 224)
     assert bottle.prediction == ("good" if bottle.reconstruction_error <= BOTTLE_THRESHOLD else "defective")

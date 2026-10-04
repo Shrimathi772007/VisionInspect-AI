@@ -30,6 +30,8 @@ from app.ai.evaluation.category_phase1 import (  # noqa: E402
 )
 from app.ai.training import artifacts  # noqa: E402
 
+SERVING_REGISTRY = Path(__file__).resolve().parent.parent / "app" / "ai" / "inference" / "serving.py"
+
 
 def _git(*args: str) -> str:
     try:
@@ -73,6 +75,7 @@ def main() -> None:
         sys.exit(f"STOP: Phase 1 output already exists under {phase1_dir(category)}; refusing to overwrite.")
 
     before = _existing_artifact_hashes(category)
+    serving_before = file_hashes(SERVING_REGISTRY)["sha256"]
     print(f"Snapshot of {len(before)} pre-existing artifact files taken.")
 
     print("=== RUN 1 (real artifact) ===")
@@ -89,8 +92,9 @@ def main() -> None:
 
     after = _existing_artifact_hashes(category)
     run1["leakage_partial"]["9_existing_artifacts_not_overwritten"] = before == after
-    run1["leakage_partial"]["9b_serving_registry_unchanged"] = category.lower() not in (
-        Path(__file__).resolve().parent.parent / "app" / "ai" / "inference" / "serving.py").read_text(encoding="utf-8").lower()
+    # Every MVTec category has a registered final model, so the registry is checked for being unchanged by this run
+    # (same bytes before and after) rather than for not naming the category.
+    run1["leakage_partial"]["9b_serving_registry_unchanged"] = file_hashes(SERVING_REGISTRY)["sha256"] == serving_before
 
     report = {"git_head": _git("rev-parse", "HEAD"), "run1": run1, "run2_summary": {
         "artifact": run2["artifact"] | {"note": "temporary file, deleted after hashing"},

@@ -41,6 +41,7 @@ from app.ai.training import load_model_for_category
 from app.ai.training.artifacts import ARTIFACTS_ROOT, get_model_path
 from app.ai.training.schemas import TrainingConfig
 from app.ai.training.validation_split import split_train_validation
+from app.dataset.categories import MVTEC_CATEGORIES
 from tests.conftest import make_image_bytes
 
 CATEGORY = "widget"
@@ -106,7 +107,9 @@ def test_phase3_config_matches_the_bottle_methodology_exactly():
 
 
 def test_runner_never_registers_serving(run):
-    assert set(SERVING_CONFIGS) == {"bottle", "tile", "cable"}  # tile/cable: deliberate registrations (test_ai_tile_serving, test_ai_cable_serving)
+    # Updated deliberately (all-categories registration): the 15 MVTec categories are the deliberate registrations
+    # (test_ai_all_categories_serving); nothing else may appear.
+    assert set(SERVING_CONFIGS) == set(MVTEC_CATEGORIES) and CATEGORY not in SERVING_CONFIGS
     tree = ast.parse(Path(runner.__file__).read_text(encoding="utf-8"))
     imported = {
         node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) and node.module
@@ -568,8 +571,14 @@ def test_stage_one_refuses_to_overwrite_existing_model_or_lock(hworld):
 
 
 def test_heldout_modules_do_not_register_serving():
-    serving = Path(heldout.__file__).parent.parent / "inference" / "serving.py"
-    assert "leather" not in serving.read_text(encoding="utf-8").lower()
+    # Updated deliberately (all-categories registration): leather IS served now, but by its model-family-study
+    # winner - never by the held-out Phase 3 ConvAE - and the held-out modules still never touch the registry.
+    leather = SERVING_CONFIGS["leather"]
+    assert leather.artifact_name == "model_family_study/selected_candidate/model_state"
+    assert "phase3" not in leather.artifact_name and leather.model_family != "convae"
+    for module in (heldout, heldout_final):
+        source = Path(module.__file__).read_text(encoding="utf-8")
+        assert "SERVING_CONFIGS" not in source and "app.ai.inference.serving" not in source
 
 
 def test_no_eligible_candidate_writes_no_lock(hworld, monkeypatch):

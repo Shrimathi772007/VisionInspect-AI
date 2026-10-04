@@ -17,6 +17,7 @@ import pytest
 import torch
 from torch import nn
 
+from app.ai.inference.serving import SERVING_CONFIGS
 from app.ai.evaluation import category_phase1 as phase1
 from app.ai.evaluation.category_phase1 import (
     compare_runs,
@@ -297,10 +298,12 @@ def test_existing_artifact_is_never_overwritten_and_count_mismatch_stops_before_
         run_phase1(CATEGORY, tmp_path / "x" / "autoencoder.pt", {**TINY_EXPECTED, "test_defective": 93})
 
 
-def test_phase1_module_uses_no_other_phase_machinery_and_serving_has_no_metal_nut():
+def test_phase1_module_uses_no_other_phase_machinery_and_serving_never_uses_the_phase1_model():
     tree = ast.parse(Path(phase1.__file__).read_text(encoding="utf-8"))
     imported = {n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module}
     forbidden = ("threshold_experiments", "phase3_threshold_selection", "calibration", "patch_anomaly", "resnet18", "validation_split", "phase4")
     assert not [m for m in imported if any(f in m for f in forbidden)]
-    serving = (Path(phase1.__file__).parent.parent / "inference" / "serving.py").read_text(encoding="utf-8").lower()
-    assert "metal_nut" not in serving and "metal nut" not in serving
+    # Updated deliberately (all-categories registration): metal_nut IS served now, but only by its locked final model
+    # (the model-family-study winner) - never by this phase's artifact.
+    metal_nut = SERVING_CONFIGS["metal_nut"]
+    assert metal_nut.artifact_name == "model_family_study/selected_candidate/model_state" and "phase1" not in metal_nut.artifact_name

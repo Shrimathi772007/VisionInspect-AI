@@ -280,6 +280,8 @@ def test_router_import_succeeds_even_if_ai_inference_raises(monkeypatch, client,
 
 # ---------------------------------------------------------------------------
 # Router integration - MVTec import, REAL bottle model (sanity check, no mocking)
+# Updated deliberately (all-categories registration): Bottle is served by its WRN-50 PatchCore model, and every
+# category's test/ split is its consumed final test - so these imports use train/good images.
 # ---------------------------------------------------------------------------
 
 def test_mvtec_bottle_import_runs_real_ai_inference(client, qe_headers, test_product):
@@ -289,7 +291,7 @@ def test_mvtec_bottle_import_runs_real_ai_inference(client, qe_headers, test_pro
         json={
             "product_id": test_product["id"],
             "category": "bottle",
-            "split": "test",
+            "split": "train",
             "defect_type": "good",
             "filename": "000.png",
         },
@@ -301,22 +303,26 @@ def test_mvtec_bottle_import_runs_real_ai_inference(client, qe_headers, test_pro
     assert isinstance(body["ai_reconstruction_error"], float)
     assert isinstance(body["ai_threshold"], float)
     assert body["ai_reconstruction_error"] >= 0.0
-    assert body["ai_model_name"] == "autoencoder"
-    # Served from the validated Phase 3 configuration (app.ai.inference.serving), not the
-    # old K=3 threshold recomputed from train/good.
-    assert body["ai_threshold"] == 0.0028031117030001018
+    assert body["ai_model_name"] == "wrn50_patchcore_crop224"
+    # Served from the locked WRN-50 configuration (app.ai.inference.serving), not a threshold
+    # recomputed from train/good.
+    assert body["ai_threshold"] == 1.6858729828595898
 
 
-def test_mvtec_import_without_trained_model_succeeds_with_null_ai_fields(client, qe_headers, test_product):
-    """capsule has no served model - import must still succeed. (Not cable: cable is served since the
-    Cable serving registration, and its test/ images are the consumed Cable final test - never read here.)"""
+def test_mvtec_import_without_trained_model_succeeds_with_null_ai_fields(client, qe_headers, test_product, monkeypatch):
+    """A category with no served model - import must still succeed. Every MVTec category is served since the
+    all-categories registration, so capsule's registry entry is removed for this test (updated deliberately;
+    previously capsule simply had no model). train/good: test/ images are each category's consumed final test."""
+    from app.ai.inference.serving import SERVING_CONFIGS
+
+    monkeypatch.delitem(SERVING_CONFIGS, "capsule")
     response = client.post(
         "/inspections/import",
         headers=qe_headers,
         json={
             "product_id": test_product["id"],
             "category": "capsule",
-            "split": "test",
+            "split": "train",
             "defect_type": "good",
             "filename": "000.png",
         },
@@ -329,10 +335,18 @@ def test_mvtec_import_without_trained_model_succeeds_with_null_ai_fields(client,
     assert body["ai_model_name"] is None
 
 
-def test_ground_truth_and_ai_prediction_remain_independent(client, qe_headers, test_product):
+def test_ground_truth_and_ai_prediction_remain_independent(client, qe_headers, test_product, monkeypatch):
     """A known-defective MVTec image may legitimately get an AI 'good' prediction (Phase 5
-    measured 46% recall for this baseline model) - the API must represent both values
-    independently, never reconciling one with the other."""
+    measured 46% recall for the baseline model) - the API must represent both values
+    independently, never reconciling one with the other.
+
+    Updated deliberately (all-categories registration): this image is part of Bottle's consumed final test, which
+    no served model may score again, so the AI result is stubbed as 'good' - the disagreement this test is about."""
+    from app.ai.inference import PredictionResult
+
+    stub = PredictionResult(category="bottle", prediction="good", reconstruction_error=1.0, threshold=1.6858729828595898,
+                            model_name="wrn50_patchcore_crop224", input_size=(224, 224), processing_time_ms=1.0)
+    monkeypatch.setattr("app.inspections.service.predict_image", lambda *a, **k: stub)
     response = client.post(
         "/inspections/import",
         headers=qe_headers,
@@ -349,7 +363,7 @@ def test_ground_truth_and_ai_prediction_remain_independent(client, qe_headers, t
 
     assert body["dataset_defect_type"] == "broken_large"  # MVTec ground truth, untouched
     assert body["status"] == "defective"  # existing ground-truth-derived status, untouched
-    assert body["ai_prediction"] in ("good", "defective")  # independently derived - not forced to match
+    assert body["ai_prediction"] == "good"  # independently derived - not forced to match
 
 
 # ---------------------------------------------------------------------------
@@ -362,13 +376,15 @@ def test_phase7_added_zero_api_routes(client):
     # below reflects both, not a Phase 7 regression.
     # The role-escalation fix adds exactly two more (GET /users, PATCH /users/{user_id}/role).
     # The upload-AI change adds exactly one more (PATCH /products/{product_id}/category).
+    # The all-categories serving change adds exactly one more (GET /ai/models).
     schema = client.get("/openapi.json").json()
     paths = schema["paths"]
     operations = sum(
         1 for methods in paths.values() for m in methods if m.lower() in ("get", "post", "put", "patch", "delete")
     )
-    assert operations == 23
+    assert operations == 24
     assert set(paths.keys()) == {
+        "/ai/models",
         "/auth/register",
         "/auth/login",
         "/auth/me",

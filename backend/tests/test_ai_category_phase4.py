@@ -521,7 +521,10 @@ def test_report_records_every_candidate_and_never_claims_serving(world):
 
 def test_phase4_never_registers_serving():
     from app.ai.inference.serving import SERVING_CONFIGS
+    from app.dataset.categories import MVTEC_CATEGORIES
 
-    assert set(SERVING_CONFIGS) == {"bottle", "tile", "cable"}  # tile/cable: deliberate registrations (test_ai_tile_serving, test_ai_cable_serving)
+    # Updated deliberately (all-categories registration): the 15 MVTec categories are the deliberate registrations
+    # (test_ai_all_categories_serving); nothing else may appear.
+    assert set(SERVING_CONFIGS) == set(MVTEC_CATEGORIES) and CATEGORY not in SERVING_CONFIGS
     for module in (engine,):
         assert module_references(module, {"SERVING_CONFIGS", "get_serving_config"}) == set()

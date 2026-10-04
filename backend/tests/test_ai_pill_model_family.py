@@ -18,6 +18,7 @@ import numpy as np
 import pytest
 import torch
 
+from app.ai.inference.serving import SERVING_CONFIGS
 from app.ai.evaluation import model_family_final as final
 from app.ai.evaluation import model_family_pipeline as pipe
 from app.ai.evaluation import model_family_study as mfs
@@ -247,11 +248,15 @@ def test_study_modules_cannot_list_or_score_test_images(module):
     assert not [m for m in imported if m.endswith("model_family_final") or "calibration_final_test" in m]
 
 
-def test_final_module_only_scores_the_locked_candidate_and_serving_has_no_pill():
+def test_final_module_only_scores_the_locked_candidate_and_serving_never_uses_this_study():
     source = Path(final.__file__).read_text(encoding="utf-8")
     assert "evaluate_candidate_on_final_test" not in source and "candidate_results" not in source
-    serving = (Path(mfs.__file__).parent.parent / "inference" / "serving.py").read_text(encoding="utf-8").lower()
-    assert "pill" not in serving.replace("pillow", "")
+    # Updated deliberately (all-categories registration): pill IS served now, but only by its locked final model
+    # (its WRN-50 PatchCore model) - never by this phase's artifact.
+    pill = SERVING_CONFIGS["pill"]
+    assert pill.artifact_name == "patchcore_wrn50/final_model/model_state" and pill.model_name == "wrn50_patchcore_crop224"
+    assert "phase1" not in pill.artifact_name and "phase2" not in pill.artifact_name and "model_family" not in pill.artifact_name
+    assert "SERVING_CONFIGS" not in source
 
 
 # ---------------------------------------------------------------------------

@@ -17,6 +17,7 @@ import numpy as np
 import pytest
 import torch
 
+from app.ai.inference.serving import SERVING_CONFIGS
 from app.ai.evaluation import model_family_final as final
 from app.ai.evaluation import model_family_pipeline as pipe
 from app.ai.evaluation import model_family_study as mfs
@@ -214,9 +215,13 @@ def test_final_module_only_scores_the_locked_candidate_and_threshold():
     assert "select_configuration" in source and "evaluate_candidate_on_final_test" not in source and "candidate_results" not in source
 
 
-def test_serving_registry_has_no_leather():
-    serving = Path(mfs.__file__).parent.parent / "inference" / "serving.py"
-    assert "leather" not in serving.read_text(encoding="utf-8").lower()
+def test_serving_registry_serves_leather_only_with_its_model_family_winner():
+    # Updated deliberately (all-categories registration): leather IS served now, but only by its locked final model
+    # (this study's locked winner, selected_candidate/) - never by this phase's artifact.
+    leather = SERVING_CONFIGS["leather"]
+    assert leather.artifact_name == "model_family_study/selected_candidate/model_state" and leather.model_name == "gauss_l23_128"
+    assert "candidates/" not in leather.artifact_name
+    assert "SERVING_CONFIGS" not in Path(mfs.__file__).read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------

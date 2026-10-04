@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from app.ai.inference.serving import SERVING_CONFIGS
 from app.ai.evaluation import category_phase1 as phase1
 from app.ai.evaluation.category_phase1 import (
     compare_runs,
@@ -169,6 +170,10 @@ def test_phase1_module_uses_no_other_phase_machinery():
     assert not [m for m in imported if any(f in m for f in forbidden)], imported
 
 
-def test_serving_registry_has_no_leather():
-    serving = Path(phase1.__file__).parent.parent / "inference" / "serving.py"
-    assert "leather" not in serving.read_text(encoding="utf-8").lower()
+def test_serving_registry_serves_leather_only_with_its_model_family_winner():
+    # Updated deliberately (all-categories registration): leather IS served now, but only by its locked final model
+    # (the model-family-study winner) - never by this phase's artifact.
+    leather = SERVING_CONFIGS["leather"]
+    assert leather.artifact_name == "model_family_study/selected_candidate/model_state" and leather.model_name == "gauss_l23_128"
+    assert "phase1" not in leather.artifact_name and "phase2" not in leather.artifact_name
+    assert "SERVING_CONFIGS" not in Path(phase1.__file__).read_text(encoding="utf-8")

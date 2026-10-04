@@ -18,7 +18,7 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import event, text
 
 from app.ai.inference import PredictionResult
-from app.ai.inference.serving import get_serving_config, get_supported_categories
+from app.ai.inference.serving import SERVING_CONFIGS, get_serving_config, get_supported_categories
 from app.ai.models.resnet18 import pretrained_weights_path
 from app.ai.training.artifacts import ARTIFACTS_ROOT
 from app.database import SessionLocal, engine
@@ -90,10 +90,13 @@ def test_real_tile_model_scores_an_uploaded_tile_image(category_products, tmp_pa
 # Best-effort failure paths
 # ---------------------------------------------------------------------------
 
-def test_upload_for_category_without_served_model_leaves_ai_fields_null(client, category_products):
+def test_upload_for_category_without_served_model_leaves_ai_fields_null(client, category_products, monkeypatch):
+    # Updated deliberately (all-categories registration): every MVTec category is served, so screw's registry
+    # entry is removed for this test instead of skipping it.
     unserved = [c for c in MVTEC_CATEGORIES if c not in get_supported_categories()]
     if not unserved:
-        pytest.skip("every MVTec category has a served model")
+        monkeypatch.delitem(SERVING_CONFIGS, "screw")
+        unserved = ["screw"]
     category = "screw" if "screw" in unserved else unserved[0]
     product = category_products.create(category=category)
 
