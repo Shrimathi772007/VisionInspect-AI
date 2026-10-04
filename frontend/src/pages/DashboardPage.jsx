@@ -19,6 +19,7 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  UserCheck,
 } from "lucide-react";
 import { useAuth } from "../auth/useAuth";
 import { useProducts } from "../hooks/useProducts";
@@ -312,6 +313,15 @@ export function DashboardPage() {
           loading={analyticsLoading}
           error={analyticsFailed}
           tone="warning"
+        />
+        <StatCard
+          icon={UserCheck}
+          label="Manual review"
+          value={analytics?.manual_review_count ?? 0}
+          loading={analyticsLoading}
+          error={analyticsFailed}
+          note="AI result needs a person"
+          tone="accent"
         />
       </div>
 

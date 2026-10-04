@@ -167,3 +167,15 @@
   font-size: 13.5px;
   color: var(--color-text-secondary);
 }
+
+.localizationLink {
+  display: inline-block;
+  margin-top: var(--space-3);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.localizationLink:hover {
+  text-decoration: underline;
+}

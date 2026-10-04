@@ -34,4 +34,9 @@ describe("Sidebar", () => {
     expect(screen.queryByRole("link", { name: "Upload Inspection" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Dashboard" })).toBeInTheDocument();
   });
+
+  it.each(["quality_engineer", "factory_supervisor"])("shows the Model Performance item to a %s", (role) => {
+    renderSidebar(role);
+    expect(screen.getByRole("link", { name: "Model Performance" })).toHaveAttribute("href", "/models");
+  });
 });

@@ -1,0 +1,57 @@
+/* Prominent but not alarming: the accent tone (the MANUAL_REVIEW badge colour), no pulsing. */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-accent-border);
+  background: var(--color-accent-soft);
+  margin-bottom: var(--space-4);
+}
+
+.compact {
+  padding: var(--space-3) var(--space-4);
+  margin: var(--space-3) 0 0;
+  text-align: left;
+}
+
+.iconWrap {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.compact .iconWrap {
+  width: 30px;
+  height: 30px;
+}
+
+.title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.compact .title {
+  font-size: 13px;
+}
+
+.reason {
+  margin-top: 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.guidance {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+}

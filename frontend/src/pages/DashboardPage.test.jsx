@@ -382,3 +382,39 @@ describe("DashboardPage", () => {
     });
   });
 });
+
+describe("DashboardPage manual review", () => {
+  beforeEach(() => {
+    refetchAnalytics = vi.fn();
+    refetchRecent = vi.fn();
+  });
+
+  it("shows the manual-review count and a MANUAL REVIEW entry in the quality-decision distribution", () => {
+    mockData({
+      analytics: {
+        data: makeAnalytics({
+          manual_review_count: 7,
+          quality_decisions: [
+            { decision: "PASS", count: 60, percentage: 50 },
+            { decision: "MANUAL_REVIEW", count: 7, percentage: 5.8 },
+            { decision: "SOMETHING_NEW", count: 3, percentage: 2.5 },
+          ],
+        }),
+      },
+    });
+    renderDashboard();
+
+    expect(card("Manual review").getByText("7")).toBeInTheDocument();
+    expect(card("Manual review").getByText("AI result needs a person")).toBeInTheDocument();
+    const distribution = within(screen.getByRole("heading", { name: "Quality Decision Distribution" }).closest("div").parentElement);
+    expect(distribution.getByText(/MANUAL REVIEW · 7/)).toBeInTheDocument();
+    expect(distribution.getByText(/SOMETHING_NEW · 3/)).toBeInTheDocument();
+  });
+
+  it("shows 0 when an older backend has no manual_review_count", () => {
+    mockData();
+    renderDashboard();
+
+    expect(card("Manual review").getByText("0")).toBeInTheDocument();
+  });
+});

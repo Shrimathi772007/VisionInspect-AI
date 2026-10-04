@@ -15,7 +15,14 @@ import { Modal } from "../components/Modal/Modal";
 import { EmptyState } from "../components/EmptyState/EmptyState";
 import { Skeleton } from "../components/Skeleton/Skeleton";
 import { RoleGate } from "../components/RoleGate/RoleGate";
-import { statusLabel, statusTone, sourceLabel, sourceTone } from "../utils/badgeMaps";
+import {
+  statusLabel,
+  statusTone,
+  sourceLabel,
+  sourceTone,
+  qualityDecisionLabel,
+  qualityDecisionTone,
+} from "../utils/badgeMaps";
 import { formatDateTime } from "../utils/formatDate";
 import styles from "./InspectionsPage.module.css";
 
@@ -173,6 +180,9 @@ export function InspectionsPage() {
                   </p>
                 </div>
                 <div className={styles.badges}>
+                  {(inspection.review_required === true || inspection.quality_decision === "MANUAL_REVIEW") && (
+                    <Badge tone={qualityDecisionTone("MANUAL_REVIEW")}>{qualityDecisionLabel("MANUAL_REVIEW")}</Badge>
+                  )}
                   <Badge tone={sourceTone(inspection.source)}>{sourceLabel(inspection.source)}</Badge>
                   <Badge tone={statusTone(inspection.status)}>{statusLabel(inspection.status)}</Badge>
                 </div>

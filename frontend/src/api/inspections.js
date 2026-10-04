@@ -32,3 +32,12 @@ export async function getInspectionImageObjectUrl(id) {
 export function deleteInspection(id) {
   return apiFetch(`/inspections/${id}`, { method: "DELETE", responseType: "none" });
 }
+
+/**
+ * The inspection's anomaly heatmap (RGBA PNG in the original image's geometry) as a Blob. The
+ * endpoint needs the Bearer token, so an <img src> cannot load it directly - the caller makes an
+ * object URL and must revoke it. Rejects with ApiError 404 when the inspection has no heatmap.
+ */
+export function getInspectionHeatmapBlob(id) {
+  return apiFetch(`/inspections/${id}/heatmap`, { responseType: "blob" });
+}

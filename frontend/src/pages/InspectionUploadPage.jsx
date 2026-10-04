@@ -15,7 +15,14 @@ import { EmptyState } from "../components/EmptyState/EmptyState";
 import { Skeleton } from "../components/Skeleton/Skeleton";
 import { Badge } from "../components/Badge/Badge";
 import { categoryLabel } from "../constants/mvtecCategories";
-import { aiPredictionLabel, aiPredictionTone } from "../utils/badgeMaps";
+import { ManualReviewBanner } from "../components/ManualReviewBanner/ManualReviewBanner";
+import {
+  aiPredictionLabel,
+  aiPredictionTone,
+  formatConfidence,
+  reliabilityLabel,
+  reliabilityTone,
+} from "../utils/badgeMaps";
 import styles from "./InspectionUploadPage.module.css";
 
 export function InspectionUploadPage() {
@@ -87,6 +94,14 @@ export function InspectionUploadPage() {
                 <Badge tone={aiPredictionTone(createdInspection.ai_prediction)}>
                   {aiPredictionLabel(createdInspection.ai_prediction)}
                 </Badge>
+                {formatConfidence(createdInspection.ai_confidence) && (
+                  <>
+                    <span>Confidence {formatConfidence(createdInspection.ai_confidence)}</span>
+                    <Badge tone={reliabilityTone(createdInspection.ai_reliability)}>
+                      {reliabilityLabel(createdInspection.ai_reliability)}
+                    </Badge>
+                  </>
+                )}
               </>
             ) : typeof createdInspection.product_category === "string" ? (
               <span>
@@ -97,6 +112,16 @@ export function InspectionUploadPage() {
               <span>No AI result: this product has no MVTec category.</span>
             ) : null}
           </div>
+          <ManualReviewBanner
+            compact
+            reviewRequired={createdInspection.review_required}
+            reviewReason={createdInspection.review_reason}
+          />
+          {createdInspection.ai_prediction && (
+            <Link to={`/inspections/${createdInspection.id}#localization`} className={styles.localizationLink}>
+              View localization
+            </Link>
+          )}
           <div className={styles.successActions}>
             <Button as={Link} to={`/inspections/${createdInspection.id}`} rightIcon={<ArrowRight size={16} />}>
               View Inspection

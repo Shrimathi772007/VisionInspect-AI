@@ -10,7 +10,11 @@ function clampScale(value) {
   return Math.min(MAX_SCALE, Math.max(MIN_SCALE, value));
 }
 
-export function ImageViewer({ src, alt }) {
+/**
+ * `overlay` (optional) is drawn over the image in the same frame - same box, same zoom and pan - so
+ * anything positioned in percentages of the overlay lines up with the image at every zoom level.
+ */
+export function ImageViewer({ src, alt, overlay = null }) {
   const [scale, setScale] = useState(1);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -118,13 +122,13 @@ export function ImageViewer({ src, alt }) {
         aria-label="Inspection image viewer. Use the zoom controls or plus, minus and zero keys."
         style={{ cursor: scale > 1 ? (isDragging ? "grabbing" : "grab") : "default" }}
       >
-        <img
-          src={src}
-          alt={alt}
-          className={styles.image}
-          draggable={false}
+        <div
+          className={styles.frame}
           style={{ transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})` }}
-        />
+        >
+          <img src={src} alt={alt} className={styles.image} draggable={false} />
+          {overlay && <div className={styles.overlay}>{overlay}</div>}
+        </div>
       </div>
 
       <div className={styles.toolbar}>

@@ -11,6 +11,7 @@ import { InspectionUploadPage } from "./pages/InspectionUploadPage";
 import { InspectionDetailPage } from "./pages/InspectionDetailPage";
 import { DatasetBrowserPage } from "./pages/DatasetBrowserPage";
 import { UsersPage } from "./pages/UsersPage";
+import { ModelPerformancePage } from "./pages/ModelPerformancePage";
 
 function App() {
   return (
@@ -38,6 +39,7 @@ function App() {
         />
         <Route path="/inspections/:id" element={<InspectionDetailPage />} />
         <Route path="/dataset" element={<DatasetBrowserPage />} />
+        <Route path="/models" element={<ModelPerformancePage />} />
         <Route
           path="/users"
           element={

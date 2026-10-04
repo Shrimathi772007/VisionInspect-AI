@@ -1,0 +1,101 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+
+vi.mock("../api/ai", () => ({ getAiModels: vi.fn() }));
+
+import { getAiModels } from "../api/ai";
+import { ModelPerformancePage } from "./ModelPerformancePage";
+import { MVTEC_CATEGORIES, categoryLabel } from "../constants/mvtecCategories";
+
+const GATES = ["EXCELLENT", "GOOD", "ACCEPTABLE", "NOT_PRODUCTION_READY"];
+
+// 15 rows shaped like GET /ai/models; the ResNet-18 rows have no average precision (null).
+const MODELS = MVTEC_CATEGORIES.map((category, index) => {
+  const wrn = index % 2 === 0;
+  return {
+    category,
+    model_name: wrn ? "wrn50_patchcore_crop224" : "knn_l23_256",
+    family: wrn ? "patchcore_wrn50" : "patch_anomaly",
+    input_mode: wrn ? "crop224" : "resize",
+    input_size: wrn ? [224, 224] : [256, 256],
+    threshold: 1.5,
+    gate: GATES[index % 4],
+    final_test_recall: 0.9166666,
+    final_test_fpr: 0.0454545,
+    final_test_auroc: 0.99711,
+    final_test_average_precision: wrn ? 0.99515 : null,
+  };
+});
+
+function renderPage() {
+  return render(
+    <MemoryRouter>
+      <ModelPerformancePage />
+    </MemoryRouter>
+  );
+}
+
+describe("ModelPerformancePage", () => {
+  beforeEach(() => {
+    getAiModels.mockReset();
+  });
+
+  it("renders one row per category from the API with its gate and metrics", async () => {
+    getAiModels.mockResolvedValue(MODELS);
+    renderPage();
+
+    const rows = (await screen.findAllByRole("row")).slice(1);
+    expect(rows).toHaveLength(15);
+    const first = within(rows[0]);
+    expect(first.getByText(categoryLabel(MODELS[0].category))).toBeInTheDocument();
+    expect(first.getByText("WRN-50 PatchCore")).toBeInTheDocument();
+    expect(first.getByText("centre crop 224")).toBeInTheDocument();
+    expect(first.getByText("Production ready (Excellent)")).toBeInTheDocument();
+    expect(first.getByText("91.7%")).toBeInTheDocument();
+    expect(first.getByText("4.5%")).toBeInTheDocument();
+    expect(first.getByText("0.997")).toBeInTheDocument();
+    expect(first.getByText("0.995")).toBeInTheDocument();
+
+    const second = within(rows[1]);
+    expect(second.getByText("ResNet-18 patch model")).toBeInTheDocument();
+    expect(second.getByText("whole image 256")).toBeInTheDocument();
+    expect(second.getByText("Good")).toBeInTheDocument();
+    expect(second.getByText("—")).toBeInTheDocument(); // null AP
+    expect(within(rows[3]).getByText("Not production ready")).toBeInTheDocument();
+  });
+
+  it("shows the footnote and never a path or hash", async () => {
+    getAiModels.mockResolvedValue(MODELS);
+    renderPage();
+    await screen.findAllByRole("row");
+
+    expect(screen.getByText(/Metrics are from each category's single final test on the MVTec AD test set\./)).toBeInTheDocument();
+    expect(screen.getByText(/Excellent: recall >= 0\.90, F1 >= 0\.85, FPR <= 0\.10/)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/ai_models|\.pt\b|sha256/i);
+  });
+
+  it("renders an unknown or null gate safely", async () => {
+    getAiModels.mockResolvedValue([{ ...MODELS[0], gate: null }, { ...MODELS[1], gate: "NEW_GATE" }]);
+    renderPage();
+
+    expect(await screen.findByText("Not available")).toBeInTheDocument();
+    expect(screen.getByText("NEW_GATE")).toBeInTheDocument();
+  });
+
+  it("shows loading, then an error with Retry", async () => {
+    getAiModels.mockRejectedValue(new Error("Server down"));
+    renderPage();
+
+    expect(screen.getByRole("status", { name: "Loading models" })).toBeInTheDocument();
+    expect(await screen.findByText("Failed to load models. Server down")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+
+  it("shows an empty state when no models are registered", async () => {
+    getAiModels.mockResolvedValue([]);
+    renderPage();
+
+    expect(await screen.findByText("No models registered")).toBeInTheDocument();
+  });
+});

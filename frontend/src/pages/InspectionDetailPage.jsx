@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Box, Hash, ImageOff, AlertCircle, Trash2 } from "lucide-react";
 import {
   deleteInspection,
@@ -8,6 +8,7 @@ import {
   getInspectionReport,
 } from "../api/inspections";
 import { useProducts } from "../hooks/useProducts";
+import { useInspectionHeatmap } from "../hooks/useInspectionHeatmap";
 import { ApiError } from "../api/client";
 import { useToast } from "../components/Toast/ToastProvider";
 import { Card } from "../components/Card/Card";
@@ -19,6 +20,9 @@ import { Modal } from "../components/Modal/Modal";
 import { RoleGate } from "../components/RoleGate/RoleGate";
 import { ImageViewer } from "../components/ImageViewer/ImageViewer";
 import { InspectionStatusBanner } from "../components/InspectionStatusBanner/InspectionStatusBanner";
+import { ManualReviewBanner } from "../components/ManualReviewBanner/ManualReviewBanner";
+import { LocalizationOverlay } from "../components/LocalizationOverlay/LocalizationOverlay";
+import { LocalizationPanel } from "../components/LocalizationPanel/LocalizationPanel";
 import {
   statusLabel,
   statusTone,
@@ -36,7 +40,14 @@ import {
   qualityDecisionTone,
   reportStatusLabel,
   reportStatusTone,
+  CONFIDENCE_NOTE,
+  formatConfidence,
+  reliabilityLabel,
+  reliabilityTone,
+  modelGateLabel,
+  modelGateTone,
 } from "../utils/badgeMaps";
+import { HEATMAP_OPACITY_STEPS, localizationBoxes } from "../utils/localization";
 import { formatDateTime } from "../utils/formatDate";
 import { categoryLabel } from "../constants/mvtecCategories";
 import { formatDuration } from "../utils/formatDuration";
@@ -45,6 +56,7 @@ import styles from "./InspectionDetailPage.module.css";
 export function InspectionDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { getProductById, isLoading: productsLoading } = useProducts();
   const { showToast } = useToast();
 
@@ -55,6 +67,14 @@ export function InspectionDetailPage() {
   const [imageError, setImageError] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Anomaly-based localization overlays (heatmap + defect regions). The heatmap is fetched only when
+  // the loaded inspection says it has one; a failure there never affects the rest of the page.
+  const [showHeatmap, setShowHeatmap] = useState(true);
+  const [showBoxes, setShowBoxes] = useState(true);
+  const [heatmapOpacity, setHeatmapOpacity] = useState(HEATMAP_OPACITY_STEPS[1].value);
+  const heatmapEnabled = inspection?.has_heatmap === true && String(inspection.id) === String(id);
+  const heatmap = useInspectionHeatmap(id, heatmapEnabled);
 
   // The production quality report (Milestone 3 Phase 4) only adds a summary on top of data shown
   // in the cards below, so it loads independently: its failure must not block the rest of the
@@ -126,7 +146,18 @@ export function InspectionDetailPage() {
     };
   }, [id]);
 
+  // "View localization" (upload success card) links to #localization; the section only exists once the
+  // inspection has loaded, so scroll to it then.
+  const hasLoadedInspection = !isLoading && Boolean(inspection);
+  useEffect(() => {
+    if (!hasLoadedInspection || location.hash !== "#localization") return;
+    document.getElementById("localization")?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  }, [hasLoadedInspection, location.hash]);
+
   const product = inspection ? getProductById(inspection.product_id) : null;
+  const boxes = localizationBoxes(inspection?.localization);
+  const hasLocalization = Boolean(inspection?.ai_prediction) && (Boolean(inspection.localization) || inspection.has_heatmap === true);
+  const confidenceText = formatConfidence(inspection?.ai_confidence);
 
   const closeDeleteModal = () => {
     if (isDeleting) return;
@@ -196,11 +227,32 @@ export function InspectionDetailPage() {
       )}
 
       {!isLoading && !error && inspection && (
+        <ManualReviewBanner reviewRequired={inspection.review_required} reviewReason={inspection.review_reason} />
+      )}
+
+      {!isLoading && !error && inspection && (
         <div className={styles.layout}>
           <div className={styles.imageColumn}>
             <InspectionStatusBanner status={inspection.status} />
             <Card className={styles.imageCard}>
-              {imageUrl && <ImageViewer src={imageUrl} alt={`Inspection ${inspection.id} capture`} />}
+              {imageUrl && (
+                <ImageViewer
+                  src={imageUrl}
+                  alt={`Inspection ${inspection.id} capture`}
+                  overlay={
+                    hasLocalization ? (
+                      <LocalizationOverlay
+                        heatmapUrl={heatmap.url}
+                        showHeatmap={showHeatmap}
+                        heatmapOpacity={heatmapOpacity}
+                        boxes={boxes}
+                        showBoxes={showBoxes}
+                        localization={inspection.localization}
+                      />
+                    ) : null
+                  }
+                />
+              )}
               {!imageUrl && !imageError && <Skeleton variant="block" height={420} />}
               {imageError && (
                 <div className={styles.imageError}>
@@ -209,6 +261,19 @@ export function InspectionDetailPage() {
                 </div>
               )}
             </Card>
+            {inspection.ai_prediction && (
+              <LocalizationPanel
+                inspection={inspection}
+                boxes={boxes}
+                heatmap={heatmap}
+                showHeatmap={showHeatmap}
+                onShowHeatmapChange={setShowHeatmap}
+                heatmapOpacity={heatmapOpacity}
+                onHeatmapOpacityChange={setHeatmapOpacity}
+                showBoxes={showBoxes}
+                onShowBoxesChange={setShowBoxes}
+              />
+            )}
           </div>
 
           <div className={styles.sideColumn}>
@@ -309,6 +374,27 @@ export function InspectionDetailPage() {
                       </dd>
                     </div>
                     <div className={styles.metaRow}>
+                      <dt>Confidence</dt>
+                      <dd className={styles.confidenceValue}>
+                        {confidenceText ? (
+                          <>
+                            <span className={styles.mono}>{confidenceText}</span>
+                            <Badge tone={reliabilityTone(inspection.ai_reliability)}>
+                              {reliabilityLabel(inspection.ai_reliability)}
+                            </Badge>
+                          </>
+                        ) : (
+                          "Not available"
+                        )}
+                      </dd>
+                    </div>
+                    <div className={styles.metaRow}>
+                      <dt>Model gate</dt>
+                      <dd>
+                        <Badge tone={modelGateTone(inspection.model_gate)}>{modelGateLabel(inspection.model_gate)}</Badge>
+                      </dd>
+                    </div>
+                    <div className={styles.metaRow}>
                       <dt>Anomaly score</dt>
                       <dd className={styles.mono}>{inspection.ai_reconstruction_error.toFixed(6)}</dd>
                     </div>
@@ -333,6 +419,9 @@ export function InspectionDetailPage() {
                       </div>
                     )}
                   </dl>
+                  <p className={styles.aiCategoryNote} title={CONFIDENCE_NOTE}>
+                    {CONFIDENCE_NOTE}
+                  </p>
                   {inspection.source === "upload" && (
                     <p className={styles.aiCategoryNote}>Category shown is the product&apos;s current category.</p>
                   )}

@@ -143,16 +143,20 @@ export function qualityRiskTone(risk) {
 // (app.inspections.quality). A fourth, independent conclusion - deliberately its own tone
 // set, not reused from AI_PREDICTION_*, STATUS_*, or SEVERITY_LEVEL_TONES, so it never
 // visually implies it is a copy of any of those.
+// MANUAL_REVIEW: an AI-only result the declared manual-review rule flagged (low confidence and/or
+// a category model that is not production ready) - its own tone, distinct from all three others.
 export const QUALITY_DECISION_LABELS = {
   PASS: "PASS",
   FAIL: "FAIL",
   NOT_ASSESSED: "NOT ASSESSED",
+  MANUAL_REVIEW: "MANUAL REVIEW",
 };
 
 export const QUALITY_DECISION_TONES = {
   PASS: "success",
   FAIL: "danger",
   NOT_ASSESSED: "warning",
+  MANUAL_REVIEW: "accent",
 };
 
 export function qualityDecisionLabel(decision) {
@@ -162,6 +166,76 @@ export function qualityDecisionLabel(decision) {
 
 export function qualityDecisionTone(decision) {
   return QUALITY_DECISION_TONES[decision] || "neutral";
+}
+
+// AI confidence (ai_confidence) - a MARGIN-BASED HEURISTIC (how far the anomaly score is from the
+// decision threshold), not a calibrated probability. ai_reliability is the backend's display band.
+export const CONFIDENCE_NOTE =
+  "Confidence is a margin-based heuristic from the distance between the anomaly score and the decision threshold. It is not a calibrated probability.";
+
+export const RELIABILITY_LABELS = {
+  high: "High reliability",
+  medium: "Medium reliability",
+  low: "Low reliability",
+};
+
+export const RELIABILITY_TONES = {
+  high: "success",
+  medium: "info",
+  low: "warning",
+};
+
+export function formatConfidence(confidence) {
+  return Number.isFinite(confidence) ? `${(confidence * 100).toFixed(1)}%` : null;
+}
+
+export function reliabilityLabel(reliability) {
+  if (!reliability) return "Not available";
+  return RELIABILITY_LABELS[reliability] || reliability;
+}
+
+export function reliabilityTone(reliability) {
+  return RELIABILITY_TONES[reliability] || "neutral";
+}
+
+// Model gate (model_gate) - the static evidence gate of the category's served model, from the API.
+// Which categories are strong or weak is never hard-coded here: only the gate values are mapped.
+export const MODEL_GATE_LABELS = {
+  EXCELLENT: "Production ready (Excellent)",
+  GOOD: "Good",
+  ACCEPTABLE: "Acceptable",
+  NOT_PRODUCTION_READY: "Not production ready",
+};
+
+export const MODEL_GATE_TONES = {
+  EXCELLENT: "success",
+  GOOD: "info",
+  ACCEPTABLE: "warning",
+  NOT_PRODUCTION_READY: "danger",
+};
+
+export function modelGateLabel(gate) {
+  if (!gate) return "Not available";
+  return MODEL_GATE_LABELS[gate] || gate;
+}
+
+export function modelGateTone(gate) {
+  return MODEL_GATE_TONES[gate] || "neutral";
+}
+
+// review_reason is "low confidence", "category model not production ready", or both joined by "; ".
+export const REVIEW_REASON_LABELS = {
+  "low confidence": "Low confidence",
+  "category model not production ready": "Category model not production ready",
+};
+
+export function reviewReasonLabels(reason) {
+  if (typeof reason !== "string" || !reason.trim()) return [];
+  return reason
+    .split(";")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => REVIEW_REASON_LABELS[part] || part[0].toUpperCase() + part.slice(1));
 }
 
 // Production quality report completeness (Milestone 3 Phase 4 `report_summary.report_status`).
