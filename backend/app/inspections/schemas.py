@@ -1,8 +1,10 @@
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.ai.inference.localization import reliability_level
+from app.ai.inference.serving import SERVING_CONFIGS
 from app.models.inspection import InspectionSource
 
 
@@ -62,6 +64,35 @@ class InspectionOut(BaseModel):
     # scored.
     product_category: Optional[str] = None
 
+    # Margin-based confidence, manual-review rule and anomaly-based defect localization (see
+    # app.ai.inference.localization). NULL/None means "not computed" (no AI result, an older row,
+    # or a best-effort failure).
+    ai_confidence: Optional[float] = Field(
+        default=None,
+        description="sigmoid(10 * |ln(score / threshold)|), in [0.5, 1): how far the anomaly score is from "
+        "the model's decision threshold. A margin-based heuristic, NOT a calibrated probability.",
+    )
+    ai_reliability: Optional[str] = Field(
+        default=None,
+        description='Display band of ai_confidence: "high" (>= 0.95), "medium" (0.70 to < 0.95), '
+        '"low" (< 0.70, manual review).',
+    )
+    review_required: Optional[bool] = None
+    review_reason: Optional[str] = None
+    localization: Optional[dict[str, Any]] = Field(
+        default=None,
+        description='Anomaly-map localization ("anomaly_map_threshold_v1"): boxes derived from the anomaly '
+        "heatmap (not an object detector), area_pct and centroid, in original-image coordinates normalised "
+        "to 0..1 (origin top-left). Empty boxes for an AI \"good\" prediction.",
+    )
+    has_heatmap: bool = False
+    model_gate: Optional[str] = Field(
+        default=None,
+        description="Static evidence gate (EXCELLENT / GOOD / ACCEPTABLE / NOT_PRODUCTION_READY) of the "
+        "registered model that produced ai_prediction; None when there is no AI result or that model is no "
+        "longer the category's registered model.",
+    )
+
     @model_validator(mode="before")
     @classmethod
     def extract_dataset_metadata(cls, data):
@@ -91,6 +122,13 @@ class InspectionOut(BaseModel):
             "processing_time_ms": data.processing_time_ms,
             "ai_inference_time_ms": data.ai_inference_time_ms,
             "product_category": data.product.category if data.product is not None else None,
+            "ai_confidence": data.ai_confidence,
+            "ai_reliability": reliability_level(data.ai_confidence),
+            "review_required": data.review_required,
+            "review_reason": data.review_reason,
+            "localization": data.localization,
+            # heatmap_path itself is internal and never serialized.
+            "has_heatmap": bool(data.heatmap_path),
         }
 
         if data.source == InspectionSource.mvtec_ad and data.image_path:
@@ -104,7 +142,23 @@ class InspectionOut(BaseModel):
                     dataset_filename=filename,
                 )
 
+        fields["model_gate"] = model_gate_for(
+            fields.get("dataset_category") if data.source == InspectionSource.mvtec_ad else fields["product_category"],
+            data.ai_model_name,
+        )
         return fields
+
+
+def model_gate_for(category: Optional[str], ai_model_name: Optional[str]) -> Optional[str]:
+    """The registry gate of `category`'s served model, only if that model is the one that produced
+    the stored prediction (`ai_model_name`); None otherwise (no AI result, no category, or the
+    category is now served by a different model / the product's category changed)."""
+    if not category or not ai_model_name:
+        return None
+    config = SERVING_CONFIGS.get(category)
+    if config is None or config.model_name != ai_model_name:
+        return None
+    return config.gate
 
 
 class DatasetImportRequest(BaseModel):
@@ -153,6 +207,15 @@ class DefectReportSection(BaseModel):
     ai_reconstruction_error: Optional[float] = None
     ai_threshold: Optional[float] = None
     ai_model_name: Optional[str] = None
+    # Same values and meaning as the InspectionOut fields of the same names (ai_confidence is a
+    # margin-based heuristic, NOT a calibrated probability; boxes come from the anomaly heatmap).
+    ai_confidence: Optional[float] = None
+    ai_reliability: Optional[str] = None
+    review_required: Optional[bool] = None
+    review_reason: Optional[str] = None
+    localization: Optional[dict[str, Any]] = None
+    has_heatmap: bool = False
+    model_gate: Optional[str] = None
 
 
 class SeverityReportSection(BaseModel):

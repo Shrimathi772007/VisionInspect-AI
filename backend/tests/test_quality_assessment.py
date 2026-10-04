@@ -16,7 +16,7 @@ Three layers under test:
 
 from sqlalchemy import inspect as sa_inspect
 
-from app.inspections.quality import FAIL, NOT_ASSESSED, PASS, assess_quality
+from app.inspections.quality import FAIL, MANUAL_REVIEW, NOT_ASSESSED, PASS, assess_quality
 from app.inspections.service import apply_quality_assessment
 from app.models.inspection import Inspection, InspectionSource
 from tests.conftest import make_image_bytes
@@ -118,11 +118,17 @@ def test_not_assessed_when_no_evidence_at_all():
     assert result.recommendation == "Additional inspection evidence is required before making a quality decision."
 
 
-def test_not_assessed_for_ai_good_alone_without_ground_truth():
-    """An AI "good" prediction alone, with no ground truth, is not sufficient for PASS -
-    this autoencoder has known poor recall on real defects (see the module docstring)."""
+def test_ai_good_alone_without_ground_truth_passes_unless_review_is_required():
+    """Updated deliberately (localization/confidence task): this used to assert NOT_ASSESSED, because the
+    only model then served (the Bottle ConvAE) had poor recall. Every category now has its own locked model
+    and an AI-only result goes through the declared manual-review rule first: an unflagged AI "good" is
+    PASS, a flagged one MANUAL_REVIEW (see test_localization.py for the full matrix)."""
     result = assess_quality(status="pending", ai_prediction="good", defect_category=None, severity_level=None)
-    assert result.decision == NOT_ASSESSED
+    assert result.decision == PASS
+    flagged = assess_quality(
+        status="pending", ai_prediction="good", defect_category=None, severity_level=None, review_required=True
+    )
+    assert flagged.decision == MANUAL_REVIEW
 
 
 # ---------------------------------------------------------------------------
@@ -487,9 +493,10 @@ def test_phase3_adds_zero_api_routes(client):
     # The role-escalation fix adds exactly two more (GET /users, PATCH /users/{user_id}/role).
     # The upload-AI change adds exactly one more (PATCH /products/{product_id}/category).
     # The all-categories serving change adds exactly one more (GET /ai/models).
+    # The localization change adds exactly one more (GET /inspections/{inspection_id}/heatmap).
     schema = client.get("/openapi.json").json()
     paths = schema["paths"]
     operations = sum(
         1 for methods in paths.values() for m in methods if m.lower() in ("get", "post", "put", "patch", "delete")
     )
-    assert operations == 24
+    assert operations == 25

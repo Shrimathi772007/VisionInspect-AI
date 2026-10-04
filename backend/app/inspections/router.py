@@ -1,3 +1,4 @@
+import logging
 import time
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
@@ -24,7 +25,9 @@ from app.inspections.service import (
 )
 from app.inspections.storage import (
     DATASET_ROOT,
+    HEATMAP_ROOT,
     STORAGE_ROOT,
+    delete_heatmap_file,
     delete_upload_file,
     resolve_image_path,
     save_upload_file,
@@ -32,6 +35,8 @@ from app.inspections.storage import (
 from app.models.inspection import Inspection, InspectionSource
 from app.models.product import Product
 from app.models.user import User, UserRole
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/inspections", tags=["inspections"])
 
@@ -235,6 +240,28 @@ def get_inspection_image(
     return FileResponse(image_path)
 
 
+@router.get("/{inspection_id}/heatmap")
+def get_inspection_heatmap(
+    inspection_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """The anomaly heatmap of one inspection: an RGBA PNG in the original image's geometry (at most
+    320 px on the long side), to be stretched over the image. Any authenticated user; 404 when the
+    inspection has no heatmap. The stored path is resolved inside storage/heatmaps only."""
+    inspection = db.get(Inspection, inspection_id)
+    if inspection is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inspection not found")
+    if not inspection.heatmap_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Heatmap not found")
+
+    heatmap_path = resolve_image_path(HEATMAP_ROOT, inspection.heatmap_path)
+    if not heatmap_path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Heatmap not found")
+
+    return FileResponse(heatmap_path, media_type="image/png")
+
+
 @router.delete("/{inspection_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_inspection(
     inspection_id: int,
@@ -250,5 +277,13 @@ def delete_inspection(
     if inspection.source == InspectionSource.upload:
         delete_upload_file(inspection.image_path)
 
+    heatmap_path = inspection.heatmap_path
     db.delete(inspection)
     db.commit()
+
+    # Best effort, after the row is gone: the heatmap is app-owned and only ever resolved inside
+    # storage/heatmaps (for imports too - the dataset image itself is never touched).
+    try:
+        delete_heatmap_file(heatmap_path)
+    except Exception as exc:  # noqa: BLE001 - a leftover heatmap must never fail the delete
+        logger.warning("Could not delete heatmap of inspection %s: %s", inspection_id, exc)

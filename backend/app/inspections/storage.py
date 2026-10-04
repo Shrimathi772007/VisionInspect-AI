@@ -92,3 +92,25 @@ def delete_upload_file(relative_path: str) -> None:
     """Remove an uploaded inspection image from STORAGE_ROOT. Never touches DATASET_ROOT."""
     absolute_path = resolve_image_path(STORAGE_ROOT, relative_path)
     absolute_path.unlink(missing_ok=True)
+
+
+# Anomaly heatmaps (app.ai.inference.localization), one PNG per analysed inspection, named by
+# inspection id. Like uploads: app-owned files under one root, stored as a root-relative path
+# and always resolved through resolve_image_path's containment check.
+HEATMAP_ROOT = (BACKEND_DIR / os.getenv("HEATMAP_STORAGE_ROOT", "storage/heatmaps")).resolve()
+
+
+def heatmap_relative_path(inspection_id: int) -> str:
+    return f"{int(inspection_id)}.png"
+
+
+def heatmap_absolute_path(relative_path: str) -> Path:
+    """The heatmap file for a stored relative path, contained in HEATMAP_ROOT (404 otherwise)."""
+    return resolve_image_path(HEATMAP_ROOT, relative_path)
+
+
+def delete_heatmap_file(relative_path: str | None) -> None:
+    """Remove a heatmap PNG from HEATMAP_ROOT. Never touches anything outside it."""
+    if not relative_path:
+        return
+    heatmap_absolute_path(relative_path).unlink(missing_ok=True)

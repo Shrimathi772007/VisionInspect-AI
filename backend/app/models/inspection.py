@@ -2,7 +2,8 @@ import enum
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, Enum, Float, ForeignKey, String, func
+from sqlalchemy import JSON, Boolean, DateTime, Enum, Float, ForeignKey, String, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -88,6 +89,26 @@ class Inspection(Base):
     #   with no served model).
     processing_time_ms: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     ai_inference_time_ms: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # Anomaly-based defect localization, margin-based confidence and the manual-review rule -
+    # populated best-effort by app.inspections.service from app.ai.inference.localization.
+    # NULL means "not computed" (every row created before these columns existed, no AI result,
+    # or a localization/confidence failure) - never a stand-in value.
+    #
+    # ai_confidence: sigmoid(10 * |ln(score / threshold)|), a margin-based heuristic in
+    #   [0.5, 1) - NOT a calibrated probability.
+    # review_required / review_reason: the declared manual-review rule (low confidence and/or
+    #   a NOT_PRODUCTION_READY category model).
+    # localization: {"method": "anomaly_map_threshold_v1", "boxes": [...], "area_pct": ...,
+    #   "centroid": [cx, cy] | None, ...} in original-image normalised coordinates. Boxes are
+    #   derived from the anomaly heatmap; this is not an object detector.
+    # heatmap_path: storage-relative path of the RGBA heatmap PNG under storage/heatmaps -
+    #   internal, never serialized (GET /inspections/{id}/heatmap serves the file).
+    ai_confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    review_required: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    review_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    localization: Mapped[Optional[dict]] = mapped_column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)
+    heatmap_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     product: Mapped["Product"] = relationship(back_populates="inspections")
     defects: Mapped[list["Defect"]] = relationship(

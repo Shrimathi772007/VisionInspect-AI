@@ -538,7 +538,8 @@ def test_existing_summary_fields_are_all_still_present(client, qe_headers):
         "trend_monitoring",
     }
     assert previous_top_level_keys.issubset(body.keys())
-    assert set(body.keys()) == previous_top_level_keys | {"performance"}
+    # Updated deliberately: the localization/confidence task adds one top-level count, manual_review_count.
+    assert set(body.keys()) == previous_top_level_keys | {"performance", "manual_review_count"}
 
 
 def test_default_window_is_identical_to_requesting_14_days(client, qe_headers):

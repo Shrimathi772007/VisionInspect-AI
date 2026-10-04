@@ -1,12 +1,15 @@
 """Milestone 3 Phase 3: quality assessment and recommendations.
 
-A deterministic, explainable PASS/FAIL/NOT_ASSESSED quality decision for one inspection,
-built only from evidence that already exists elsewhere in this system:
+A deterministic, explainable PASS/FAIL/MANUAL_REVIEW/NOT_ASSESSED quality decision for one
+inspection, built only from evidence that already exists elsewhere in this system:
 
     inspection.status        - business/ground-truth status ("good"/"defective"/"pending")
-    ai_prediction             - the autoencoder's anomaly-detection guess (Phase 7/8)
+    ai_prediction             - the category's served anomaly model's prediction
     defect_category           - MVTec ground-truth defect type (Phase 1)
     severity_level            - the Phase 2 severity assessment ("Critical"/"High"/.../None)
+    review_required           - the declared manual-review rule (app.ai.inference.localization.
+                                review_rule: margin confidence < 0.70 or a NOT_PRODUCTION_READY
+                                category model); only consulted when there is no ground truth
 
 Kept deliberately framework/DB-free (same convention as app.ai.inference and
 app.inspections.severity) - this module only ever computes from plain values and never
@@ -17,8 +20,8 @@ WHY THIS IS A SEPARATE CONCEPT FROM STATUS/AI_PREDICTION/SEVERITY
 --------------------------------------------------------------------
 quality_decision is NOT a copy of `status` (which is ground truth, only meaningful for
 MVTec imports - generic uploads are always "pending"), NOT a copy of `ai_prediction`
-(which is only the autoencoder's own guess, with known poor recall on real defects - see
-frontend/src/utils/badgeMaps.js's AI_PREDICTION_* comment), and NOT a restatement of
+(which is only the served model's own guess - its reliability differs per category, see the
+`gate` in app.ai.inference.serving), and NOT a restatement of
 `severity_level`/`quality_risk` (which score how bad a *known* defect is, not whether the
 product should pass). It is a fourth, independent conclusion that *reasons about* the
 other three without overwriting or being derived by simply copying any one of them.
@@ -44,25 +47,30 @@ EVIDENCE PRECEDENCE (in order - the first matching rule decides the outcome)
           less honest claim than declining to decide and flagging the disagreement for
           human review.
 3. status == "defective" OR ai_prediction == "defective" (and rule 2 did not already
-   apply, so if both are present they agree)
+   apply, so if both are present they agree) - with a ground-truth status
        -> FAIL. Either a real ground-truth defect or an AI-flagged anomaly is treated as
-          sufficient not-PASS evidence on its own. This is intentionally asymmetric with
-          rule 5 below: an AI "defective" is enough to withhold PASS, but an AI "good" is
-          not enough, alone, to grant it (see rule 5's docstring for why).
+          sufficient not-PASS evidence on its own.
 4. status == "good" (regardless of whether ai_prediction agrees or is absent)
        -> PASS. Ground truth is authoritative when available and not contradicted by AI
           evidence (rule 2 already catches the disagreement case). An agreeing
           ai_prediction is not required for PASS but is compatible with it.
-5. Otherwise (no ground-truth status, and either no ai_prediction or ai_prediction ==
-   "good", and no disqualifying severity)
-       -> NOT_ASSESSED ("insufficient evidence"). This is deliberately NOT "PASS": an
-          AI "good" prediction, by itself, with no ground truth to corroborate it, is not
-          treated as sufficient evidence for PASS, given this autoencoder's known poor
-          recall on real defects (~46% - see the AI Prediction card in
-          InspectionDetailPage.jsx / badgeMaps.js). Concretely, today every generic
-          upload has status="pending", defect_category=None, and ai_prediction=None (only
-          mvtec_ad inspections currently ever get an AI prediction at all - see
-          app.inspections.service._resolve_category), so every generic upload lands here.
+Rules 2-4 (inspections WITH a ground-truth status, i.e. MVTec imports) are unchanged by the
+AI-only rules below; review_required is stored for them but never changes their decision.
+
+AI-ONLY INSPECTIONS (no ground-truth status - every upload), after rule 1:
+5. no AI prediction
+       -> NOT_ASSESSED ("insufficient evidence"), as before.
+6. review_required (confidence < 0.70, and/or the category's model is NOT_PRODUCTION_READY)
+       -> MANUAL_REVIEW. The AI result exists but is not reliable enough to decide on, so a
+          person must inspect the product. Applies to an AI "good" and "defective" alike.
+7. ai_prediction == "defective"
+       -> FAIL.
+8. ai_prediction == "good"
+       -> PASS. Every category is now served by its own locked model with a static evidence
+          gate (app.ai.inference.serving); a NOT_PRODUCTION_READY model or a low-margin score
+          never reaches this rule (rule 6), so an AI "good" from a production-ready model with
+          a clear margin is accepted as PASS. (This used to be NOT_ASSESSED because the only
+          model then served, the Bottle ConvAE, had poor recall - 73.02% on its final test.)
 """
 
 from dataclasses import dataclass
@@ -74,6 +82,8 @@ from app.inspections.severity import CRITICAL, HIGH
 PASS = "PASS"
 FAIL = "FAIL"
 NOT_ASSESSED = "NOT_ASSESSED"
+MANUAL_REVIEW = "MANUAL_REVIEW"
+DECISIONS = (PASS, FAIL, MANUAL_REVIEW, NOT_ASSESSED)
 
 _GROUND_TRUTH_STATUSES = (GOOD_PREDICTION, DEFECTIVE_PREDICTION)  # "good"/"defective" - not "pending"
 
@@ -87,6 +97,8 @@ _CONTAMINATION_RECOMMENDATION = "Inspect the product for contamination and verif
 _CONFLICT_RECOMMENDATION = "Conflicting inspection evidence requires quality review."
 _PASS_RECOMMENDATION = "Product can proceed to the next quality-control stage."
 _INSUFFICIENT_EVIDENCE_RECOMMENDATION = "Additional inspection evidence is required before making a quality decision."
+_MANUAL_REVIEW_ASSESSMENT = "AI result is low-reliability for this category/confidence; manual inspection required."
+_MANUAL_REVIEW_RECOMMENDATION = "Inspect the product manually before making a quality decision."
 
 # Defect-category -> recommendation sentence(s), for defect_category values with a known,
 # documented real-world meaning (Phase 1 MVTec ground truth). This is an explicit
@@ -110,7 +122,7 @@ def _defect_category_recommendations(defect_category: Optional[str]) -> list[str
 class QualityAssessment:
     """The persisted result of a Phase 3 quality assessment for one inspection."""
 
-    decision: str  # PASS / FAIL / NOT_ASSESSED
+    decision: str  # PASS / FAIL / MANUAL_REVIEW / NOT_ASSESSED
     assessment: str  # short, human-readable explanation of the decision
     recommendation: str  # one or more deterministic sentences, highest-priority first
 
@@ -124,9 +136,12 @@ def assess_quality(
     ai_prediction: Optional[str],
     defect_category: Optional[str],
     severity_level: Optional[str],
+    review_required: Optional[bool] = None,
 ) -> QualityAssessment:
-    """Deterministic PASS/FAIL/NOT_ASSESSED quality decision - see module docstring for
-    the exact, ordered precedence rules this implements."""
+    """Deterministic PASS/FAIL/MANUAL_REVIEW/NOT_ASSESSED quality decision - see the module
+    docstring for the exact, ordered precedence rules this implements. `review_required` is
+    only consulted for inspections without a ground-truth status; None ("not computed") is
+    treated like False."""
 
     # Rule 1: a known-severe defect always wins, regardless of status/ai_prediction.
     if severity_level in (CRITICAL, HIGH):
@@ -148,7 +163,20 @@ def assess_quality(
             recommendation=_CONFLICT_RECOMMENDATION,
         )
 
-    # Rule 3: a real defect, from ground truth and/or the AI, with nothing contradicting it.
+    # Rules 5-6 (AI-only inspections): no AI result -> NOT_ASSESSED; an AI result the
+    # manual-review rule flags -> MANUAL_REVIEW, whichever way the AI decided.
+    if not has_ground_truth:
+        if not ai_available:
+            return _insufficient_evidence()
+        if review_required:
+            return QualityAssessment(
+                decision=MANUAL_REVIEW,
+                assessment=_MANUAL_REVIEW_ASSESSMENT,
+                recommendation=_MANUAL_REVIEW_RECOMMENDATION,
+            )
+
+    # Rule 3 (rule 7 for AI-only): a real defect, from ground truth and/or the AI, with
+    # nothing contradicting it.
     if status == DEFECTIVE_PREDICTION or ai_prediction == DEFECTIVE_PREDICTION:
         recommendations = []
         if ai_prediction == DEFECTIVE_PREDICTION:
@@ -163,15 +191,20 @@ def assess_quality(
         )
 
     # Rule 4: ground truth confirms good, and rule 2 already ruled out disagreement.
-    if status == GOOD_PREDICTION:
+    # Rule 8: an AI-only "good" that the manual-review rule did not flag (rule 6).
+    if status == GOOD_PREDICTION or (not has_ground_truth and ai_prediction == GOOD_PREDICTION):
         return QualityAssessment(
             decision=PASS,
             assessment="No significant defect evidence identified.",
             recommendation=_PASS_RECOMMENDATION,
         )
 
-    # Rule 5: nothing sufficient to decide - includes every generic upload today, and an
-    # AI "good" prediction with no ground truth to corroborate it (see module docstring).
+    # Not reachable through the rules above (every status/ai_prediction combination is
+    # decided); kept as the safe default.
+    return _insufficient_evidence()
+
+
+def _insufficient_evidence() -> QualityAssessment:
     return QualityAssessment(
         decision=NOT_ASSESSED,
         assessment="Insufficient evidence.",

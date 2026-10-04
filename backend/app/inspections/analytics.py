@@ -34,6 +34,12 @@ NULL-bucket handling (never fabricated, always an honest "not available" bucket)
       see app.inspections.severity's all-four-required policy); coalesced to the
       existing severity.NOT_ASSESSED value ("Not assessed") for grouping.
 
+MANUAL_REVIEW (localization/confidence task): quality_decisions groups by the stored value,
+so the new quality.MANUAL_REVIEW decision appears there as its own row with no query change;
+`manual_review_count` restates that row's count (0 when there is none) at the top level. The
+per-day trend series (trend_monitoring.daily) is unchanged: it keeps its three fixed
+pass/fail/not-assessed counters, so a MANUAL_REVIEW day contributes to `total` only.
+
 MILESTONE 3 PHASE 6 - DEFECT TRENDS & FINAL INTEGRATION
 --------------------------------------------------------
 Adds `trend_monitoring` to the same summary: historical (never predictive) aggregation
@@ -91,7 +97,7 @@ from sqlalchemy import Date, cast, func, select
 from sqlalchemy.orm import Session
 
 from app.ai.inference import DEFECTIVE_PREDICTION, GOOD_PREDICTION
-from app.inspections.quality import FAIL, PASS
+from app.inspections.quality import FAIL, MANUAL_REVIEW, PASS
 from app.inspections.quality import NOT_ASSESSED as QUALITY_NOT_ASSESSED
 from app.inspections.severity import NOT_ASSESSED as SEVERITY_NOT_ASSESSED
 from app.models.inspection import Inspection, InspectionSource
@@ -198,7 +204,7 @@ class DefectCategoryCount(BaseModel):
 class QualityDecisionCount(BaseModel):
     """One row of the quality_decision distribution (Milestone 3 Phase 3 data)."""
 
-    decision: str  # PASS / FAIL / NOT_ASSESSED - restates app.inspections.quality's own vocabulary
+    decision: str  # PASS / FAIL / MANUAL_REVIEW / NOT_ASSESSED - restates app.inspections.quality's own vocabulary
     count: int
     percentage: float
 
@@ -310,6 +316,9 @@ class InspectionAnalyticsSummary(BaseModel):
     trend_monitoring: TrendMonitoring
     # Milestone 4 addition
     performance: PerformanceMetrics
+    # Localization/confidence task: inspections whose quality decision is MANUAL_REVIEW (the
+    # same count as that row of quality_decisions; 0 when there is none).
+    manual_review_count: int
 
 
 def _utc_day(column):
@@ -969,4 +978,5 @@ def get_inspection_analytics_summary(
         ),
         trend_monitoring=_get_trend_monitoring(db, today, by_product, window_days),
         performance=_get_performance_metrics(db, today, window_days),
+        manual_review_count=next((row.count for row in quality_decisions if row.decision == MANUAL_REVIEW), 0),
     )

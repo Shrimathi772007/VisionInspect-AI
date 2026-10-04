@@ -7,6 +7,7 @@ no ground-truth label involved at all.
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 GOOD_PREDICTION = "good"
 DEFECTIVE_PREDICTION = "defective"
@@ -31,3 +32,9 @@ class PredictionResult:
     model_name: str = "autoencoder"
     input_size: tuple[int, int] = (128, 128)
     processing_time_ms: float = 0.0
+    # Only with predict_image(..., return_patch_scores=True) for a patch model: the (h, w) float32
+    # torch grid of per-patch anomaly scores the image score was aggregated from, and how the
+    # model's input maps onto the original image ("crop224", "full256", "full320", or "resize"
+    # for the ResNet-18 whole-image resize). None otherwise (ConvAE, or not requested).
+    patch_scores: Any = None
+    input_mode: str | None = None

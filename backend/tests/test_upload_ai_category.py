@@ -32,12 +32,15 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 AI_FIELDS = ("ai_prediction", "ai_reconstruction_error", "ai_threshold", "ai_model_name", "ai_inference_time_ms")
 
 TILE_MODEL_PATH = ARTIFACTS_ROOT / "tile" / "model_family_study" / "selected_candidate" / "model_state.pt"
-TILE_TEST_GOOD_IMAGE = DATASET_ROOT / "tile" / "test" / "good" / "000.png"
+# Updated deliberately (localization/confidence task): the real-model upload uses a tile TRAIN/good image. It
+# used to upload a copy of tile test/good/000.png, which scored a test-split image with the served model (the
+# conftest guard only sees dataset paths, not copies); served models never score the test split again.
+TILE_TRAIN_GOOD_IMAGE = DATASET_ROOT / "tile" / "train" / "good" / "000.png"
 BOTTLE_TEST_GOOD_IMAGE = DATASET_ROOT / "bottle" / "test" / "good" / "000.png"
 
 requires_real_tile = pytest.mark.skipif(
-    not (TILE_MODEL_PATH.is_file() and pretrained_weights_path().is_file() and TILE_TEST_GOOD_IMAGE.is_file()),
-    reason="Tile model-family artifact, ResNet-18 backbone or MVTec tile test image not present in this environment",
+    not (TILE_MODEL_PATH.is_file() and pretrained_weights_path().is_file() and TILE_TRAIN_GOOD_IMAGE.is_file()),
+    reason="Tile model-family artifact, ResNet-18 backbone or MVTec tile train image not present in this environment",
 )
 
 
@@ -66,7 +69,7 @@ def _assert_no_ai_result(body: dict) -> None:
 def test_real_tile_model_scores_an_uploaded_tile_image(category_products, tmp_path):
     # Upload a copy of the dataset image's bytes; the dataset file itself is never modified.
     copy = tmp_path / "tile_upload.png"
-    copy.write_bytes(TILE_TEST_GOOD_IMAGE.read_bytes())
+    copy.write_bytes(TILE_TRAIN_GOOD_IMAGE.read_bytes())
     product = category_products.create(category="tile")
 
     response = category_products.upload(product, copy.read_bytes(), filename="tile_upload.png")
@@ -81,9 +84,12 @@ def test_real_tile_model_scores_an_uploaded_tile_image(category_products, tmp_pa
     assert body["ai_inference_time_ms"] > 0
     assert body["product_category"] == "tile"
     assert body["status"] == "pending"
-    # Quality rules are unchanged: with no ground truth, an AI "good" alone is not sufficient
-    # (NOT_ASSESSED) and an AI "defective" is a FAIL.
-    assert body["quality_decision"] == ("FAIL" if body["ai_prediction"] == "defective" else "NOT_ASSESSED")
+    # Updated deliberately (localization/confidence task): an AI-only result first goes through the
+    # manual-review rule (MANUAL_REVIEW); otherwise AI "defective" is FAIL and AI "good" is now PASS
+    # (it used to be NOT_ASSESSED).
+    expected = ("MANUAL_REVIEW" if body["review_required"]
+                else "FAIL" if body["ai_prediction"] == "defective" else "PASS")
+    assert body["quality_decision"] == expected
 
 
 # ---------------------------------------------------------------------------

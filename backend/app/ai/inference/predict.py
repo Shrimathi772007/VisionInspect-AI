@@ -40,8 +40,13 @@ from app.ai.inference.serving import (
     get_supported_categories,
     load_serving_model,
 )
+from app.ai.models.patch_anomaly import aggregate_scores, extract_patch_features
+from app.ai.models.patchcore import FEATURE_STRIDE
 from app.ai.preprocessing import process_image
 from app.ai.preprocessing.patchcore_preprocess import decode_image, normalize, resize_and_crop
+
+# PredictionResult.input_mode of the ResNet-18 patch models: the whole image resized to the input size.
+INPUT_MODE_RESIZE = "resize"
 
 # Categories with a configured, validated model today (a snapshot of SERVING_CONFIGS at
 # import time; get_supported_categories() is the live view). predict_image itself is
@@ -71,6 +76,7 @@ def predict_image(
     model_name: str | None = None,
     image_size: tuple[int, int] | None = None,
     threshold_k: float | None = None,
+    return_patch_scores: bool = False,
 ) -> PredictionResult:
     """Run AI anomaly-detection inference for one inspection image.
 
@@ -95,6 +101,13 @@ def predict_image(
 
     `image_size` defaults to the category's configured input size. A patch-anomaly or WRN-50
     model is only valid at its locked input size, so any other value is refused for it.
+
+    `return_patch_scores=True` additionally fills PredictionResult.patch_scores (the (h, w) grid of
+    per-patch anomaly scores the image score is aggregated from) and .input_mode, for anomaly-map
+    localization (app.ai.inference.localization). The score, threshold and prediction are the same
+    with or without it: for WRN-50 the grid is the tensor already computed; for ResNet-18 the
+    detector's score_images is unrolled into its own three steps (features -> scorer ->
+    aggregate_scores), which is exactly what score_images does. ConvAE models have no patch grid.
 
     Raises:
         ValueError: `threshold_k` was given, or a patch / WRN-50 category got a different
@@ -129,6 +142,8 @@ def predict_image(
             f"image_size {tuple(image_size)} is not allowed."
         )
     model = load_serving_model(config)
+    patch_grid = None
+    input_mode = None
 
     if config.model_family == MODEL_FAMILY_PATCHCORE_WRN50:
         # ImageNet-normalized at the locked mode; image score = the locked aggregation of the k=1 patch distances.
@@ -136,6 +151,16 @@ def predict_image(
         with torch.no_grad():
             patch_scores = model.patch_scores_from_features(model.extract_features(image_tensor.unsqueeze(0)))
             reconstruction_error = float(model.image_scores(patch_scores, config.aggregation)[0])
+        if return_patch_scores:
+            side = config.input_size[0] // FEATURE_STRIDE
+            patch_grid, input_mode = patch_scores[0].reshape(side, side), config.input_mode
+    elif locked_size and return_patch_scores:
+        # PatchAnomalyDetector.score_images, unrolled so the patch grid is kept - same calls, same order.
+        image_tensor = _image_to_tensor(Path(image_path), image_size)
+        with torch.no_grad():
+            grid = model.scorer.patch_scores(extract_patch_features(model.extractor, image_tensor.unsqueeze(0), model.layers))
+            reconstruction_error = [float(s) for s in aggregate_scores(grid, model.aggregation)][0]
+        patch_grid, input_mode = grid[0], INPUT_MODE_RESIZE
     elif locked_size:
         # [0,1] RGB at the locked size; ImageNet normalization happens inside the detector.
         image_tensor = _image_to_tensor(Path(image_path), image_size)
@@ -155,4 +180,6 @@ def predict_image(
         model_name=config.model_name,
         input_size=image_size,
         processing_time_ms=(time.perf_counter() - start) * 1000,
+        patch_scores=patch_grid,
+        input_mode=input_mode,
     )

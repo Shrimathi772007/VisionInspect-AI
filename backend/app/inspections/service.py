@@ -13,10 +13,20 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from app.ai.inference import predict_image
+from app.ai.inference import DEFECTIVE_PREDICTION, localization, predict_image
+from app.ai.inference.serving import SERVING_CONFIGS
+from app.ai.preprocessing.patchcore_preprocess import decode_image
 from app.dataset.ground_truth import compute_defect_area_ratio
 from app.inspections import quality, severity
-from app.inspections.storage import DATASET_ROOT, STORAGE_ROOT, resolve_image_path
+from app.inspections.storage import (
+    DATASET_ROOT,
+    HEATMAP_ROOT,
+    STORAGE_ROOT,
+    delete_heatmap_file,
+    heatmap_absolute_path,
+    heatmap_relative_path,
+    resolve_image_path,
+)
 from app.models.inspection import Inspection, InspectionSource
 
 logger = logging.getLogger(__name__)
@@ -91,7 +101,7 @@ def run_ai_inference(inspection: Inspection, db: Session) -> None:
 
     try:
         image_path = _resolve_absolute_path(inspection)
-        result = predict_image(image_path, category)
+        result = predict_image(image_path, category, return_patch_scores=True)
     except Exception as exc:  # noqa: BLE001 - inference must never break inspection creation
         logger.warning(
             "AI inference skipped for inspection %s (category=%r): %s",
@@ -111,6 +121,77 @@ def run_ai_inference(inspection: Inspection, db: Session) -> None:
     inspection.ai_inference_time_ms = result.processing_time_ms
     db.commit()
     db.refresh(inspection)
+
+    # Committed above first, so nothing below can lose the AI result.
+    apply_reliability_and_localization(inspection, db, result, category, image_path)
+
+
+def _gate_for(category: str, model_name: str) -> str | None:
+    """The static evidence gate of the registry entry that served this prediction (None when the
+    category is not registered, or its entry is not the model that produced the result)."""
+    config = SERVING_CONFIGS.get(category)
+    if config is None or config.model_name != model_name:
+        return None
+    return config.gate
+
+
+def _localize_and_render(inspection: Inspection, result, image_path: Path) -> tuple[dict | None, str | None]:
+    """(localization, heatmap relative path) for a patch-model result; (None, None) when the result
+    carries no patch grid (e.g. a ConvAE model). Writes storage/heatmaps/<inspection_id>.png."""
+    if result.patch_scores is None or result.input_mode is None:
+        return None, None
+    height, width = decode_image(image_path).shape[:2]  # the same validated decode the model input came from
+    amap = localization.anomaly_map(result.patch_scores, result.input_size[0])
+    region = localization.map_region(result.input_mode, width, height)
+    if result.prediction == DEFECTIVE_PREDICTION:
+        located = localization.localize(amap, result.threshold, region)
+    else:
+        located = localization.empty_localization()
+    located["analysed_region"] = [round(v, 6) for v in region]
+
+    rgba = localization.render_heatmap(amap, result.threshold, width, height, region)
+    HEATMAP_ROOT.mkdir(parents=True, exist_ok=True)
+    relative_path = heatmap_relative_path(inspection.id)
+    localization.write_png_atomic(rgba, heatmap_absolute_path(relative_path))
+    return located, relative_path
+
+
+def apply_reliability_and_localization(inspection: Inspection, db: Session, result, category: str,
+                                       image_path: Path) -> None:
+    """Best-effort margin confidence, manual-review flag, anomaly-map localization and heatmap for
+    an inspection whose AI result was just stored (app.ai.inference.localization).
+
+    Never raises and never touches ai_* / status: on any failure the affected new fields stay NULL
+    (confidence/review and localization/heatmap fail independently) and the inspection is kept.
+    """
+    try:
+        confidence = localization.margin_confidence(result.reconstruction_error, result.threshold)
+        review = localization.review_rule(confidence, _gate_for(category, result.model_name))
+        inspection.ai_confidence = confidence
+        inspection.review_required = review.required
+        inspection.review_reason = review.reason
+    except Exception as exc:  # noqa: BLE001 - must never break inspection creation
+        logger.warning("Confidence/review skipped for inspection %s: %s", inspection.id, exc)
+
+    written = None
+    try:
+        located, written = _localize_and_render(inspection, result, image_path)
+        inspection.localization = located
+        inspection.heatmap_path = written
+    except Exception as exc:  # noqa: BLE001 - must never break inspection creation
+        logger.warning("Localization skipped for inspection %s: %s", inspection.id, exc)
+
+    try:
+        db.commit()
+        db.refresh(inspection)
+    except Exception as exc:  # noqa: BLE001 - must never break inspection creation
+        db.rollback()
+        logger.warning("Could not store localization for inspection %s: %s", inspection.id, exc)
+        if written:
+            try:
+                delete_heatmap_file(written)
+            except Exception:  # noqa: BLE001
+                pass
 
 
 def apply_severity_assessment(inspection: Inspection, db: Session) -> None:
@@ -168,6 +249,7 @@ def apply_quality_assessment(inspection: Inspection, db: Session) -> None:
         ai_prediction=inspection.ai_prediction,
         defect_category=inspection.defect_category,
         severity_level=inspection.severity_level,
+        review_required=inspection.review_required,
     )
     inspection.quality_decision = result.decision
     inspection.quality_assessment = result.assessment

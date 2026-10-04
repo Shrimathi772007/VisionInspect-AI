@@ -13,6 +13,7 @@ app.inspections.schemas for the response shape) - it does not query the database
 so it never fetches more than the one inspection/product the caller already has.
 """
 
+from app.ai.inference.localization import reliability_level
 from app.inspections.quality import NOT_ASSESSED
 from app.inspections.schemas import (
     DatasetReportSection,
@@ -22,6 +23,7 @@ from app.inspections.schemas import (
     QualityReportSection,
     ReportSummary,
     SeverityReportSection,
+    model_gate_for,
 )
 from app.models.inspection import Inspection, InspectionSource
 from app.models.product import Product
@@ -56,6 +58,8 @@ def build_production_quality_report(inspection: Inspection, product: Product) ->
     """
     decision = inspection.quality_decision or NOT_ASSESSED
     report_status = "COMPLETE" if inspection.quality_decision is not None else "PARTIAL"
+    dataset = _build_dataset_section(inspection)
+    gate_category = dataset.category if dataset is not None else product.category
 
     return ProductionQualityReport(
         inspection=InspectionReportSection(
@@ -67,13 +71,20 @@ def build_production_quality_report(inspection: Inspection, product: Product) ->
             inspection_date=inspection.inspection_date,
             created_at=inspection.created_at,
         ),
-        dataset=_build_dataset_section(inspection),
+        dataset=dataset,
         defect=DefectReportSection(
             category=inspection.defect_category,
             ai_prediction=inspection.ai_prediction,
             ai_reconstruction_error=inspection.ai_reconstruction_error,
             ai_threshold=inspection.ai_threshold,
             ai_model_name=inspection.ai_model_name,
+            ai_confidence=inspection.ai_confidence,
+            ai_reliability=reliability_level(inspection.ai_confidence),
+            review_required=inspection.review_required,
+            review_reason=inspection.review_reason,
+            localization=inspection.localization,
+            has_heatmap=bool(inspection.heatmap_path),
+            model_gate=model_gate_for(gate_category, inspection.ai_model_name),
         ),
         severity=SeverityReportSection(
             score=inspection.severity_score,
