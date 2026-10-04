@@ -418,3 +418,44 @@ describe("DashboardPage manual review", () => {
     expect(card("Manual review").getByText("0")).toBeInTheDocument();
   });
 });
+
+describe("DashboardPage automation rate", () => {
+  beforeEach(() => {
+    refetchAnalytics = vi.fn();
+    refetchRecent = vi.fn();
+  });
+
+  it("shows the automation rate as a percentage with the counts", () => {
+    mockData({
+      analytics: {
+        data: makeAnalytics({
+          automation_rate: 0.8125,
+          automation_counts: { automatic: 13, manual_review: 2, not_assessed: 1 },
+        }),
+      },
+    });
+    renderDashboard();
+
+    expect(card("Automation rate").getByText("81.3%")).toBeInTheDocument();
+    expect(card("Automation rate").getByText("13 automatic · 2 manual review · 1 not assessed")).toBeInTheDocument();
+  });
+
+  it("shows an em dash when there is no decision yet", () => {
+    mockData({
+      analytics: {
+        data: makeAnalytics({ automation_rate: null, automation_counts: { automatic: 0, manual_review: 0, not_assessed: 0 } }),
+      },
+    });
+    renderDashboard();
+
+    expect(card("Automation rate").getByText("\u2014")).toBeInTheDocument();
+  });
+
+  it("is safe when an older backend sends neither field", () => {
+    mockData();
+    renderDashboard();
+
+    expect(card("Automation rate").getByText("\u2014")).toBeInTheDocument();
+    expect(card("Automation rate").getByText("PASS/FAIL decided without a person")).toBeInTheDocument();
+  });
+});

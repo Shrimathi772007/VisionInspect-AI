@@ -12,6 +12,7 @@ import { InspectionDetailPage } from "./pages/InspectionDetailPage";
 import { DatasetBrowserPage } from "./pages/DatasetBrowserPage";
 import { UsersPage } from "./pages/UsersPage";
 import { ModelPerformancePage } from "./pages/ModelPerformancePage";
+import { CameraSimulationPage } from "./pages/CameraSimulationPage";
 
 function App() {
   return (
@@ -40,6 +41,14 @@ function App() {
         <Route path="/inspections/:id" element={<InspectionDetailPage />} />
         <Route path="/dataset" element={<DatasetBrowserPage />} />
         <Route path="/models" element={<ModelPerformancePage />} />
+        <Route
+          path="/camera"
+          element={
+            <RoleRoute allow={["quality_engineer"]}>
+              <CameraSimulationPage />
+            </RoleRoute>
+          }
+        />
         <Route
           path="/users"
           element={

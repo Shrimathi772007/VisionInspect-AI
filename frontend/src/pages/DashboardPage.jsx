@@ -20,6 +20,7 @@ import {
   TrendingDown,
   Minus,
   UserCheck,
+  Bot,
 } from "lucide-react";
 import { useAuth } from "../auth/useAuth";
 import { useProducts } from "../hooks/useProducts";
@@ -53,6 +54,18 @@ import { formatRelativeTime } from "../utils/formatDate";
 import styles from "./DashboardPage.module.css";
 
 const MAX_VISIBLE_PRODUCTS = 6;
+
+// Automation rate: share of decided inspections (quality_decision set) decided automatically (PASS/FAIL).
+// An em dash when there is no decision yet or the backend does not send the field.
+function formatAutomationRate(rate) {
+  return typeof rate === "number" && Number.isFinite(rate) ? `${(rate * 100).toFixed(1)}%` : "—";
+}
+
+function automationNote(counts) {
+  if (!counts || typeof counts !== "object") return "PASS/FAIL decided without a person";
+  const n = (value) => (Number.isFinite(value) ? value : 0);
+  return `${n(counts.automatic)} automatic · ${n(counts.manual_review)} manual review · ${n(counts.not_assessed)} not assessed`;
+}
 
 // The dashboard only ever shows the newest few inspections, so it asks the backend for exactly
 // that many (a SQL LIMIT) instead of downloading every inspection ever recorded.
@@ -322,6 +335,15 @@ export function DashboardPage() {
           error={analyticsFailed}
           note="AI result needs a person"
           tone="accent"
+        />
+        <StatCard
+          icon={Bot}
+          label="Automation rate"
+          value={formatAutomationRate(analytics?.automation_rate)}
+          loading={analyticsLoading}
+          error={analyticsFailed}
+          note={automationNote(analytics?.automation_counts)}
+          tone="success"
         />
       </div>
 

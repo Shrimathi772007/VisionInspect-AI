@@ -23,6 +23,8 @@ import { InspectionStatusBanner } from "../components/InspectionStatusBanner/Ins
 import { ManualReviewBanner } from "../components/ManualReviewBanner/ManualReviewBanner";
 import { LocalizationOverlay } from "../components/LocalizationOverlay/LocalizationOverlay";
 import { LocalizationPanel } from "../components/LocalizationPanel/LocalizationPanel";
+import { SeverityCard } from "../components/SeverityCard/SeverityCard";
+import { EnhancementPreviewCard } from "../components/EnhancementPreviewCard/EnhancementPreviewCard";
 import {
   statusLabel,
   statusTone,
@@ -32,10 +34,6 @@ import {
   aiPredictionTone,
   defectCategoryLabel,
   defectCategoryTone,
-  severityLabel,
-  severityTone,
-  qualityRiskLabel,
-  qualityRiskTone,
   qualityDecisionLabel,
   qualityDecisionTone,
   reportStatusLabel,
@@ -274,6 +272,7 @@ export function InspectionDetailPage() {
                 onShowBoxesChange={setShowBoxes}
               />
             )}
+            <EnhancementPreviewCard inspectionId={id} originalUrl={imageUrl} />
           </div>
 
           <div className={styles.sideColumn}>
@@ -439,40 +438,7 @@ export function InspectionDetailPage() {
               )}
             </Card>
 
-            <Card className={styles.metaCard}>
-              <h2 className={styles.metaCardTitle}>Severity Assessment</h2>
-              {Number.isFinite(inspection.severity_score) ? (
-                <>
-                  <p className={styles.aiCaption}>
-                    Deterministic score from currently available defect evidence.
-                  </p>
-                  <dl className={styles.metaList}>
-                    <div className={styles.metaRow}>
-                      <dt>Score</dt>
-                      <dd className={styles.mono}>{Math.round(inspection.severity_score)} / 100</dd>
-                    </div>
-                    <div className={styles.metaRow}>
-                      <dt>Level</dt>
-                      <dd>
-                        <Badge tone={severityTone(inspection.severity_level)}>
-                          {severityLabel(inspection.severity_level)}
-                        </Badge>
-                      </dd>
-                    </div>
-                    <div className={styles.metaRow}>
-                      <dt>Quality Risk</dt>
-                      <dd>
-                        <Badge tone={qualityRiskTone(inspection.quality_risk)}>
-                          {qualityRiskLabel(inspection.quality_risk)}
-                        </Badge>
-                      </dd>
-                    </div>
-                  </dl>
-                </>
-              ) : (
-                <p className={styles.metaFallback}>Not assessed - insufficient evidence available</p>
-              )}
-            </Card>
+            <SeverityCard inspection={inspection} />
 
             <Card className={styles.metaCard}>
               <h2 className={styles.metaCardTitle}>Quality Assessment</h2>

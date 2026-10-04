@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Box, ScanEye, UploadCloud, LogOut, ChevronsLeft, ChevronsRight, ScanLine, Database, Users, Gauge } from "lucide-react";
+import { LayoutDashboard, Box, ScanEye, UploadCloud, LogOut, ChevronsLeft, ChevronsRight, ScanLine, Database, Users, Gauge, Camera } from "lucide-react";
 import { Badge } from "../Badge/Badge";
 import { ThemeToggle } from "../ThemeToggle/ThemeToggle";
 import { roleLabel, roleTone } from "../../utils/badgeMaps";
@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { to: "/inspections/upload", label: "Upload Inspection", icon: UploadCloud, roles: ["quality_engineer"] },
   { to: "/dataset", label: "Dataset Browser", icon: Database, roles: null },
   { to: "/models", label: "Model Performance", icon: Gauge, roles: null },
+  { to: "/camera", label: "Camera simulation", icon: Camera, roles: ["quality_engineer"] },
   { to: "/users", label: "Users", icon: Users, roles: ["quality_engineer"] },
 ];
 

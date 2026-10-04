@@ -41,3 +41,25 @@ export function deleteInspection(id) {
 export function getInspectionHeatmapBlob(id) {
   return apiFetch(`/inspections/${id}/heatmap`, { responseType: "blob" });
 }
+
+/**
+ * POST /inspections/batch (quality engineers): one product, up to 20 images (50 MB in total), sent as
+ * repeated "files" fields. Resolves to { total, succeeded, failed, items: [{ filename, inspection, error }] }
+ * - with HTTP 200 even when some files failed.
+ */
+export function batchUploadInspections({ productId, files }) {
+  const formData = new FormData();
+  formData.append("product_id", String(productId));
+  for (const file of files) formData.append("files", file);
+  return apiFetch("/inspections/batch", { method: "POST", formData });
+}
+
+/** Enhanced (denoised + contrast) PNG preview as a Blob. Preview only - not used by the AI models. */
+export function getInspectionEnhancedBlob(id) {
+  return apiFetch(`/inspections/${id}/enhanced`, { responseType: "blob" });
+}
+
+/** Before/after image-quality metrics of the enhancement preview. */
+export function getInspectionImageQuality(id) {
+  return apiFetch(`/inspections/${id}/image-quality`);
+}

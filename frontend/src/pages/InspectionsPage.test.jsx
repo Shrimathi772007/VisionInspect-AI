@@ -49,3 +49,21 @@ describe("InspectionsPage manual review indicator", () => {
     expect(rowFor(4).getByText("User Upload")).toBeInTheDocument();
   });
 });
+
+describe("InspectionsPage severity badge", () => {
+  beforeEach(() => {
+    useInspections.mockReset();
+  });
+
+  it("shows the severity level when there is one, and nothing otherwise", () => {
+    renderList([
+      row({ id: 5, severity_level: "Critical" }),
+      row({ id: 6, severity_level: null }),
+      row({ id: 7, severity_level: "Unheard-of" }),
+    ]);
+
+    expect(rowFor(5).getByText("Severity: Critical")).toBeInTheDocument();
+    expect(rowFor(6).queryByText(/Severity:/)).not.toBeInTheDocument();
+    expect(rowFor(7).getByText("Severity: Unheard-of")).toBeInTheDocument();
+  });
+});

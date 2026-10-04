@@ -22,6 +22,8 @@ import {
   sourceTone,
   qualityDecisionLabel,
   qualityDecisionTone,
+  severityLabel,
+  severityTone,
 } from "../utils/badgeMaps";
 import { formatDateTime } from "../utils/formatDate";
 import styles from "./InspectionsPage.module.css";
@@ -180,6 +182,9 @@ export function InspectionsPage() {
                   </p>
                 </div>
                 <div className={styles.badges}>
+                  {inspection.severity_level && (
+                    <Badge tone={severityTone(inspection.severity_level)}>Severity: {severityLabel(inspection.severity_level)}</Badge>
+                  )}
                   {(inspection.review_required === true || inspection.quality_decision === "MANUAL_REVIEW") && (
                     <Badge tone={qualityDecisionTone("MANUAL_REVIEW")}>{qualityDecisionLabel("MANUAL_REVIEW")}</Badge>
                   )}

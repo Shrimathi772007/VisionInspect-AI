@@ -35,6 +35,14 @@ describe("Sidebar", () => {
     expect(screen.getByRole("link", { name: "Dashboard" })).toBeInTheDocument();
   });
 
+  it("shows Camera simulation to a quality engineer only", () => {
+    const { unmount } = renderSidebar("quality_engineer");
+    expect(screen.getByRole("link", { name: "Camera simulation" })).toHaveAttribute("href", "/camera");
+    unmount();
+    renderSidebar("factory_supervisor");
+    expect(screen.queryByRole("link", { name: "Camera simulation" })).not.toBeInTheDocument();
+  });
+
   it.each(["quality_engineer", "factory_supervisor"])("shows the Model Performance item to a %s", (role) => {
     renderSidebar(role);
     expect(screen.getByRole("link", { name: "Model Performance" })).toHaveAttribute("href", "/models");

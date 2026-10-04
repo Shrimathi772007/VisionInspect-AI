@@ -16,6 +16,7 @@ import { Skeleton } from "../components/Skeleton/Skeleton";
 import { Badge } from "../components/Badge/Badge";
 import { categoryLabel } from "../constants/mvtecCategories";
 import { ManualReviewBanner } from "../components/ManualReviewBanner/ManualReviewBanner";
+import { BatchUploadPanel } from "../components/BatchUploadPanel/BatchUploadPanel";
 import {
   aiPredictionLabel,
   aiPredictionTone,
@@ -35,6 +36,8 @@ export function InspectionUploadPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
   const [createdInspection, setCreatedInspection] = useState(null);
+  // "single" (the original one-image form) or "batch" (up to 20 images, see BatchUploadPanel).
+  const [mode, setMode] = useState("single");
 
   const selectedProduct = products.find((product) => String(product.id) === String(productId));
 
@@ -52,6 +55,7 @@ export function InspectionUploadPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (mode !== "single") return; // batch mode submits through its own button
     setUploadError(null);
 
     if (!productId) {
@@ -159,6 +163,24 @@ export function InspectionUploadPage() {
       ) : (
         <Card className={styles.formCard}>
           <form onSubmit={handleSubmit} className={styles.form}>
+            <div className={styles.modeSwitch} role="group" aria-label="Upload mode">
+              {[
+                { value: "single", label: "Single image" },
+                { value: "batch", label: "Batch (up to 20)" },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`${styles.modeButton} ${mode === option.value ? styles.modeButtonActive : ""}`}
+                  aria-pressed={mode === option.value}
+                  onClick={() => setMode(option.value)}
+                  disabled={isUploading}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
             {productsLoading ? (
               <Skeleton height={44} />
             ) : (
@@ -199,39 +221,45 @@ export function InspectionUploadPage() {
               </span>
             </p>
 
-            <div className={styles.fileField}>
-              <span className={styles.fileFieldLabel}>Inspection image</span>
-              {file ? (
-                <ImagePreview file={file} onRemove={() => setFile(null)} disabled={isUploading} />
-              ) : (
-                <FileDropzone onFileAccepted={handleFileAccepted} onFileRejected={setFileError} disabled={isUploading} />
-              )}
-              {fileError && (
-                <p className={styles.fieldError} role="alert">
-                  <AlertCircle size={13} /> {fileError}
-                </p>
-              )}
-            </div>
-
-            {uploadError && (
-              <div className={styles.uploadErrorBanner} role="alert">
-                <AlertCircle size={16} />
-                <span>{uploadError}</span>
-              </div>
-            )}
-
-            {isUploading && (
-              <div className={styles.progressWrap} aria-live="polite">
-                <div className={styles.progressTrack}>
-                  <div className={styles.progressBar} />
+            {mode === "batch" ? (
+              <BatchUploadPanel productId={productId} />
+            ) : (
+              <>
+                <div className={styles.fileField}>
+                  <span className={styles.fileFieldLabel}>Inspection image</span>
+                  {file ? (
+                    <ImagePreview file={file} onRemove={() => setFile(null)} disabled={isUploading} />
+                  ) : (
+                    <FileDropzone onFileAccepted={handleFileAccepted} onFileRejected={setFileError} disabled={isUploading} />
+                  )}
+                  {fileError && (
+                    <p className={styles.fieldError} role="alert">
+                      <AlertCircle size={13} /> {fileError}
+                    </p>
+                  )}
                 </div>
-                <span className={styles.progressLabel}>Uploading image&hellip;</span>
-              </div>
-            )}
 
-            <Button type="submit" size="lg" fullWidth loading={isUploading} disabled={!productId || !file}>
-              Create Inspection
-            </Button>
+                {uploadError && (
+                  <div className={styles.uploadErrorBanner} role="alert">
+                    <AlertCircle size={16} />
+                    <span>{uploadError}</span>
+                  </div>
+                )}
+
+                {isUploading && (
+                  <div className={styles.progressWrap} aria-live="polite">
+                    <div className={styles.progressTrack}>
+                      <div className={styles.progressBar} />
+                    </div>
+                    <span className={styles.progressLabel}>Uploading image&hellip;</span>
+                  </div>
+                )}
+
+                <Button type="submit" size="lg" fullWidth loading={isUploading} disabled={!productId || !file}>
+                  Create Inspection
+                </Button>
+              </>
+            )}
           </form>
         </Card>
       )}
