@@ -23,8 +23,10 @@ from app.inspections.schemas import (
     QualityReportSection,
     ReportSummary,
     SeverityReportSection,
+    defect_form_fields,
     model_gate_for,
 )
+from app.inspections.severity import recommended_action_for_level
 from app.models.inspection import Inspection, InspectionSource
 from app.models.product import Product
 
@@ -85,11 +87,13 @@ def build_production_quality_report(inspection: Inspection, product: Product) ->
             localization=inspection.localization,
             has_heatmap=bool(inspection.heatmap_path),
             model_gate=model_gate_for(gate_category, inspection.ai_model_name),
+            **defect_form_fields(inspection.localization),
         ),
         severity=SeverityReportSection(
             score=inspection.severity_score,
             level=inspection.severity_level,
             quality_risk=inspection.quality_risk,
+            recommended_action=recommended_action_for_level(inspection.severity_level),
         ),
         quality=QualityReportSection(
             decision=decision,

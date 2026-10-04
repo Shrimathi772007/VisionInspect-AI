@@ -324,8 +324,12 @@ def test_manual_review_wording():
     assert result.recommendation
 
 
-def test_high_severity_still_fails_an_ai_only_inspection_first():
-    assert assess_quality("pending", "good", None, "High", review_required=True).decision == FAIL
+def test_review_comes_before_a_severity_driven_fail_for_ai_only_inspections():
+    # Updated deliberately (severity_v1 task): this used to assert that a High severity FAILs an AI-only
+    # inspection before the review rule. AI-only inspections now check review_required first, so a flagged
+    # result goes to a person (MANUAL_REVIEW) and only an unflagged defective one is FAILed.
+    assert assess_quality("pending", "defective", None, "High", review_required=True).decision == MANUAL_REVIEW
+    assert assess_quality("pending", "defective", None, "High", review_required=False).decision == FAIL
 
 
 def _pre_task_decision(status, ai_prediction, severity_level):

@@ -60,8 +60,17 @@ Confidence are unavailable for all of them) - that is the correct, non-fabricate
 given what evidence this project actually has, not a bug. As real evidence sources are
 added in later phases (a defensible location rule, a calibrated classifier), inspections
 will start receiving real scores automatically, with zero changes to the scoring engine.
+
+AI-ONLY INSPECTIONS (severity_v1, later addition)
+--------------------------------------------------
+Uploads have no ground truth, but they now have anomaly-map localization (regions, area, centroid), a
+rule-based defect form and a margin-based confidence. assess_ai_severity (below) scores them from those,
+with the same weights, bands and risk mapping - see the severity_v1 notes for the formulas and their
+limitations (location is a centre-is-functional proxy; region area overestimates the defect). Everything
+above, including the ground-truth path for MVTec imports, is unchanged.
 """
 
+import math
 from dataclasses import dataclass
 from typing import Optional
 
@@ -247,6 +256,88 @@ def resolve_confidence_score() -> Optional[float]:
     return None
 
 
+# ---------------------------------------------------------------------------
+# Recommended actions per level (project specification wording)
+# ---------------------------------------------------------------------------
+
+SEVERITY_ACTIONS = {
+    CRITICAL: "Reject product and trigger quality inspection workflow",
+    HIGH: "Repair or rework recommended",
+    MEDIUM: "Inspection review required",
+    LOW: "Minor; product generally acceptable",
+}
+
+
+def recommended_action_for_level(level: Optional[str]) -> Optional[str]:
+    """The specification's recommended action for a severity level; None when there is no level."""
+    return SEVERITY_ACTIONS.get(level) if level else None
+
+
+# ---------------------------------------------------------------------------
+# severity_v1 - AI-only inspections (uploads), from the anomaly-map localization
+# ---------------------------------------------------------------------------
+#
+# Applies ONLY to inspections without ground truth whose AI prediction is "defective" and whose
+# localization has at least one region (app.inspections.service.apply_severity_assessment decides that);
+# MVTec imports keep the all-four-required ground-truth path above, unchanged. Each factor is a 0-100
+# score; the specification's weights are then applied through calculate_severity_score above
+# (factor * weight / 100), so the bands, clamping and quality_risk mapping are the engine's own:
+#
+#   size_score       = min(100, area_pct * 5)              area_pct from the localization regions
+#   location_score   = 100 - 60 * d,  d = hypot(cx - 0.5, cy - 0.5) / hypot(0.5, 0.5)
+#   type_score       = defect_form_score                    (app.inspections.defect_form, defect_form_v1)
+#   confidence_score = ai_confidence * 100                  margin-based heuristic, not a probability
+#   severity         = 0.30 * size + 0.25 * location + 0.25 * type + 0.20 * confidence
+#
+# Location is a PROXY: no per-product critical-region data exists, so the image centre is treated as the
+# functional area (100) and the corners as cosmetic (40), linearly in between. Size is measured on regions
+# from a Gaussian-blurred anomaly heatmap, which OVERESTIMATES the true defect area (a 9.9% bar gave a 41%
+# region in a live check), so size scores run high. Neither is calibrated against real severity outcomes.
+
+SEVERITY_VERSION = "severity_v1"
+SIZE_SCORE_PER_AREA_PCT = 5.0
+LOCATION_CENTRE_SCORE = 100.0
+LOCATION_EDGE_DROP = 60.0
+
+
+def size_score_from_area_pct(area_pct: float) -> float:
+    """0-100 size factor: min(100, area_pct * 5) (20% of the image or more is the maximum)."""
+    return _clamp(float(area_pct) * SIZE_SCORE_PER_AREA_PCT, 0.0, 100.0)
+
+
+def location_score_from_centroid(cx: float, cy: float) -> float:
+    """0-100 location factor: 100 at the image centre, 40 at a corner (a centre-is-functional proxy)."""
+    d = math.hypot(cx - 0.5, cy - 0.5) / math.hypot(0.5, 0.5)
+    return _clamp(LOCATION_CENTRE_SCORE - LOCATION_EDGE_DROP * _clamp(d, 0.0, 1.0), 0.0, 100.0)
+
+
+@dataclass(frozen=True)
+class AISeverityFactors:
+    """The four 0-100 factor scores of severity_v1 (before weighting)."""
+
+    size: float
+    location: float
+    type: float
+    confidence: float
+
+
+def ai_severity_factors(area_pct, centroid, defect_form_score, ai_confidence) -> Optional[AISeverityFactors]:
+    """The severity_v1 factors, or None when any input is missing or malformed (no partial scoring)."""
+    try:
+        cx, cy = (float(v) for v in centroid)
+        values = (float(area_pct), cx, cy, float(defect_form_score), float(ai_confidence))
+    except (TypeError, ValueError):
+        return None
+    if not all(math.isfinite(v) for v in values):
+        return None
+    return AISeverityFactors(
+        size=size_score_from_area_pct(values[0]),
+        location=location_score_from_centroid(cx, cy),
+        type=_clamp(values[3], 0.0, 100.0),
+        confidence=_clamp(values[4] * 100.0, 0.0, 100.0),
+    )
+
+
 @dataclass
 class SeverityAssessment:
     """The persisted result of a severity assessment for one inspection."""
@@ -277,6 +368,22 @@ def assess_severity(
         location_score=resolve_location_score(),
         defect_type_score=resolve_defect_type_score(defect_category),
         confidence_score=resolve_confidence_score(),
+    )
+    level = severity_level_for_score(score)
+    return SeverityAssessment(score=score, level=level, quality_risk=quality_risk_for_level(level))
+
+
+def assess_ai_severity(area_pct, centroid, defect_form_score, ai_confidence) -> SeverityAssessment:
+    """severity_v1 for an AI-only, AI-defective inspection with localization regions (see the severity_v1
+    notes above). "Not assessed" (score/level None) when any input is unavailable - never partial."""
+    factors = ai_severity_factors(area_pct, centroid, defect_form_score, ai_confidence)
+    if factors is None:
+        return SeverityAssessment(score=None, level=None, quality_risk=quality_risk_for_level(None))
+    score = calculate_severity_score(
+        size_score=factors.size * SIZE_WEIGHT / 100.0,
+        location_score=factors.location * LOCATION_WEIGHT / 100.0,
+        defect_type_score=factors.type * DEFECT_TYPE_WEIGHT / 100.0,
+        confidence_score=factors.confidence * CONFIDENCE_WEIGHT / 100.0,
     )
     level = severity_level_for_score(score)
     return SeverityAssessment(score=score, level=level, quality_risk=quality_risk_for_level(level))

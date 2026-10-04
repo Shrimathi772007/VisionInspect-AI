@@ -538,8 +538,11 @@ def test_existing_summary_fields_are_all_still_present(client, qe_headers):
         "trend_monitoring",
     }
     assert previous_top_level_keys.issubset(body.keys())
-    # Updated deliberately: the localization/confidence task adds one top-level count, manual_review_count.
-    assert set(body.keys()) == previous_top_level_keys | {"performance", "manual_review_count"}
+    # Updated deliberately: the localization/confidence task adds one top-level count, manual_review_count,
+    # and the batch/automation task adds automation_rate and automation_counts.
+    assert set(body.keys()) == previous_top_level_keys | {
+        "performance", "manual_review_count", "automation_rate", "automation_counts",
+    }
 
 
 def test_default_window_is_identical_to_requesting_14_days(client, qe_headers):

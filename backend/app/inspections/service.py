@@ -13,11 +13,12 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from app.ai.inference import DEFECTIVE_PREDICTION, localization, predict_image
+from app.ai.inference import DEFECTIVE_PREDICTION, GOOD_PREDICTION, localization, predict_image
 from app.ai.inference.serving import SERVING_CONFIGS
 from app.ai.preprocessing.patchcore_preprocess import decode_image
 from app.dataset.ground_truth import compute_defect_area_ratio
 from app.inspections import quality, severity
+from app.inspections.defect_form import add_defect_form
 from app.inspections.storage import (
     DATASET_ROOT,
     HEATMAP_ROOT,
@@ -148,6 +149,14 @@ def _localize_and_render(inspection: Inspection, result, image_path: Path) -> tu
     else:
         located = localization.empty_localization()
     located["analysed_region"] = [round(v, 6) for v in region]
+    located["image_size"] = [width, height]
+    if result.prediction == DEFECTIVE_PREDICTION:
+        try:
+            # Shape-based form of the region (defect_form_v1) - not a defect-type classifier, and never
+            # written into defect_category (ground truth).
+            add_defect_form(located, width, height)
+        except Exception as exc:  # noqa: BLE001 - best effort, the localization itself is kept
+            logger.warning("Defect form skipped for inspection %s: %s", inspection.id, exc)
 
     rgba = localization.render_heatmap(amap, result.threshold, width, height, region)
     HEATMAP_ROOT.mkdir(parents=True, exist_ok=True)
@@ -194,6 +203,24 @@ def apply_reliability_and_localization(inspection: Inspection, db: Session, resu
                 pass
 
 
+def _ai_only_severity(inspection: Inspection) -> severity.SeverityAssessment | None:
+    """severity_v1 (app.inspections.severity.assess_ai_severity) for an inspection WITHOUT ground truth
+    whose AI prediction is defective and whose localization has regions and a defect form; None otherwise
+    (imports with ground truth keep the ground-truth path, good predictions get no severity). Never raises."""
+    if inspection.status in (GOOD_PREDICTION, DEFECTIVE_PREDICTION) or inspection.ai_prediction != DEFECTIVE_PREDICTION:
+        return None
+    located = inspection.localization if isinstance(inspection.localization, dict) else None
+    if not located or not located.get("boxes") or located.get("defect_form_score") is None:
+        return None
+    try:
+        return severity.assess_ai_severity(
+            located.get("area_pct"), located.get("centroid"), located.get("defect_form_score"), inspection.ai_confidence
+        )
+    except Exception as exc:  # noqa: BLE001 - severity assessment must never break inspection creation
+        logger.warning("AI severity skipped for inspection %s: %s", inspection.id, exc)
+        return None
+
+
 def apply_severity_assessment(inspection: Inspection, db: Session) -> None:
     """Severity scoring / quality risk assessment for one already-persisted inspection.
 
@@ -207,6 +234,10 @@ def apply_severity_assessment(inspection: Inspection, db: Session) -> None:
     Never raises: like run_ai_inference, a missing/unreadable mask is treated as "no
     evidence" (see compute_defect_area_ratio) rather than a failure, so severity assessment
     can never block inspection creation.
+
+    Inspections WITHOUT ground truth (uploads) that the AI found defective and localized are instead
+    scored by severity_v1 from their localization, defect form and confidence (see _ai_only_severity);
+    for everything else this is exactly the ground-truth path above.
     """
     defect_area_ratio = None
     mvtec_parts = _resolve_mvtec_parts(inspection)
@@ -224,6 +255,9 @@ def apply_severity_assessment(inspection: Inspection, db: Session) -> None:
             )
 
     result = severity.assess_severity(inspection.defect_category, defect_area_ratio=defect_area_ratio)
+    ai_result = _ai_only_severity(inspection)
+    if ai_result is not None:
+        result = ai_result
     inspection.severity_score = result.score
     inspection.severity_level = result.level
     inspection.quality_risk = result.quality_risk
@@ -250,6 +284,7 @@ def apply_quality_assessment(inspection: Inspection, db: Session) -> None:
         defect_category=inspection.defect_category,
         severity_level=inspection.severity_level,
         review_required=inspection.review_required,
+        severity_score=inspection.severity_score,
     )
     inspection.quality_decision = result.decision
     inspection.quality_assessment = result.assessment

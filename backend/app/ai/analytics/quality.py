@@ -24,6 +24,13 @@ from app.ai.analytics.schemas import ImageQualityResult
 BLUR_VARIANCE_THRESHOLD = 100.0
 
 
+def basic_metrics(gray: np.ndarray) -> tuple[float, float, float]:
+    """(brightness, contrast, sharpness) of a grayscale image: mean intensity, intensity standard
+    deviation, variance of the Laplacian - the three measurements above, shared with the enhancement
+    preview so both report them identically."""
+    return float(np.mean(gray)), float(np.std(gray)), float(cv2.Laplacian(gray, cv2.CV_64F).var())
+
+
 def analyze_quality(path: Path, image_bgr: np.ndarray, processing_time_ms: float) -> ImageQualityResult:
     """Compute real quality metrics from an already-loaded BGR image.
 
@@ -36,9 +43,7 @@ def analyze_quality(path: Path, image_bgr: np.ndarray, processing_time_ms: float
 
     gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY) if channels > 1 else image_bgr
 
-    brightness = float(np.mean(gray))
-    contrast = float(np.std(gray))
-    sharpness = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+    brightness, contrast, sharpness = basic_metrics(gray)
 
     return ImageQualityResult(
         width=width,

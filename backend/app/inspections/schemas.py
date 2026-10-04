@@ -5,6 +5,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.ai.inference.localization import reliability_level
 from app.ai.inference.serving import SERVING_CONFIGS
+from app.inspections.defect_form import defect_form_label
+from app.inspections.severity import recommended_action_for_level
 from app.models.inspection import InspectionSource
 
 
@@ -86,6 +88,18 @@ class InspectionOut(BaseModel):
         "to 0..1 (origin top-left). Empty boxes for an AI \"good\" prediction.",
     )
     has_heatmap: bool = False
+    defect_form: Optional[str] = Field(
+        default=None,
+        description="defect_form_v1 (multiple_regions / large_area / linear / small_spot / localized_patch): a "
+        "shape-based form derived from the anomaly region; not a trained defect-type classifier. Only for AI-"
+        "defective inspections with regions; never written into defect_category (ground truth).",
+    )
+    defect_form_label: Optional[str] = None
+    severity_action: Optional[str] = Field(
+        default=None,
+        description="The specification's recommended action for severity_level (Critical: reject product and "
+        "trigger quality inspection workflow; High: repair or rework; Medium: inspection review; Low: minor).",
+    )
     model_gate: Optional[str] = Field(
         default=None,
         description="Static evidence gate (EXCELLENT / GOOD / ACCEPTABLE / NOT_PRODUCTION_READY) of the "
@@ -129,6 +143,8 @@ class InspectionOut(BaseModel):
             "localization": data.localization,
             # heatmap_path itself is internal and never serialized.
             "has_heatmap": bool(data.heatmap_path),
+            **defect_form_fields(data.localization),
+            "severity_action": recommended_action_for_level(data.severity_level),
         }
 
         if data.source == InspectionSource.mvtec_ad and data.image_path:
@@ -147,6 +163,12 @@ class InspectionOut(BaseModel):
             data.ai_model_name,
         )
         return fields
+
+
+def defect_form_fields(localization) -> dict:
+    """defect_form / defect_form_label from a stored localization dict (both None when absent)."""
+    form = localization.get("defect_form") if isinstance(localization, dict) else None
+    return {"defect_form": form, "defect_form_label": defect_form_label(form)}
 
 
 def model_gate_for(category: Optional[str], ai_model_name: Optional[str]) -> Optional[str]:
@@ -216,12 +238,16 @@ class DefectReportSection(BaseModel):
     localization: Optional[dict[str, Any]] = None
     has_heatmap: bool = False
     model_gate: Optional[str] = None
+    # Shape-based form of the anomaly region (defect_form_v1) - not a defect-type classification.
+    defect_form: Optional[str] = None
+    defect_form_label: Optional[str] = None
 
 
 class SeverityReportSection(BaseModel):
     score: Optional[float] = None
     level: Optional[str] = None
     quality_risk: Optional[str] = None
+    recommended_action: Optional[str] = None
 
 
 class QualityReportSection(BaseModel):
@@ -250,3 +276,19 @@ class ProductionQualityReport(BaseModel):
     severity: SeverityReportSection
     quality: QualityReportSection
     report_summary: ReportSummary
+
+
+class BatchUploadItem(BaseModel):
+    """One file of POST /inspections/batch: its inspection (exactly as POST /upload returns it) or a short
+    error message - never both, never a server path."""
+
+    filename: str
+    inspection: Optional[InspectionOut] = None
+    error: Optional[str] = None
+
+
+class BatchUploadOut(BaseModel):
+    total: int
+    succeeded: int
+    failed: int
+    items: list[BatchUploadItem]

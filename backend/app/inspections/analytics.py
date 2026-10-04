@@ -92,7 +92,7 @@ count is 0 - so a window with no timed inspections reports "no data", not a fabr
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import Date, cast, func, select
 from sqlalchemy.orm import Session
 
@@ -319,6 +319,14 @@ class InspectionAnalyticsSummary(BaseModel):
     # Localization/confidence task: inspections whose quality decision is MANUAL_REVIEW (the
     # same count as that row of quality_decisions; 0 when there is none).
     manual_review_count: int
+    # Automation (batch/automation task): see AutomationCounts.
+    automation_rate: float | None = Field(
+        default=None,
+        description="Share of inspections whose quality decision was made automatically (PASS or FAIL) among all "
+        "inspections that have a quality decision (quality_decision not NULL), as a fraction 0..1; None when no "
+        "inspection has a decision. MANUAL_REVIEW and NOT_ASSESSED count as not automatic.",
+    )
+    automation_counts: "AutomationCounts"
 
 
 def _utc_day(column):
@@ -499,6 +507,29 @@ def _get_defect_category_counts(db: Session, total: int) -> list[DefectCategoryC
         DefectCategoryCount(category=row.category, count=row.count, percentage=_percentage(row.count, total))
         for row in rows
     ]
+
+
+class AutomationCounts(BaseModel):
+    """Inspections with a (non-NULL) quality decision, split by how it was reached."""
+
+    automatic: int  # PASS or FAIL
+    manual_review: int  # MANUAL_REVIEW
+    not_assessed: int  # NOT_ASSESSED
+
+
+def _get_automation(db: Session) -> tuple[float | None, AutomationCounts]:
+    """automation_rate and its counts, over rows whose quality_decision is not NULL (one aggregate query)."""
+    decision = Inspection.quality_decision
+    row = db.execute(
+        select(
+            func.count().filter(decision.in_((PASS, FAIL))).label("automatic"),
+            func.count().filter(decision == MANUAL_REVIEW).label("manual_review"),
+            func.count().filter(decision == QUALITY_NOT_ASSESSED).label("not_assessed"),
+            func.count().filter(decision.is_not(None)).label("decided"),
+        )
+    ).one()
+    counts = AutomationCounts(automatic=row.automatic, manual_review=row.manual_review, not_assessed=row.not_assessed)
+    return (row.automatic / row.decided if row.decided else None), counts
 
 
 def _get_quality_decision_counts(db: Session, total: int) -> list[QualityDecisionCount]:
@@ -958,6 +989,7 @@ def get_inspection_analytics_summary(
     by_product = _get_by_product(db, today, window_days)
     defect_categories = _get_defect_category_counts(db, total)
     quality_decisions = _get_quality_decision_counts(db, total)
+    automation_rate, automation_counts = _get_automation(db)
     severity_distribution = _get_severity_distribution(db, total)
 
     return InspectionAnalyticsSummary(
@@ -979,4 +1011,9 @@ def get_inspection_analytics_summary(
         trend_monitoring=_get_trend_monitoring(db, today, by_product, window_days),
         performance=_get_performance_metrics(db, today, window_days),
         manual_review_count=next((row.count for row in quality_decisions if row.decision == MANUAL_REVIEW), 0),
+        automation_rate=automation_rate,
+        automation_counts=automation_counts,
     )
+
+
+InspectionAnalyticsSummary.model_rebuild()

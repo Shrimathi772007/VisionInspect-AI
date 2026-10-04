@@ -57,14 +57,17 @@ EVIDENCE PRECEDENCE (in order - the first matching rule decides the outcome)
 Rules 2-4 (inspections WITH a ground-truth status, i.e. MVTec imports) are unchanged by the
 AI-only rules below; review_required is stored for them but never changes their decision.
 
-AI-ONLY INSPECTIONS (no ground-truth status - every upload), after rule 1:
+AI-ONLY INSPECTIONS (no ground-truth status - every upload) use their own order; rule 1 does
+NOT come first for them (severity_v1, app.inspections.severity, now scores AI-defective uploads
+from their localization, and a weak model's result must reach a person rather than be auto-failed):
 5. no AI prediction
        -> NOT_ASSESSED ("insufficient evidence"), as before.
 6. review_required (confidence < 0.70, and/or the category's model is NOT_PRODUCTION_READY)
-       -> MANUAL_REVIEW. The AI result exists but is not reliable enough to decide on, so a
-          person must inspect the product. Applies to an AI "good" and "defective" alike.
-7. ai_prediction == "defective"
-       -> FAIL.
+       -> MANUAL_REVIEW, BEFORE any severity-driven FAIL. The AI result exists but is not
+          reliable enough to decide on, so a person must inspect the product. Applies to an
+          AI "good" and "defective" alike; the severity, if any, is still stored and quoted.
+7. ai_prediction == "defective" (any severity, Critical/High included)
+       -> FAIL, with the severity and its recommended action in the texts when present.
 8. ai_prediction == "good"
        -> PASS. Every category is now served by its own locked model with a static evidence
           gate (app.ai.inference.serving); a NOT_PRODUCTION_READY model or a low-margin score
@@ -77,7 +80,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from app.ai.inference import DEFECTIVE_PREDICTION, GOOD_PREDICTION
-from app.inspections.severity import CRITICAL, HIGH
+from app.inspections.severity import CRITICAL, HIGH, recommended_action_for_level
 
 PASS = "PASS"
 FAIL = "FAIL"
@@ -137,11 +140,16 @@ def assess_quality(
     defect_category: Optional[str],
     severity_level: Optional[str],
     review_required: Optional[bool] = None,
+    severity_score: Optional[float] = None,
 ) -> QualityAssessment:
     """Deterministic PASS/FAIL/MANUAL_REVIEW/NOT_ASSESSED quality decision - see the module
-    docstring for the exact, ordered precedence rules this implements. `review_required` is
-    only consulted for inspections without a ground-truth status; None ("not computed") is
-    treated like False."""
+    docstring for the exact, ordered precedence rules this implements. `review_required` and
+    `severity_score` are only consulted for inspections without a ground-truth status;
+    review_required None ("not computed") is treated like False."""
+
+    # AI-only inspections (uploads) have their own precedence - see _assess_ai_only.
+    if status not in _GROUND_TRUTH_STATUSES:
+        return _assess_ai_only(ai_prediction, severity_level, severity_score, review_required)
 
     # Rule 1: a known-severe defect always wins, regardless of status/ai_prediction.
     if severity_level in (CRITICAL, HIGH):
@@ -163,20 +171,7 @@ def assess_quality(
             recommendation=_CONFLICT_RECOMMENDATION,
         )
 
-    # Rules 5-6 (AI-only inspections): no AI result -> NOT_ASSESSED; an AI result the
-    # manual-review rule flags -> MANUAL_REVIEW, whichever way the AI decided.
-    if not has_ground_truth:
-        if not ai_available:
-            return _insufficient_evidence()
-        if review_required:
-            return QualityAssessment(
-                decision=MANUAL_REVIEW,
-                assessment=_MANUAL_REVIEW_ASSESSMENT,
-                recommendation=_MANUAL_REVIEW_RECOMMENDATION,
-            )
-
-    # Rule 3 (rule 7 for AI-only): a real defect, from ground truth and/or the AI, with
-    # nothing contradicting it.
+    # Rule 3: a real defect, from ground truth and/or the AI, with nothing contradicting it.
     if status == DEFECTIVE_PREDICTION or ai_prediction == DEFECTIVE_PREDICTION:
         recommendations = []
         if ai_prediction == DEFECTIVE_PREDICTION:
@@ -191,8 +186,7 @@ def assess_quality(
         )
 
     # Rule 4: ground truth confirms good, and rule 2 already ruled out disagreement.
-    # Rule 8: an AI-only "good" that the manual-review rule did not flag (rule 6).
-    if status == GOOD_PREDICTION or (not has_ground_truth and ai_prediction == GOOD_PREDICTION):
+    if has_ground_truth and status == GOOD_PREDICTION:
         return QualityAssessment(
             decision=PASS,
             assessment="No significant defect evidence identified.",
@@ -202,6 +196,51 @@ def assess_quality(
     # Not reachable through the rules above (every status/ai_prediction combination is
     # decided); kept as the safe default.
     return _insufficient_evidence()
+
+
+def _severity_note(severity_level: Optional[str], severity_score: Optional[float]) -> str:
+    if not severity_level:
+        return ""
+    if severity_score is None:
+        return f"Severity: {severity_level}."
+    return f"Severity: {severity_level} ({round(severity_score)}/100)."
+
+
+def _assess_ai_only(
+    ai_prediction: Optional[str],
+    severity_level: Optional[str],
+    severity_score: Optional[float],
+    review_required: Optional[bool],
+) -> QualityAssessment:
+    """Rules 5-8 for inspections without ground truth (uploads), in this order:
+    no AI result -> NOT_ASSESSED; review_required -> MANUAL_REVIEW (BEFORE any severity-driven FAIL, so a
+    defective result from a not-production-ready model is never auto-failed); AI defective (any severity,
+    Critical/High included) -> FAIL; AI good -> PASS. Severity is quoted in the assessment when present."""
+    if ai_prediction not in (GOOD_PREDICTION, DEFECTIVE_PREDICTION):
+        return _insufficient_evidence()
+    note = _severity_note(severity_level, severity_score)
+    if review_required:
+        return QualityAssessment(
+            decision=MANUAL_REVIEW,
+            assessment=_combine(_MANUAL_REVIEW_ASSESSMENT, note),
+            recommendation=_MANUAL_REVIEW_RECOMMENDATION,
+        )
+    if ai_prediction == DEFECTIVE_PREDICTION:
+        severe = severity_level in (CRITICAL, HIGH)
+        action = recommended_action_for_level(severity_level)
+        return QualityAssessment(
+            decision=FAIL,
+            assessment=_combine(
+                "High-severity defect evidence requires review." if severe else "Defective product requires review.",
+                note,
+            ),
+            recommendation=_combine(f"{action}." if action else "", _AI_REVIEW_RECOMMENDATION),
+        )
+    return QualityAssessment(
+        decision=PASS,
+        assessment="No significant defect evidence identified.",
+        recommendation=_PASS_RECOMMENDATION,
+    )
 
 
 def _insufficient_evidence() -> QualityAssessment:
