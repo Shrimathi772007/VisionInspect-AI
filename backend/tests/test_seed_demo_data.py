@@ -121,6 +121,45 @@ def test_existing_users_are_left_untouched_and_no_password_is_needed(monkeypatch
             db.commit()
 
 
+@pytest.mark.parametrize("account", ["qe", "supervisor"])
+def test_password_over_72_bytes_is_refused_before_any_user_is_created(monkeypatch, account):
+    """bcrypt only uses 72 bytes: a 30-character password of 3-byte characters (90 bytes) gets the same
+    BootstrapError as the API's 422, and no user is written (runs against the separate test database)."""
+    from uuid import uuid4
+
+    from sqlalchemy import delete, select
+
+    from app.auth.bootstrap import BootstrapError
+    from app.auth.security import hash_password
+    from app.database import SessionLocal
+    from app.models.user import User, UserRole
+
+    too_long = "€" * 30
+    assert len(too_long.encode("utf-8")) == 90
+    qe_email, sup_email = f"seed.qe.{uuid4().hex}@example.com", f"seed.sup.{uuid4().hex}@example.com"
+    if account == "supervisor":  # the QE already exists, so only the supervisor password is read
+        with SessionLocal() as db:
+            db.add(User(name="Existing QE", email=qe_email, password_hash=hash_password("ExistingQE123"),
+                        role=UserRole.quality_engineer))
+            db.commit()
+    monkeypatch.setattr(seed, "password_from", lambda *_args, **_kwargs: too_long)
+    try:
+        args = seed.parse_args(["--qe-email", qe_email, "--qe-name", "QE", "--supervisor-email", sup_email,
+                                "--supervisor-name", "Sup"])
+        with SessionLocal() as db:
+            with pytest.raises(BootstrapError) as exc:
+                seed.ensure_users(db, args, dry_run=False)
+        assert "at most 72 bytes" in str(exc.value)
+        assert too_long not in str(exc.value)
+        with SessionLocal() as db:
+            created = db.scalars(select(User.email).where(User.email.in_([qe_email, sup_email]))).all()
+        assert created == ([qe_email] if account == "supervisor" else [])
+    finally:
+        with SessionLocal() as db:
+            db.execute(delete(User).where(User.email.in_([qe_email, sup_email])))
+            db.commit()
+
+
 def test_reset_needs_yes():
     assert seed.require_yes_for_reset(True, False) is False
     assert seed.require_yes_for_reset(True, True) is True

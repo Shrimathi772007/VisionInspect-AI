@@ -265,12 +265,14 @@ describe("InspectionDetailPage", () => {
       expect(screen.queryByText("Not yet analyzed")).not.toBeInTheDocument();
     });
 
-    it("says no model is available when the product has a category but there is no AI result", async () => {
+    it("says no AI result is available when the product has a category but there is no AI result", async () => {
       getInspection.mockResolvedValue({ ...UPLOAD_INSPECTION, product_category: "screw" });
       renderPage(6);
       await loaded();
 
-      expect(aiCard().getByText("No AI model is available for the Screw category yet.")).toBeInTheDocument();
+      expect(aiCard().getByText(
+        "No AI result is available for the Screw category (no model is registered or the analysis did not complete).",
+      )).toBeInTheDocument();
       expect(aiCard().queryByText(/missing/i)).not.toBeInTheDocument();
     });
 

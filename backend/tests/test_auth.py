@@ -87,6 +87,47 @@ def test_duplicate_email_registration_rejected(client):
     assert response.status_code == 409
 
 
+# bcrypt only uses 72 bytes, so the limit is checked on the UTF-8 encoding, not just characters.
+MULTIBYTE_90_BYTES = "€" * 30  # 30 characters of a 3-byte character = 90 bytes
+
+
+def test_register_accepts_72_ascii_characters(client, temp_users):
+    email = temp_users.email()
+    response = _register(client, email, password="x" * 72)
+    assert response.status_code == 201
+    login = client.post("/auth/login", json={"email": email, "password": "x" * 72})
+    assert login.status_code == 200
+
+
+def test_register_rejects_73_ascii_characters(client, temp_users):
+    email = temp_users.email()
+    response = _register(client, email, password="x" * 73)
+    assert response.status_code == 422
+    with SessionLocal() as session:
+        assert session.execute(select(User).where(User.email == email)).scalar_one_or_none() is None
+
+
+def test_register_rejects_multibyte_password_over_72_bytes_with_422(client, temp_users):
+    assert len(MULTIBYTE_90_BYTES) == 30 and len(MULTIBYTE_90_BYTES.encode("utf-8")) == 90
+    email = temp_users.email()
+    response = _register(client, email, password=MULTIBYTE_90_BYTES)
+    assert response.status_code == 422
+    messages = " ".join(error["msg"] for error in response.json()["detail"])
+    assert "at most 72 bytes" in messages
+    with SessionLocal() as session:
+        assert session.execute(select(User).where(User.email == email)).scalar_one_or_none() is None
+
+
+def test_register_accepts_short_multibyte_password(client, temp_users):
+    password = "Päss€ürdé"  # 10 characters, 15 bytes
+    assert len(password.encode("utf-8")) <= 72
+    email = temp_users.email()
+    response = _register(client, email, password=password)
+    assert response.status_code == 201
+    login = client.post("/auth/login", json={"email": email, "password": password})
+    assert login.status_code == 200
+
+
 def test_login_correct_credentials(client, qe_credentials):
     assert qe_credentials["token_type"] == "bearer"
     assert "access_token" in qe_credentials
@@ -193,6 +234,24 @@ def test_bootstrap_accepts_password_at_8_and_72_characters(rollback_session, tem
             rollback_session, "Bootstrap QE", temp_users.email(), password, promote_existing=False
         )
         assert user.role == UserRole.quality_engineer
+
+
+def test_bootstrap_rejects_multibyte_password_over_72_bytes(rollback_session, temp_users):
+    email = temp_users.email()
+    with pytest.raises(BootstrapError) as exc_info:
+        create_or_promote_quality_engineer(
+            rollback_session, "Bootstrap QE", email, MULTIBYTE_90_BYTES, promote_existing=False
+        )
+    assert "at most 72 bytes" in str(exc_info.value)
+    assert MULTIBYTE_90_BYTES not in str(exc_info.value)
+    assert rollback_session.execute(select(User).where(User.email == email)).scalar_one_or_none() is None
+
+
+def test_bootstrap_accepts_short_multibyte_password(rollback_session, temp_users):
+    user = create_or_promote_quality_engineer(
+        rollback_session, "Bootstrap QE", temp_users.email(), "Päss€ürdé", promote_existing=False
+    )
+    assert verify_password("Päss€ürdé", user.password_hash)
 
 
 def test_bootstrap_requires_password_for_new_user(rollback_session, temp_users):

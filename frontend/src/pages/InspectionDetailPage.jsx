@@ -431,7 +431,7 @@ export function InspectionDetailPage() {
                 <p className={styles.metaFallback}>Not analysed - this product has no MVTec category.</p>
               ) : inspection.source === "upload" && typeof inspection.product_category === "string" ? (
                 <p className={styles.metaFallback}>
-                  No AI model is available for the {categoryLabel(inspection.product_category)} category yet.
+                  No AI result is available for the {categoryLabel(inspection.product_category)} category (no model is registered or the analysis did not complete).
                 </p>
               ) : (
                 <p className={styles.metaFallback}>Not yet analyzed</p>

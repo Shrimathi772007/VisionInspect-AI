@@ -9,7 +9,13 @@ from pydantic import EmailStr, TypeAdapter, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth.schemas import NAME_MAX_LENGTH, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH
+from app.auth.schemas import (
+    NAME_MAX_LENGTH,
+    PASSWORD_MAX_LENGTH,
+    PASSWORD_MIN_LENGTH,
+    PASSWORD_TOO_MANY_BYTES_MESSAGE,
+    password_exceeds_byte_limit,
+)
 from app.auth.security import hash_password
 from app.models.user import User, UserRole
 
@@ -29,6 +35,8 @@ def validate_password(password: str) -> None:
         raise BootstrapError(
             f"Password must be between {PASSWORD_MIN_LENGTH} and {PASSWORD_MAX_LENGTH} characters"
         )
+    if password_exceeds_byte_limit(password):
+        raise BootstrapError(PASSWORD_TOO_MANY_BYTES_MESSAGE)
 
 
 def normalize_email(email: str) -> str:

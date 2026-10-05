@@ -117,7 +117,8 @@ def run_ai_inference(inspection: Inspection, db: Session) -> None:
     inspection.ai_threshold = result.threshold
     inspection.ai_model_name = result.model_name
     # The time predict_image itself measured for this call (model load + preprocessing +
-    # inference + threshold derivation) - recorded only on this success path, so it stays
+    # inference + comparison with the category's configured locked threshold, which is looked
+    # up, not derived) - recorded only on this success path, so it stays
     # NULL whenever no AI prediction actually ran.
     inspection.ai_inference_time_ms = result.processing_time_ms
     db.commit()

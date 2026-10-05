@@ -57,7 +57,8 @@ export function sourceTone(source) {
 // AI prediction (Phase 8) - intentionally NOT success/danger like STATUS_TONES.
 // ai_prediction is a model guess, independent of and never reconciled with the
 // ground-truth `status`; reusing green/red here would visually imply the two
-// values agree (Phase 5: this model only has ~46% recall on real defects).
+// values agree (each category's served model has its own measured recall and
+// false-positive rate, below perfect - see the Model Performance page).
 export const AI_PREDICTION_LABELS = {
   good: "AI: Good",
   defective: "AI: Defective",
