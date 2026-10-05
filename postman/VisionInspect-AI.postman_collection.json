@@ -1,0 +1,2519 @@
+{
+  "info": {
+    "_postman_id": "5b0e6f0a-6c1e-4d7b-9a51-7c4f2f0d1a01",
+    "name": "VisionInspect-AI API",
+    "description": "All 28 operations of the VisionInspect-AI FastAPI backend (generated from /openapi.json), plus a Negative tests folder. Select the **VisionInspect-AI local** environment, type the demo passwords into it, then run **Auth > Login (quality engineer)**. Requests that create, change or delete data are skipped unless `allowWrites` is `true`. See postman/README.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "description": "Liveness and database connectivity. No authentication.",
+      "item": [
+        {
+          "name": "Health check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "pm.test(\"status is ok\", function () { pm.expect(body.status).to.eql(\"ok\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "GET /health - the backend process is running. Public."
+          },
+          "response": []
+        },
+        {
+          "name": "Health check (database)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "pm.test(\"database is connected\", function () { pm.expect(body.database).to.eql(\"connected\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/health/db",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health",
+                "db"
+              ]
+            },
+            "description": "GET /health/db - the backend can reach PostgreSQL. Public."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "description": "Registration, login and the current user. Run **Login (quality engineer)** first: it stores `token` and `role` in the environment for every other request.",
+      "item": [
+        {
+          "name": "Login (quality engineer)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get(\"qeEmail\") || !pm.environment.get(\"qePassword\")) {",
+                  "    console.warn(\"Login (quality engineer): set qeEmail and qePassword in the environment first - request skipped.\");",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "",
+                  "pm.test(\"Response has an access token and a user\", function () {",
+                  "    pm.expect(body).to.have.property(\"access_token\");",
+                  "    pm.expect(body.token_type).to.eql(\"bearer\");",
+                  "    pm.expect(body.user).to.have.property(\"role\");",
+                  "});",
+                  "if (body && body.access_token) {",
+                  "    pm.environment.set(\"token\", body.access_token);",
+                  "    pm.environment.set(\"role\", body.user.role);",
+                  "}",
+                  "pm.test(\"Logged in as quality_engineer\", function () { pm.expect(body.user.role).to.eql(\"quality_engineer\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "POST /auth/login with the quality engineer's credentials from the environment (`qeEmail`, `qePassword`). Stores `access_token` in `{{token}}` and the user's role in `{{role}}`. Public.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{qeEmail}}\",\n  \"password\": \"{{qePassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Current user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "",
+                  "pm.test(\"Role matches the stored role\", function () { pm.expect(body.role).to.eql(pm.environment.get(\"role\")); });",
+                  "pm.test(\"Only public user fields\", function () {",
+                  "    pm.expect(Object.keys(body).sort()).to.eql([\"created_at\", \"email\", \"id\", \"name\", \"role\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": "GET /auth/me - the user that owns `{{token}}`. Any signed-in user."
+          },
+          "response": []
+        },
+        {
+          "name": "Register (creates a user)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A throwaway password generated for this run only; it is never stored in the collection or environment file.",
+                  "pm.variables.set(\"newUserPassword\", \"Pm-\" + Math.random().toString(36).slice(2, 12) + \"-\" + Date.now().toString(36));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", function () { pm.response.to.have.status(201); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "",
+                  "pm.test(\"New users are always factory supervisors\", function () { pm.expect(body.role).to.eql(\"factory_supervisor\"); });",
+                  "pm.test(\"Response never contains the password or its hash\", function () {",
+                  "    pm.expect(body).to.not.have.property(\"password_hash\");",
+                  "    pm.expect(body).to.not.have.property(\"password\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "POST /auth/register - **creates a user** (always a factory_supervisor). Skipped unless `allowWrites` is `true`. The email is unique per run and the password is generated in the pre-request script, never stored. Public. Password rules: 8-72 characters and at most 72 bytes in UTF-8.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test Supervisor\",\n  \"email\": \"postman.{{$timestamp}}.{{$randomInt}}@example.com\",\n  \"password\": \"{{newUserPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "User administration. Quality engineers only (a factory supervisor gets 403).",
+      "item": [
+        {
+          "name": "List users",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "",
+                  "pm.test(\"Returns a list of users without password hashes\", function () {",
+                  "    pm.expect(body).to.be.an(\"array\");",
+                  "    body.forEach(function (u) { pm.expect(u).to.not.have.property(\"password_hash\"); });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ]
+            },
+            "description": "GET /users - every user. Quality engineer only (403 for a factory supervisor)."
+          },
+          "response": []
+        },
+        {
+          "name": "Change user role (changes data)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get(\"targetUserId\")) {",
+                  "    console.warn(\"Change user role: set targetUserId first - request skipped.\");",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "pm.test(\"Role updated\", function () { pm.expect(body.role).to.eql(\"factory_supervisor\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/:user_id/role",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                ":user_id",
+                "role"
+              ],
+              "variable": [
+                {
+                  "key": "user_id",
+                  "value": "{{targetUserId}}",
+                  "description": "Id of the user to change (environment `targetUserId`)."
+                }
+              ]
+            },
+            "description": "PATCH /users/{user_id}/role - **changes a user's role**. Quality engineer only. Skipped unless `allowWrites` is `true` AND `targetUserId` is set; it never picks a user on its own.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"factory_supervisor\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "description": "Product lines. Any signed-in user can list and create; changing the category and deleting are quality engineer only. The change/delete requests only ever target the product created by **Create product** (`createdProductId`), never a demo product.",
+      "item": [
+        {
+          "name": "List products",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "",
+                  "pm.test(\"Returns an array of products\", function () { pm.expect(body).to.be.an(\"array\"); });",
+                  "if (Array.isArray(body) && body.length > 0 && !pm.environment.get(\"productId\")) {",
+                  "    const withCategory = body.find(function (p) { return p.category; }) || body[0];",
+                  "    pm.environment.set(\"productId\", String(withCategory.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "description": "GET /products - all products. Any signed-in user. If `productId` is empty, the test script sets it to the first product that has an MVTec category (used by the upload/batch/import requests)."
+          },
+          "response": []
+        },
+        {
+          "name": "Create product (creates data)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", function () { pm.response.to.have.status(201); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "",
+                  "pm.test(\"Product created with the requested category\", function () { pm.expect(body.category).to.eql(\"bottle\"); });",
+                  "if (body && body.id) { pm.environment.set(\"createdProductId\", String(body.id)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "description": "POST /products - **creates a product**. Any signed-in user. Skipped unless `allowWrites` is `true`. Stores the new id in `createdProductId`. Valid categories: bottle, cable, capsule, carpet, grid, hazelnut, leather, metal_nut, pill, screw, tile, toothbrush, transistor, wood, zipper (or null).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_name\": \"Postman Test Product\",\n  \"product_code\": \"PM-{{$timestamp}}\",\n  \"category\": \"bottle\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update product category (changes data)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get(\"createdProductId\")) { console.warn(\"No createdProductId - request skipped.\"); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "pm.test(\"Category updated\", function () { pm.expect(body.category).to.eql(\"screw\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products/:product_id/category",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                ":product_id",
+                "category"
+              ],
+              "variable": [
+                {
+                  "key": "product_id",
+                  "value": "{{createdProductId}}",
+                  "description": "Product created by this collection."
+                }
+              ]
+            },
+            "description": "PATCH /products/{product_id}/category - set or clear (null) the MVTec category. Quality engineer only. Targets `createdProductId` only; skipped if it is empty or `allowWrites` is not `true`. Valid categories: bottle, cable, capsule, carpet, grid, hazelnut, leather, metal_nut, pill, screw, tile, toothbrush, transistor, wood, zipper (or null).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"screw\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete product (deletes data)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get(\"createdProductId\")) { console.warn(\"No createdProductId - request skipped.\"); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 204\", function () { pm.response.to.have.status(204); });",
+                  "if (pm.response.code === 204) { pm.environment.set(\"createdProductId\", \"\"); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products/:product_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                ":product_id"
+              ],
+              "variable": [
+                {
+                  "key": "product_id",
+                  "value": "{{createdProductId}}",
+                  "description": "Product created by this collection."
+                }
+              ]
+            },
+            "description": "DELETE /products/{product_id} - quality engineer only; 409 while the product has inspections. Targets `createdProductId` only; skipped if it is empty or `allowWrites` is not `true`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Inspections",
+      "description": "Inspections: list, create (upload, batch upload, dataset import), read, reports and images, delete. Creating and deleting are quality engineer only. The upload/batch requests attach `sample-images/sample.png`; set Postman's working directory to this `postman/` folder (Settings > General) or pick any PNG/JPEG yourself.",
+      "item": [
+        {
+          "name": "List inspections",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "",
+                  "pm.test(\"Returns an array of inspections\", function () { pm.expect(body).to.be.an(\"array\"); });",
+                  "if (Array.isArray(body) && body.length > 0 && !pm.environment.get(\"inspectionId\")) {",
+                  "    pm.environment.set(\"inspectionId\", String(body[0].id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/inspections?limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inspections"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "Optional, 1-1000. Omit for all."
+                }
+              ]
+            },
+            "description": "GET /inspections - newest first. Any signed-in user. If `inspectionId` is empty, the test script sets it to the first inspection (used by the read-only requests below)."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload inspection (creates data)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", function () { pm.response.to.have.status(201); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "",
+                  "function recordCreatedInspection(id) {",
+                  "    if (id === undefined || id === null) { return; }",
+                  "    let ids = [];",
+                  "    try { ids = JSON.parse(pm.environment.get(\"createdInspectionIds\") || \"[]\"); } catch (e) { ids = []; }",
+                  "    if (!ids.includes(id)) { ids.push(id); }",
+                  "    pm.environment.set(\"createdInspectionIds\", JSON.stringify(ids));",
+                  "    pm.environment.set(\"createdInspectionId\", String(id));",
+                  "}",
+                  "",
+                  "pm.test(\"Inspection created from an upload\", function () { pm.expect(body.source).to.eql(\"upload\"); });",
+                  "if (body) { recordCreatedInspection(body.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/inspections/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inspections",
+                "upload"
+              ]
+            },
+            "description": "POST /inspections/upload (multipart) - **creates an inspection** for `productId` from one JPEG/PNG, runs AI if the product has a category. Quality engineer only. Skipped unless `allowWrites` is `true`. Records the id in `createdInspectionId` / `createdInspectionIds` so **Delete inspection** can clean it up.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "product_id",
+                  "value": "{{productId}}",
+                  "type": "text",
+                  "description": "Existing product id."
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "One JPEG or PNG image."
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Batch upload inspections (creates data)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "",
+                  "function recordCreatedInspection(id) {",
+                  "    if (id === undefined || id === null) { return; }",
+                  "    let ids = [];",
+                  "    try { ids = JSON.parse(pm.environment.get(\"createdInspectionIds\") || \"[]\"); } catch (e) { ids = []; }",
+                  "    if (!ids.includes(id)) { ids.push(id); }",
+                  "    pm.environment.set(\"createdInspectionIds\", JSON.stringify(ids));",
+                  "    pm.environment.set(\"createdInspectionId\", String(id));",
+                  "}",
+                  "",
+                  "pm.test(\"Batch summary adds up\", function () {",
+                  "    pm.expect(body.total).to.eql(2);",
+                  "    pm.expect(body.succeeded + body.failed).to.eql(body.total);",
+                  "    pm.expect(body.items).to.have.lengthOf(body.total);",
+                  "});",
+                  "if (body && Array.isArray(body.items)) {",
+                  "    body.items.forEach(function (item) { if (item.inspection) { recordCreatedInspection(item.inspection.id); } });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/inspections/batch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inspections",
+                "batch"
+              ]
+            },
+            "description": "POST /inspections/batch (multipart) - **creates one inspection per file** (at most 20 files / 50 MB; 21 files -> 400). Quality engineer only. Skipped unless `allowWrites` is `true`. Each created id is recorded for cleanup by **Delete inspection**. Repeat the `files` field once per image.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "product_id",
+                  "value": "{{productId}}",
+                  "type": "text",
+                  "description": "Existing product id."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 1 (JPEG or PNG)."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 2 (JPEG or PNG)."
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Import dataset image as inspection (creates data)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", function () { pm.response.to.have.status(201); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "",
+                  "function recordCreatedInspection(id) {",
+                  "    if (id === undefined || id === null) { return; }",
+                  "    let ids = [];",
+                  "    try { ids = JSON.parse(pm.environment.get(\"createdInspectionIds\") || \"[]\"); } catch (e) { ids = []; }",
+                  "    if (!ids.includes(id)) { ids.push(id); }",
+                  "    pm.environment.set(\"createdInspectionIds\", JSON.stringify(ids));",
+                  "    pm.environment.set(\"createdInspectionId\", String(id));",
+                  "}",
+                  "",
+                  "pm.test(\"Inspection created from the dataset\", function () { pm.expect(body.source).to.not.eql(\"upload\"); });",
+                  "if (body) { recordCreatedInspection(body.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/inspections/import",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inspections",
+                "import"
+              ]
+            },
+            "description": "POST /inspections/import - **creates an inspection** from an MVTec dataset image (ground truth from the dataset). Quality engineer only. Skipped unless `allowWrites` is `true`. The id is recorded for cleanup.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": \"{{productId}}\",\n  \"category\": \"{{datasetCategory}}\",\n  \"split\": \"{{datasetSplit}}\",\n  \"defect_type\": \"{{datasetDefectType}}\",\n  \"filename\": \"{{datasetFilename}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get inspection",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "",
+                  "pm.test(\"Returns the requested inspection\", function () { pm.expect(String(body.id)).to.eql(pm.environment.get(\"inspectionId\")); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/inspections/:inspection_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inspections",
+                ":inspection_id"
+              ],
+              "variable": [
+                {
+                  "key": "inspection_id",
+                  "value": "{{inspectionId}}",
+                  "description": "Any existing inspection (set by List inspections)."
+                }
+              ]
+            },
+            "description": "GET /inspections/{inspection_id} - one inspection with AI, severity and quality fields. Any signed-in user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get inspection report",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "",
+                  "pm.test(\"Report has its sections\", function () {",
+                  "    [\"inspection\", \"defect\", \"severity\", \"quality\", \"report_summary\"].forEach(function (k) { pm.expect(body).to.have.property(k); });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/inspections/:inspection_id/report",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inspections",
+                ":inspection_id",
+                "report"
+              ],
+              "variable": [
+                {
+                  "key": "inspection_id",
+                  "value": "{{inspectionId}}",
+                  "description": "Any existing inspection (set by List inspections)."
+                }
+              ]
+            },
+            "description": "GET /inspections/{inspection_id}/report - production quality report (JSON). Any signed-in user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get inspection image",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Returns an image\", function () { pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/^image\\//); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/inspections/:inspection_id/image",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inspections",
+                ":inspection_id",
+                "image"
+              ],
+              "variable": [
+                {
+                  "key": "inspection_id",
+                  "value": "{{inspectionId}}",
+                  "description": "Any existing inspection (set by List inspections)."
+                }
+              ]
+            },
+            "description": "GET /inspections/{inspection_id}/image - the original image (binary). Any signed-in user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get enhanced preview",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Returns a PNG\", function () { pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"image/png\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/inspections/:inspection_id/enhanced",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inspections",
+                ":inspection_id",
+                "enhanced"
+              ],
+              "variable": [
+                {
+                  "key": "inspection_id",
+                  "value": "{{inspectionId}}",
+                  "description": "Any existing inspection (set by List inspections)."
+                }
+              ]
+            },
+            "description": "GET /inspections/{inspection_id}/enhanced - enhanced preview PNG (display only; never used by the AI). Any signed-in user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get image quality",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "pm.test(\"Returns a JSON object\", function () { pm.expect(body).to.be.an(\"object\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/inspections/:inspection_id/image-quality",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inspections",
+                ":inspection_id",
+                "image-quality"
+              ],
+              "variable": [
+                {
+                  "key": "inspection_id",
+                  "value": "{{inspectionId}}",
+                  "description": "Any existing inspection (set by List inspections)."
+                }
+              ]
+            },
+            "description": "GET /inspections/{inspection_id}/image-quality - image quality measurements (JSON). Any signed-in user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get heatmap",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Heatmap PNG, or 404 when this inspection has none\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+                  "    if (pm.response.code === 200) { pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"image/png\"); }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/inspections/:inspection_id/heatmap",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inspections",
+                ":inspection_id",
+                "heatmap"
+              ],
+              "variable": [
+                {
+                  "key": "inspection_id",
+                  "value": "{{inspectionId}}",
+                  "description": "Any existing inspection (set by List inspections)."
+                }
+              ]
+            },
+            "description": "GET /inspections/{inspection_id}/heatmap - anomaly heatmap PNG. 404 when the inspection has no heatmap (e.g. no AI result). Any signed-in user."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete inspection (deletes data)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get(\"createdInspectionId\")) { console.warn(\"No createdInspectionId - request skipped.\"); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 204\", function () { pm.response.to.have.status(204); });",
+                  "if (pm.response.code === 204) {",
+                  "    const deleted = Number(pm.environment.get(\"createdInspectionId\"));",
+                  "    let ids = [];",
+                  "    try { ids = JSON.parse(pm.environment.get(\"createdInspectionIds\") || \"[]\"); } catch (e) { ids = []; }",
+                  "    const remaining = ids.filter(function (id) { return id !== deleted; });",
+                  "    pm.environment.set(\"createdInspectionId\", \"\");",
+                  "    pm.environment.set(\"createdInspectionIds\", \"[]\");",
+                  "    remaining.forEach(function (id) {",
+                  "        pm.sendRequest({",
+                  "            url: pm.environment.get(\"baseUrl\") + \"/inspections/\" + id,",
+                  "            method: \"DELETE\",",
+                  "            header: { Authorization: \"Bearer \" + pm.environment.get(\"token\") }",
+                  "        }, function (err, res) {",
+                  "            pm.test(\"Cleanup: deleted inspection \" + id, function () { pm.expect(err).to.eql(null); pm.expect(res.code).to.eql(204); });",
+                  "        });",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/inspections/:inspection_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inspections",
+                ":inspection_id"
+              ],
+              "variable": [
+                {
+                  "key": "inspection_id",
+                  "value": "{{createdInspectionId}}",
+                  "description": "Inspection created by this collection."
+                }
+              ]
+            },
+            "description": "DELETE /inspections/{inspection_id} - quality engineer only. Targets `createdInspectionId` only (an inspection this collection created), never `inspectionId`. After it succeeds, the test script also deletes the other inspections this collection recorded in `createdInspectionIds` (batch/import). Skipped if nothing was created or `allowWrites` is not `true`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "description": "Dashboard analytics.",
+      "item": [
+        {
+          "name": "Analytics summary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "",
+                  "pm.test(\"Summary has totals and the automation rate\", function () {",
+                  "    pm.expect(body).to.have.property(\"total_inspections\");",
+                  "    pm.expect(body).to.have.property(\"automation_rate\");",
+                  "    pm.expect(body).to.have.property(\"automation_counts\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/inspections/analytics/summary?days=30",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inspections",
+                "analytics",
+                "summary"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "30",
+                  "description": "Trend window in days (optional)."
+                }
+              ]
+            },
+            "description": "GET /inspections/analytics/summary - totals, AI counts, severity, quality, trends, automation rate. Any signed-in user."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Dataset",
+      "description": "Read-only MVTec AD dataset browser. Uses the collection variables `datasetCategory`, `datasetSplit`, `datasetDefectType` and `datasetFilename`.",
+      "item": [
+        {
+          "name": "List dataset categories",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "",
+                  "pm.test(\"Returns category names\", function () { pm.expect(body).to.be.an(\"array\").that.includes(pm.collectionVariables.get(\"datasetCategory\")); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/dataset/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dataset",
+                "categories"
+              ]
+            },
+            "description": "GET /dataset/categories - the MVTec categories found on disk. Any signed-in user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get dataset category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "pm.test(\"Returns a JSON object\", function () { pm.expect(body).to.be.an(\"object\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/dataset/categories/:category",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dataset",
+                "categories",
+                ":category"
+              ],
+              "variable": [
+                {
+                  "key": "category",
+                  "value": "{{datasetCategory}}",
+                  "description": "MVTec category, e.g. bottle."
+                }
+              ]
+            },
+            "description": "GET /dataset/categories/{category} - splits and defect types with image counts. Any signed-in user."
+          },
+          "response": []
+        },
+        {
+          "name": "List dataset images",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/dataset/categories/:category/images?split={{datasetSplit}}&defect_type={{datasetDefectType}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dataset",
+                "categories",
+                ":category",
+                "images"
+              ],
+              "query": [
+                {
+                  "key": "split",
+                  "value": "{{datasetSplit}}",
+                  "description": "train or test."
+                },
+                {
+                  "key": "defect_type",
+                  "value": "{{datasetDefectType}}",
+                  "description": "e.g. good, broken_large."
+                }
+              ],
+              "variable": [
+                {
+                  "key": "category",
+                  "value": "{{datasetCategory}}",
+                  "description": "MVTec category, e.g. bottle."
+                }
+              ]
+            },
+            "description": "GET /dataset/categories/{category}/images - image filenames for one split and defect type. Any signed-in user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get dataset image preview",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Returns an image\", function () { pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/^image\\//); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/dataset/categories/:category/preview?split={{datasetSplit}}&defect_type={{datasetDefectType}}&filename={{datasetFilename}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dataset",
+                "categories",
+                ":category",
+                "preview"
+              ],
+              "query": [
+                {
+                  "key": "split",
+                  "value": "{{datasetSplit}}",
+                  "description": "train or test."
+                },
+                {
+                  "key": "defect_type",
+                  "value": "{{datasetDefectType}}",
+                  "description": "e.g. good, broken_large."
+                },
+                {
+                  "key": "filename",
+                  "value": "{{datasetFilename}}",
+                  "description": "e.g. 000.png."
+                },
+                {
+                  "key": "max_dim",
+                  "value": "512",
+                  "description": "Optional longest side in pixels.",
+                  "disabled": true
+                }
+              ],
+              "variable": [
+                {
+                  "key": "category",
+                  "value": "{{datasetCategory}}",
+                  "description": "MVTec category, e.g. bottle."
+                }
+              ]
+            },
+            "description": "GET /dataset/categories/{category}/preview - a downscaled preview image (binary). Any signed-in user."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "AI Models",
+      "description": "Served AI models (static metadata).",
+      "item": [
+        {
+          "name": "List served models",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "",
+                  "pm.test(\"15 served models, one per MVTec category\", function () {",
+                  "    pm.expect(body).to.be.an(\"array\").with.lengthOf(15);",
+                  "    pm.expect(new Set(body.map(function (m) { return m.category; })).size).to.eql(15);",
+                  "});",
+                  "pm.test(\"Each row has a model name and a threshold\", function () {",
+                  "    body.forEach(function (m) { pm.expect(m).to.have.property(\"model_name\"); pm.expect(m.threshold).to.be.a(\"number\"); });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ai/models",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "models"
+              ]
+            },
+            "description": "GET /ai/models - one row per category with a registered model, alphabetical. Loads no model. Any signed-in user."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Negative tests",
+      "description": "Expected failures. Apart from **Register with role=quality_engineer** (which creates a user and needs `allowWrites`), these requests are rejected before anything is written; the write attempts also use product id 0, which does not exist, as a second safety net. Logs in as the supervisor, then back in as the quality engineer.",
+      "item": [
+        {
+          "name": "No token -> 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", function () { pm.response.to.have.status(401); });",
+                  "pm.test(\"Asks for a Bearer token\", function () { pm.expect(pm.response.headers.get(\"WWW-Authenticate\")).to.eql(\"Bearer\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": "GET /auth/me without an Authorization header -> 401 with `WWW-Authenticate: Bearer`."
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid token -> 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "not-a-valid-token",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "description": "GET /products with a token that is not a valid JWT -> 401."
+          },
+          "response": []
+        },
+        {
+          "name": "Register with role=quality_engineer -> supervisor (creates a user)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A throwaway password generated for this run only; it is never stored in the collection or environment file.",
+                  "pm.variables.set(\"newUserPassword\", \"Pm-\" + Math.random().toString(36).slice(2, 12) + \"-\" + Date.now().toString(36));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", function () { pm.response.to.have.status(201); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "",
+                  "pm.test(\"Role is factory_supervisor, not quality_engineer\", function () { pm.expect(body.role).to.eql(\"factory_supervisor\"); });",
+                  "pm.test(\"Response never contains password_hash\", function () { pm.expect(body).to.not.have.property(\"password_hash\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "POST /auth/register sending `role: quality_engineer`. The role is ignored: the new user is a factory_supervisor. **Creates a user**; skipped unless `allowWrites` is `true`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Role Escalation Test\",\n  \"email\": \"postman.neg.{{$timestamp}}.{{$randomInt}}@example.com\",\n  \"password\": \"{{newUserPassword}}\",\n  \"role\": \"quality_engineer\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login as supervisor",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get(\"supervisorEmail\") || !pm.environment.get(\"supervisorPassword\")) {",
+                  "    console.warn(\"Login as supervisor: set supervisorEmail and supervisorPassword in the environment first - request skipped.\");",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "",
+                  "pm.test(\"Response has an access token and a user\", function () {",
+                  "    pm.expect(body).to.have.property(\"access_token\");",
+                  "    pm.expect(body.token_type).to.eql(\"bearer\");",
+                  "    pm.expect(body.user).to.have.property(\"role\");",
+                  "});",
+                  "if (body && body.access_token) {",
+                  "    pm.environment.set(\"token\", body.access_token);",
+                  "    pm.environment.set(\"role\", body.user.role);",
+                  "}",
+                  "pm.test(\"Logged in as factory_supervisor\", function () { pm.expect(body.user.role).to.eql(\"factory_supervisor\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "POST /auth/login with the factory supervisor's credentials (`supervisorEmail`, `supervisorPassword`). Replaces `{{token}}`/`{{role}}` with the supervisor's until **Login as quality engineer (restore)**.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{supervisorEmail}}\",\n  \"password\": \"{{supervisorPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Supervisor lists users -> 403",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"role\") !== \"factory_supervisor\") { console.warn(\"Not logged in as the supervisor - skipped.\"); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", function () { pm.response.to.have.status(403); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ]
+            },
+            "description": "GET /users as a factory supervisor -> 403 (quality engineer only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Supervisor imports an inspection -> 403",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"role\") !== \"factory_supervisor\") { console.warn(\"Not logged in as the supervisor - skipped.\"); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", function () { pm.response.to.have.status(403); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/inspections/import",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inspections",
+                "import"
+              ]
+            },
+            "description": "POST /inspections/import as a factory supervisor -> 403 (quality engineer only). Uses product id 0.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 0,\n  \"category\": \"{{datasetCategory}}\",\n  \"split\": \"{{datasetSplit}}\",\n  \"defect_type\": \"{{datasetDefectType}}\",\n  \"filename\": \"{{datasetFilename}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login as quality engineer (restore)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get(\"qeEmail\") || !pm.environment.get(\"qePassword\")) {",
+                  "    console.warn(\"Login as quality engineer (restore): set qeEmail and qePassword in the environment first - request skipped.\");",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "",
+                  "pm.test(\"Response has an access token and a user\", function () {",
+                  "    pm.expect(body).to.have.property(\"access_token\");",
+                  "    pm.expect(body.token_type).to.eql(\"bearer\");",
+                  "    pm.expect(body.user).to.have.property(\"role\");",
+                  "});",
+                  "if (body && body.access_token) {",
+                  "    pm.environment.set(\"token\", body.access_token);",
+                  "    pm.environment.set(\"role\", body.user.role);",
+                  "}",
+                  "pm.test(\"Logged in as quality_engineer\", function () { pm.expect(body.user.role).to.eql(\"quality_engineer\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "POST /auth/login as the quality engineer again, so `{{token}}` is the QE's for the rest of the run.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{qeEmail}}\",\n  \"password\": \"{{qePassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Batch of 21 files -> 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", function () { pm.response.to.have.status(400); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "pm.test(\"Says at most 20 per batch\", function () { pm.expect(body.detail).to.include(\"at most 20\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/inspections/batch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inspections",
+                "batch"
+              ]
+            },
+            "description": "POST /inspections/batch with 21 files -> 400 \"Too many files: at most 20 per batch.\" (checked before anything is stored). Quality engineer token. Uses product id 0.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "product_id",
+                  "value": "0",
+                  "type": "text"
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 1."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 2."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 3."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 4."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 5."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 6."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 7."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 8."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 9."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 10."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 11."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 12."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 13."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 14."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 15."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 16."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 17."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 18."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 19."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 20."
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "sample-images/sample.png",
+                  "description": "Image 21."
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid category -> 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 422\", function () { pm.response.to.have.status(422); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products/:product_id/category",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                ":product_id",
+                "category"
+              ],
+              "variable": [
+                {
+                  "key": "product_id",
+                  "value": "0",
+                  "description": "Non-existent product; validation fails first."
+                }
+              ]
+            },
+            "description": "PATCH /products/{product_id}/category with a category that is not an MVTec category -> 422. Quality engineer token. Uses product id 0.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"not_a_category\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "noauth"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Safety net for the demo database: requests that create, change or delete data are skipped unless the",
+          "// environment variable allowWrites is \"true\". Logins and the negative tests below are rejected before",
+          "// anything is written, so they always run.",
+          "const SAFE_WRITES = [\"Login (quality engineer)\", \"Login as supervisor\", \"Login as quality engineer (restore)\", \"Supervisor imports an inspection -> 403\", \"Batch of 21 files -> 400\", \"Invalid category -> 422\"];",
+          "const method = pm.request.method;",
+          "const isWrite = [\"POST\", \"PUT\", \"PATCH\", \"DELETE\"].includes(method);",
+          "if (isWrite && !SAFE_WRITES.includes(pm.info.requestName) && pm.environment.get(\"allowWrites\") !== \"true\") {",
+          "    console.log(\"Skipped (writes data; set allowWrites=true to run): \" + pm.info.requestName);",
+          "    pm.execution.skipRequest();",
+          "}",
+          "const usesToken = pm.request.auth && pm.request.auth.type === \"bearer\";",
+          "if (usesToken && !pm.environment.get(\"token\") && pm.info.requestName.indexOf(\"Invalid token\") !== 0) {",
+          "    console.warn(\"No token yet - run 'Login (quality engineer)' first. Request: \" + pm.info.requestName);",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test(\"No response exposes a password hash\", function () {",
+          "    pm.expect(pm.response.text()).to.not.include(\"password_hash\");",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "datasetCategory",
+      "value": "bottle",
+      "type": "string"
+    },
+    {
+      "key": "datasetSplit",
+      "value": "test",
+      "type": "string"
+    },
+    {
+      "key": "datasetDefectType",
+      "value": "broken_large",
+      "type": "string"
+    },
+    {
+      "key": "datasetFilename",
+      "value": "000.png",
+      "type": "string"
+    }
+  ]
+}
