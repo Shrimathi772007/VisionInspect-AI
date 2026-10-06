@@ -1,0 +1,19 @@
+node_modules/
+dist/
+dist-ssr/
+coverage/
+
+# Local environment files: VITE_API_BASE_URL comes from the Dockerfile build argument.
+.env
+.env.*
+
+# Tests are not part of the production bundle.
+src/**/*.test.js
+src/**/*.test.jsx
+src/test/
+
+.git/
+.gitignore
+Dockerfile
+.dockerignore
+*.log

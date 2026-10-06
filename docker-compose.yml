@@ -1,0 +1,87 @@
+# VisionInspect AI: PostgreSQL + FastAPI backend + nginx-served frontend.
+#
+#   cp .env.docker.example .env.docker      # then edit it
+#   docker compose --env-file .env.docker up -d --build
+#
+# Only the web service is published (WEB_PORT, default 8080). The browser calls /api/..., which nginx proxies to
+# the backend; the database and the backend are reachable only inside the compose network.
+#
+# Memory: the backend keeps the frozen backbones plus up to VISIONINSPECT_AI_MODEL_CACHE_SIZE per-category models
+# in RAM (default 3; each UVICORN_WORKERS process keeps its own copy). A VM needs about 4 GB RAM; 8 GB is
+# recommended. Lower the cache size before adding workers on a small VM.
+
+name: visioninspect
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env.docker}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env.docker}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.docker}
+    volumes:
+      # PostgreSQL 18 images keep their data under /var/lib/postgresql/18/docker; mount the parent.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?set JWT_SECRET_KEY in .env.docker}
+      JWT_ALGORITHM: HS256
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      FRONTEND_ORIGINS: ${FRONTEND_ORIGINS:-http://localhost:8080}
+      UPLOAD_STORAGE_ROOT: /app/storage/uploads
+      HEATMAP_STORAGE_ROOT: /app/storage/heatmaps
+      DATASET_ROOT: /dataset
+      MAX_UPLOAD_SIZE_MB: "10"
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-1}
+      VISIONINSPECT_AI_MODEL_CACHE_SIZE: ${VISIONINSPECT_AI_MODEL_CACHE_SIZE:-3}
+    volumes:
+      # The app resolves its models at <backend>/ai_models, which is /app/ai_models in the image.
+      - ${AI_MODELS_DIR:?set AI_MODELS_DIR in .env.docker}:/app/ai_models:ro
+      - ${DATASET_DIR:?set DATASET_DIR in .env.docker}:/dataset:ro
+      # A named volume by default; set STORAGE_DIR to a host path (owned by uid 10001) to use a bind mount.
+      - ${STORAGE_DIR:-storage}:/app/storage
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: /api
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  pgdata:
+  storage:

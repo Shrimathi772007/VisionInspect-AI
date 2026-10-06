@@ -1,0 +1,22 @@
+# Runtime data: mounted as volumes, never baked into the image.
+ai_models/
+storage/
+dataset/
+**/*.pt
+**/*.pth
+
+# Secrets and local environments.
+.env
+.env.*
+venv/
+.venv/
+
+# Not needed at run time.
+tests/
+.pytest_cache/
+**/__pycache__/
+**/*.py[cod]
+.git/
+.gitignore
+Dockerfile
+.dockerignore
