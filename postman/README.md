@@ -2,7 +2,7 @@
 
 | File | What it is |
 |---|---|
-| `VisionInspect-AI.postman_collection.json` | Postman Collection v2.1. It has all 28 API operations, generated from the backend's `/openapi.json`, plus a **Negative tests** folder. |
+| `VisionInspect-AI.postman_collection.json` | Postman Collection v2.1. It has all 29 API operations, generated from the backend's `/openapi.json`, plus a **Negative tests** folder. |
 | `VisionInspect-AI.local.postman_environment.json` | The **VisionInspect-AI local** environment (`baseUrl` = `http://127.0.0.1:8000`). |
 | `sample-images/sample.png` | A small synthetic 64×64 PNG that the upload and batch requests attach. |
 
@@ -91,7 +91,7 @@ Use **Run collection** in the folder order the collection already has:
 3. **Users**.
 4. **Products**: List products fills in `productId`.
 5. **Inspections**: List inspections fills in `inspectionId`; Delete inspection runs last and cleans up.
-6. **Analytics**.
+6. **Analytics**: Analytics summary, then By category.
 7. **Dataset**.
 8. **AI Models**.
 9. **Negative tests**:
@@ -104,6 +104,8 @@ Use **Run collection** in the folder order the collection already has:
    - **Login as quality engineer (restore)**.
    - Batch of 21 files → 400.
    - Invalid category → 422.
+   - By category without a token → 401.
+   - By category with days=5 → 422.
 
 For a single request, run **Auth → Login (quality engineer)** once first.
 
@@ -121,13 +123,18 @@ empty, the supervisor login and its 403 checks are skipped.
 - **Successful requests**: status codes (200/201/204), and response shapes:
   - `/ai/models` returns 15 rows, one per category.
   - The analytics summary has `automation_rate`.
+  - By category (`days=14`): `window_days` is 14, all 15 MVTec categories have a row, rows are ordered by
+    total (largest first), and every `defect_rate` is null or between 0 and 1. Its defect rate comes
+    from AI predictions, not ground truth.
   - Reports have all their sections.
   - Image endpoints return `image/*`.
 - **Heatmap**: 200 with a PNG, or 404 when the inspection has no heatmap.
-- **Validation**: 21 files in a batch → 400 ("at most 20"), and an unknown category → 422.
+- **Validation**: 21 files in a batch → 400 ("at most 20"), an unknown category → 422, and a
+  by-category window other than 7, 14 or 30 days → 422.
 
 ## Regenerating
 
 The collection was generated from the running backend's `/openapi.json` (28 operations, checked one to
-one). If an endpoint is added or changed, add or edit the request by hand in the matching folder, or
+one). **Analytics → By category** (`GET /inspections/analytics/by-category`, the 29th) was added by hand
+afterwards, together with its two negative tests. If an endpoint is added or changed, add or edit the request by hand in the matching folder, or
 import `http://127.0.0.1:8000/openapi.json` into Postman to compare.

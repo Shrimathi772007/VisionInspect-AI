@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "5b0e6f0a-6c1e-4d7b-9a51-7c4f2f0d1a01",
     "name": "VisionInspect-AI API",
-    "description": "All 28 operations of the VisionInspect-AI FastAPI backend (generated from /openapi.json), plus a Negative tests folder. Select the **VisionInspect-AI local** environment, type the demo passwords into it, then run **Auth > Login (quality engineer)**. Requests that create, change or delete data are skipped unless `allowWrites` is `true`. See postman/README.md.",
+    "description": "All 29 operations of the VisionInspect-AI FastAPI backend (generated from /openapi.json), plus a Negative tests folder. Select the **VisionInspect-AI local** environment, type the demo passwords into it, then run **Auth > Login (quality engineer)**. Requests that create, change or delete data are skipped unless `allowWrites` is `true`. See postman/README.md.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -1462,6 +1462,91 @@
             "description": "GET /inspections/analytics/summary - totals, AI counts, severity, quality, trends, automation rate. Any signed-in user."
           },
           "response": []
+        },
+        {
+          "name": "By category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "const MVTEC = [\"bottle\", \"cable\", \"capsule\", \"carpet\", \"grid\", \"hazelnut\", \"leather\", \"metal_nut\", \"pill\", \"screw\", \"tile\", \"toothbrush\", \"transistor\", \"wood\", \"zipper\"];",
+                  "const rows = body && Array.isArray(body.categories) ? body.categories : [];",
+                  "",
+                  "pm.test(\"window_days is 14\", function () {",
+                  "    pm.expect(body).to.have.property(\"window_days\", 14);",
+                  "});",
+                  "",
+                  "pm.test(\"All 15 MVTec categories have a row (plus 'uncategorised' only when needed)\", function () {",
+                  "    const names = rows.map(function (row) { return row.category; });",
+                  "    MVTEC.forEach(function (category) { pm.expect(names, category).to.include(category); });",
+                  "    pm.expect(names.filter(function (name) { return MVTEC.indexOf(name) !== -1; }).length).to.eql(15);",
+                  "    names.forEach(function (name) { pm.expect(MVTEC.concat([\"uncategorised\"])).to.include(name); });",
+                  "});",
+                  "",
+                  "pm.test(\"Rows are ordered by total, largest first\", function () {",
+                  "    for (let i = 1; i < rows.length; i++) {",
+                  "        pm.expect(rows[i - 1].total, rows[i - 1].category + \" before \" + rows[i].category).to.be.at.least(rows[i].total);",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test(\"defect_rate is null or between 0 and 1\", function () {",
+                  "    rows.forEach(function (row) {",
+                  "        if (row.defect_rate === null) return;",
+                  "        pm.expect(row.defect_rate, row.category).to.be.a(\"number\").within(0, 1);",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test(\"No password_hash in the body\", function () {",
+                  "    pm.expect(pm.response.text()).to.not.include(\"password_hash\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/inspections/analytics/by-category?days=14",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inspections",
+                "analytics",
+                "by-category"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "14",
+                  "description": "Trailing window in days: 7, 14 or 30 (optional, default 14)."
+                }
+              ]
+            },
+            "description": "GET /inspections/analytics/by-category - per MVTec category over the last `days` days (7, 14 or 30): total, ai_analysed, ai_defective, ai_good, defect_rate, manual_review, pass_count, fail_count, manual_review_decisions, not_assessed. One row per MVTec category (all 15, even with no inspections) plus `uncategorised` only when needed, ordered by total descending, then name. `defect_rate` = ai_defective / ai_analysed: it is based on AI predictions, not ground truth, and is null when nothing was AI-analysed. Any signed-in user. Read-only."
+          },
+          "response": []
         }
       ]
     },
@@ -2450,6 +2535,106 @@
                 }
               }
             }
+          },
+          "response": []
+        },
+        {
+          "name": "By category without a token -> 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", function () { pm.response.to.have.status(401); });",
+                  "pm.test(\"Asks for a Bearer token\", function () { pm.expect(pm.response.headers.get(\"WWW-Authenticate\")).to.eql(\"Bearer\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/inspections/analytics/by-category?days=14",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inspections",
+                "analytics",
+                "by-category"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "14",
+                  "description": "Trailing window in days: 7, 14 or 30 (optional, default 14)."
+                }
+              ]
+            },
+            "description": "GET /inspections/analytics/by-category without an Authorization header -> 401 with `WWW-Authenticate: Bearer`."
+          },
+          "response": []
+        },
+        {
+          "name": "By category with days=5 -> 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 422\", function () { pm.response.to.have.status(422); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/inspections/analytics/by-category?days=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inspections",
+                "analytics",
+                "by-category"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "5",
+                  "description": "Trailing window in days: 7, 14 or 30 (optional, default 14)."
+                }
+              ]
+            },
+            "description": "GET /inspections/analytics/by-category?days=5 -> 422: only 7, 14 and 30 are allowed. Quality engineer token. Read-only."
           },
           "response": []
         }
