@@ -71,9 +71,12 @@ a.row:hover {
   flex-shrink: 0;
 }
 
+/* Fixed 16px box (the icon's own size), so the chevron never stretches or shrinks with the row. */
 .chevron {
   color: var(--color-text-tertiary);
-  flex-shrink: 0;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
 }
 
 .deleteButton {
@@ -117,5 +120,34 @@ a.row:hover {
      only drop the less-critical source badge to save space. */
   .badges > *:first-child {
     display: none;
+  }
+
+  /* The row wraps: icon + name/id/meta take the first line, the badges (wrapping among themselves),
+     the delete button and the chevron go to a second line indented under the text, so the badges can
+     never push the row wider than the screen or sit on top of the "#id". */
+  .row {
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
+  }
+
+  .info {
+    flex-basis: calc(100% - 38px - var(--space-4));
+  }
+
+  .productName {
+    flex-wrap: wrap;
+    row-gap: 0;
+    min-width: 0;
+  }
+
+  .inspectionId {
+    white-space: nowrap;
+  }
+
+  .badges {
+    flex: 1 1 0;
+    flex-wrap: wrap;
+    min-width: 0;
+    margin-left: calc(38px + var(--space-4));
   }
 }

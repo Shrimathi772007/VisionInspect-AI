@@ -32,6 +32,17 @@ describe("PerformanceOverview", () => {
     expect(tile("Fastest – slowest").getByText("300 ms – 4.2 s")).toBeInTheDocument();
   });
 
+  it("keeps the range on one line with its full text as a title, and leaves other tiles alone", () => {
+    render(<PerformanceOverview performance={PERFORMANCE} />);
+
+    const range = tile("Fastest – slowest").getByText("300 ms – 4.2 s");
+    expect(range.className).toMatch(/rangeValue/);
+    expect(range).toHaveAttribute("title", "300 ms – 4.2 s");
+    const avg = tile("Avg processing time").getByText("1.2 s");
+    expect(avg.className).not.toMatch(/rangeValue/);
+    expect(avg).not.toHaveAttribute("title");
+  });
+
   it("shows how much of the range actually has a timing, and the AI-analyzed rate", () => {
     render(<PerformanceOverview performance={PERFORMANCE} />);
 

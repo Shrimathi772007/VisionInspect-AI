@@ -42,7 +42,11 @@ export function CategoryBreakdown({ rows, windowDays }) {
       <div className={styles.header}>
         <span className={styles.labelCol}>Category</span>
         <span className={styles.barCol}>Inspections</span>
-        <span className={styles.rateCol}>Defect rate</span>
+        {/* Below ~480px the narrow column shows the short label; the full wording stays in the title. */}
+        <span className={styles.rateCol} title="Defect rate">
+          <span className={styles.fullLabel}>Defect rate</span>
+          <span className={styles.shortLabel}>Rate</span>
+        </span>
         <span className={styles.reviewCol} title="Inspections flagged for manual review">
           Review
         </span>

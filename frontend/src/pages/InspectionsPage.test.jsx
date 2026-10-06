@@ -66,4 +66,15 @@ describe("InspectionsPage severity badge", () => {
     expect(rowFor(6).queryByText(/Severity:/)).not.toBeInTheDocument();
     expect(rowFor(7).getByText("Severity: Unheard-of")).toBeInTheDocument();
   });
+
+  it("gives each row's chevron its fixed-size class and a 16px icon", () => {
+    renderList([row({ id: 8, review_required: true, quality_decision: "MANUAL_REVIEW" }), row({ id: 9 })]);
+
+    for (const id of [8, 9]) {
+      const chevron = screen.getByRole("link", { name: new RegExp(`#${id}\\b`) }).querySelector("svg.lucide-chevron-right");
+      expect(chevron.getAttribute("class")).toMatch(/chevron/);
+      expect(chevron).toHaveAttribute("width", "16");
+      expect(chevron).toHaveAttribute("height", "16");
+    }
+  });
 });

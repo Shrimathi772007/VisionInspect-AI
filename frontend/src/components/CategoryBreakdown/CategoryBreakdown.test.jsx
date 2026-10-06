@@ -69,4 +69,15 @@ describe("CategoryBreakdown", () => {
     expect(formatRate(undefined)).toBe("—");
     expect(formatRate(Number.POSITIVE_INFINITY)).toBe("—");
   });
+
+  it("keeps the full header wording in title attributes next to the short narrow-screen label", () => {
+    render(<CategoryBreakdown rows={makeCategoryRows()} windowDays={14} />);
+    const full = screen.getByText("Defect rate");
+    const short = screen.getByText("Rate");
+    expect(full.className).toMatch(/fullLabel/);
+    expect(short.className).toMatch(/shortLabel/);
+    expect(full.parentElement).toBe(short.parentElement);
+    expect(full.parentElement).toHaveAttribute("title", "Defect rate");
+    expect(screen.getByText("Review")).toHaveAttribute("title", "Inspections flagged for manual review");
+  });
 });

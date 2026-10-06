@@ -10,6 +10,8 @@ import styles from "./StatCard.module.css";
  * `info`   optional short explanation of the metric, shown as an info tooltip after the label.
  * `error`  the value could not be loaded: shows a dash and "Unavailable" instead of a
  *          number, so a failed request is never displayed as a real 0.
+ * `valueClassName` / `valueTitle`  optional presentation hooks for the value line (an extra class and a
+ *          hover title), e.g. to keep a long range on one line; they never change the value.
  */
 export function StatCard({
   icon: Icon,
@@ -21,6 +23,8 @@ export function StatCard({
   note = null,
   error = false,
   info = null,
+  valueClassName = "",
+  valueTitle,
 }) {
   const TrendIcon = trend?.direction === "down" ? TrendingDown : TrendingUp;
   const footnote = error ? "Unavailable" : note;
@@ -40,7 +44,12 @@ export function StatCard({
         ) : (
           <>
             <div className={styles.valueRow}>
-              <p className={`${styles.value} ${error ? styles.muted : ""}`}>{error ? "—" : value}</p>
+              <p
+                className={`${styles.value} ${error ? styles.muted : ""} ${valueClassName}`}
+                title={error ? undefined : valueTitle}
+              >
+                {error ? "—" : value}
+              </p>
               {!error && trend && trend.direction !== "flat" && (
                 <span className={styles.trend}>
                   <TrendIcon size={12} strokeWidth={2.25} aria-hidden="true" />

@@ -46,9 +46,13 @@
   align-items: start;
 }
 
+/* min-width: 0 lets the grid items shrink below their content's min width (a grid item's default
+   minimum is its content), so neither card can push past a narrow viewport. */
 .recentCard,
 .quickCard {
   padding: var(--space-6);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .cardHeader {
@@ -180,7 +184,7 @@ a.recentRow:hover {
 
 @media (max-width: 900px) {
   .bottomGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

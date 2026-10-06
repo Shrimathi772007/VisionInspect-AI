@@ -117,6 +117,16 @@ describe("Dashboard layout and presentation", () => {
     expect(titles).toEqual(["Overview", "Quality outcomes", "Trend", "Defects", "Performance", "By category"]);
   });
 
+  it("says which sections follow the time range and that Inspection activity is always 14 days", () => {
+    mockData();
+    renderDashboard();
+    expect(
+      screen.getByText(
+        "The time range applies to the Trend charts (except Inspection activity, which always shows the last 14 days), the Defect category trend, Performance and By category. Other figures are all-time."
+      )
+    ).toBeInTheDocument();
+  });
+
   it("keeps every existing chart and card", () => {
     mockData();
     renderDashboard();

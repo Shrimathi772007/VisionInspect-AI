@@ -61,6 +61,8 @@ export function PerformanceOverview({ performance = null, isLoading = false, err
           icon={Gauge}
           label={"Fastest – slowest"}
           value={rangeValue(processing)}
+          valueClassName={styles.rangeValue}
+          valueTitle={rangeValue(processing)}
           note="Processing time"
           loading={loading}
           error={error}

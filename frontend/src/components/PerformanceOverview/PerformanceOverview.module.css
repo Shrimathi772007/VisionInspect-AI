@@ -7,6 +7,17 @@
   margin-bottom: var(--space-3);
 }
 
+/* The "Fastest – slowest" range is the longest value here: a slightly smaller size keeps it on one line
+   in a ~260px tile (p. raises it above StatCard's .value whatever the stylesheet order); if it still does not fit it ends in an ellipsis (the full range is in its title). */
+p.rangeValue {
+  font-size: 19px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .footnote {
   margin: 0 0 var(--space-6);
   font-size: 11.5px;

@@ -241,8 +241,8 @@ export function DashboardPage() {
 
       <div className={styles.toolbar}>
         <p className={styles.toolbarNote}>
-          The time range applies to Trend, the defect category trend, Performance and By category. Other figures
-          are all-time.
+          The time range applies to the Trend charts (except Inspection activity, which always shows the last 14
+          days), the Defect category trend, Performance and By category. Other figures are all-time.
         </p>
         <div className={styles.trendControls}>
           {(analyticsRefreshing || categoryRefreshing) && (

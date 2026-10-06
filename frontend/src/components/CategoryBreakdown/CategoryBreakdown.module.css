@@ -101,6 +101,10 @@
   font-weight: 600;
 }
 
+.shortLabel {
+  display: none;
+}
+
 .note {
   margin-top: var(--space-2);
   font-size: 11.5px;
@@ -120,5 +124,31 @@
 
   .share {
     display: none;
+  }
+}
+
+/* "DEFECT RATE" does not fit its 56px column at phone width and runs into "REVIEW". */
+@media (max-width: 480px) {
+  .header,
+  .row {
+    grid-template-columns: 76px minmax(0, 1fr) 50px 50px;
+  }
+
+  .header {
+    letter-spacing: 0;
+  }
+
+  .fullLabel {
+    display: none;
+  }
+
+  .shortLabel {
+    display: inline;
+  }
+
+  .header .rateCol,
+  .header .reviewCol {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
