@@ -4,7 +4,7 @@ import { TrendChart } from "../TrendChart/TrendChart";
 const SERIES = [
   { key: "good", label: "Passed", tone: "success" },
   { key: "defective", label: "Failed", tone: "danger" },
-  { key: "pending", label: "Pending", tone: "warning" },
+  { key: "pending", label: "Pending", tone: "neutral" },
 ];
 
 /**

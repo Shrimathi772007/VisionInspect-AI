@@ -379,12 +379,13 @@ def test_phase7_added_zero_api_routes(client):
     # The all-categories serving change adds exactly one more (GET /ai/models).
     # The localization change adds exactly one more (GET /inspections/{inspection_id}/heatmap).
     # The batch/enhancement change adds exactly three more (POST /inspections/batch, GET /inspections/{inspection_id}/enhanced, GET /inspections/{inspection_id}/image-quality).
+    # The by-category analytics change adds exactly one more (GET /inspections/analytics/by-category).
     schema = client.get("/openapi.json").json()
     paths = schema["paths"]
     operations = sum(
         1 for methods in paths.values() for m in methods if m.lower() in ("get", "post", "put", "patch", "delete")
     )
-    assert operations == 28
+    assert operations == 29
     assert set(paths.keys()) == {
         "/ai/models",
         "/auth/register",
@@ -395,6 +396,7 @@ def test_phase7_added_zero_api_routes(client):
         "/products/{product_id}/category",
         "/inspections",
         "/inspections/analytics/summary",
+        "/inspections/analytics/by-category",
         "/inspections/upload",
         "/inspections/import",
         "/inspections/{inspection_id}",

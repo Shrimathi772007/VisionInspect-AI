@@ -1,11 +1,13 @@
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { Card } from "../Card/Card";
 import { Skeleton } from "../Skeleton/Skeleton";
+import { InfoTip } from "../InfoTip/InfoTip";
 import styles from "./StatCard.module.css";
 
 /**
  * `note`   optional short line under the value that says what the number covers
  *          (e.g. "All time") - so a metric is never ambiguous about its scope.
+ * `info`   optional short explanation of the metric, shown as an info tooltip after the label.
  * `error`  the value could not be loaded: shows a dash and "Unavailable" instead of a
  *          number, so a failed request is never displayed as a real 0.
  */
@@ -18,6 +20,7 @@ export function StatCard({
   trend = null,
   note = null,
   error = false,
+  info = null,
 }) {
   const TrendIcon = trend?.direction === "down" ? TrendingDown : TrendingUp;
   const footnote = error ? "Unavailable" : note;
@@ -28,7 +31,10 @@ export function StatCard({
         <Icon size={20} strokeWidth={1.75} aria-hidden="true" />
       </div>
       <div className={styles.content}>
-        <p className={styles.label}>{label}</p>
+        <p className={styles.label}>
+          {label}
+          {info && <InfoTip text={info} />}
+        </p>
         {loading ? (
           <Skeleton width={56} height={26} />
         ) : (

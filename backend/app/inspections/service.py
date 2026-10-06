@@ -45,15 +45,26 @@ def _resolve_category(inspection: Inspection) -> str | None:
       product has none. Nothing is guessed from the image itself, so the result is only as
       right as that product setting: an upload of a different kind of object is still scored
       by the product's category model.
-    """
-    if inspection.source == InspectionSource.upload:
-        product = inspection.product
-        return product.category if product is not None else None
 
-    if inspection.source != InspectionSource.mvtec_ad:
+    The rule itself is resolve_category (also used by the by-category analytics, so both
+    always agree); this wrapper only reads the product's category, and only for uploads.
+    """
+    product_category = None
+    if inspection.source == InspectionSource.upload and inspection.product is not None:
+        product_category = inspection.product.category
+    return resolve_category(inspection.source, inspection.image_path, product_category)
+
+
+def resolve_category(source: InspectionSource, image_path: str, product_category: str | None) -> str | None:
+    """_resolve_category's rule on plain values: uploads -> `product_category`; mvtec_ad imports ->
+    the first segment of a 4-part "<category>/<split>/<defect_type>/<filename>" image_path; else None."""
+    if source == InspectionSource.upload:
+        return product_category
+
+    if source != InspectionSource.mvtec_ad:
         return None
 
-    parts = inspection.image_path.split("/")
+    parts = image_path.split("/")
     if len(parts) != 4:
         return None
 

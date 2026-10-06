@@ -1,47 +1,42 @@
+/* Page toolbar (time range) and titled sections - see DashboardSection in DashboardPage.jsx. */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+  margin: var(--space-2) 0 var(--space-5);
+}
+
+.toolbarNote {
+  font-size: 12.5px;
+  color: var(--color-text-tertiary);
+  max-width: 60ch;
+}
+
+.section {
+  margin-bottom: var(--space-6);
+}
+
+.sectionHeader {
+  margin: 0 0 var(--space-4);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Equal-size stat cards in aligned rows: every card in a row stretches to the tallest one. */
 .statsGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-auto-rows: 1fr;
+  align-items: stretch;
   gap: var(--space-4);
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--space-4);
 }
 
 .activityCard {
   padding: var(--space-6);
   margin-bottom: var(--space-5);
-}
-
-.aiCard {
-  padding: var(--space-6);
-  margin-bottom: var(--space-5);
-}
-
-.aiDistribution {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.aiBar {
-  display: flex;
-  width: 100%;
-  height: 10px;
-  border-radius: var(--radius-full);
-  overflow: hidden;
-  background: var(--color-neutral-soft);
-}
-
-.aiBarGood {
-  background: var(--color-info);
-}
-
-.aiBarDefective {
-  background: var(--color-warning);
-}
-
-.aiLegend {
-  display: flex;
-  gap: var(--space-3);
-  flex-wrap: wrap;
 }
 
 .bottomGrid {
@@ -189,11 +184,7 @@ a.recentRow:hover {
   }
 }
 
-/* Milestone 3 Phase 5 - Manufacturing Quality Analytics */
-
-.analyticsSectionHeader {
-  margin: var(--space-2) 0 var(--space-4);
-}
+/* Milestone 3 Phase 5 - analytics sections */
 
 .analyticsSectionTitle {
   font-size: 18px;
@@ -316,15 +307,6 @@ a.recentRow:hover {
 
 /* Milestone 4 - time-range selector, performance section, refresh state */
 
-.trendHeader {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-3) var(--space-4);
-  margin: var(--space-2) 0 var(--space-4);
-}
-
 .trendControls {
   display: flex;
   align-items: center;
@@ -356,7 +338,6 @@ a.recentRow:hover {
    product rows wrap so a product name is never squeezed down to a few characters. */
 @media (max-width: 640px) {
   .activityCard,
-  .aiCard,
   .analyticsCard,
   .insightsCard,
   .recentCard,

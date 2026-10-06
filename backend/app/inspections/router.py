@@ -13,7 +13,9 @@ from app.dataset.service import build_dataset_relative_path
 from app.inspections.analytics import (
     ALLOWED_WINDOW_DAYS,
     TREND_WINDOW_DAYS,
+    CategoryAnalytics,
     InspectionAnalyticsSummary,
+    get_category_analytics,
     get_inspection_analytics_summary,
 )
 from app.inspections.report import build_production_quality_report
@@ -91,6 +93,28 @@ def get_analytics_summary(
     """
     try:
         return get_inspection_analytics_summary(db, window_days=days)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
+
+
+@router.get("/analytics/by-category", response_model=CategoryAnalytics)
+def get_analytics_by_category(
+    days: int = Query(
+        default=TREND_WINDOW_DAYS,
+        description=f"Trailing window, in days. One of {list(ALLOWED_WINDOW_DAYS)} (same as the summary).",
+    ),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Per-category counts for all 15 MVTec categories over the last `days` days: inspections, AI-analysed,
+    AI defective/good, defect rate, review_required and quality decisions.
+
+    Read-only. Derived from AI predictions, not ground truth: defect_rate is the share of AI-analysed
+    inspections the AI predicted defective. Categories are resolved like the AI path (imports from the
+    dataset path, uploads from the product's category). Placed before the /{inspection_id} routes.
+    """
+    try:
+        return get_category_analytics(db, window_days=days)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
 

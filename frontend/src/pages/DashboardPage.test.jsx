@@ -8,10 +8,14 @@ vi.mock("../auth/useAuth", () => ({
 vi.mock("../hooks/useProducts", () => ({ useProducts: vi.fn() }));
 vi.mock("../hooks/useInspections", () => ({ useInspections: vi.fn() }));
 vi.mock("../hooks/useAnalyticsSummary", () => ({ useAnalyticsSummary: vi.fn() }));
+// The by-category section's own request (its tests are in DashboardCategory.test.jsx); mocked here so
+// these tests never reach the network.
+vi.mock("../hooks/useCategoryAnalytics", () => ({ useCategoryAnalytics: vi.fn() }));
 
 import { useProducts } from "../hooks/useProducts";
 import { useInspections } from "../hooks/useInspections";
 import { useAnalyticsSummary } from "../hooks/useAnalyticsSummary";
+import { useCategoryAnalytics } from "../hooks/useCategoryAnalytics";
 import { DashboardPage } from "./DashboardPage";
 
 const PRODUCT = { id: 1, product_name: "Bottle A", product_code: "BOT-1" };
@@ -114,6 +118,13 @@ function mockData({ products, recent, analytics } = {}) {
     error: null,
     refetch: refetchAnalytics,
     ...analytics,
+  });
+  useCategoryAnalytics.mockReturnValue({
+    data: { window_days: 14, categories: [] },
+    isLoading: false,
+    isRefreshing: false,
+    error: null,
+    refetch: vi.fn(),
   });
 }
 
@@ -407,7 +418,7 @@ describe("DashboardPage manual review", () => {
     expect(card("Manual review").getByText("7")).toBeInTheDocument();
     expect(card("Manual review").getByText("AI result needs a person")).toBeInTheDocument();
     const distribution = within(screen.getByRole("heading", { name: "Quality Decision Distribution" }).closest("div").parentElement);
-    expect(distribution.getByText(/MANUAL REVIEW · 7/)).toBeInTheDocument();
+    expect(distribution.getByText(/Manual review · 7/)).toBeInTheDocument();
     expect(distribution.getByText(/SOMETHING_NEW · 3/)).toBeInTheDocument();
   });
 

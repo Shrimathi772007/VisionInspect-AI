@@ -259,3 +259,50 @@ export function reportStatusLabel(status) {
 export function reportStatusTone(status) {
   return REPORT_STATUS_TONES[status] || "neutral";
 }
+
+// Dashboard outcome vocabulary - one colour per meaning across the dashboard's charts and badges:
+// Pass / Good green, Fail / Defective red, Manual review amber, Not assessed / Pending grey. Dashboard-only
+// on purpose: the maps above keep their own tones on the other pages.
+export const OUTCOME_TONES = {
+  PASS: "success",
+  FAIL: "danger",
+  MANUAL_REVIEW: "warning",
+  NOT_ASSESSED: "neutral",
+};
+
+export const PREDICTION_OUTCOME_TONES = {
+  good: "success",
+  defective: "danger",
+  pending: "neutral",
+};
+
+// "MANUAL REVIEW" -> "Manual review": the readable form of QUALITY_DECISION_LABELS. An unknown value is
+// shown as sent (never hidden), a missing one as "Not assessed".
+export function qualityDecisionDisplayLabel(decision) {
+  if (!decision) return "Not assessed";
+  const label = QUALITY_DECISION_LABELS[decision];
+  if (!label) return String(decision);
+  return label[0] + label.slice(1).toLowerCase();
+}
+
+export function outcomeTone(decision) {
+  if (!decision) return OUTCOME_TONES.NOT_ASSESSED;
+  return OUTCOME_TONES[decision] || "neutral";
+}
+
+export function predictionOutcomeTone(value) {
+  return PREDICTION_OUTCOME_TONES[value] || "neutral";
+}
+
+// Short explanations shown as info tooltips on the dashboard.
+export const AUTOMATION_RATE_INFO = "Share of inspections that received an automatic Pass or Fail decision.";
+export const MANUAL_REVIEW_INFO = "The AI result is low reliability, so a person must check it.";
+
+// By-category analytics (GET /inspections/analytics/by-category): defect_rate is derived from AI predictions.
+export const DEFECT_RATE_NOTE =
+  "Defect rate is the share of AI-analysed inspections predicted defective. It is based on AI predictions, not ground truth.";
+
+// A 0..1 rate as a percentage with one decimal; an em dash when there is no rate (null or not a number).
+export function formatRate(rate) {
+  return typeof rate === "number" && Number.isFinite(rate) ? `${(rate * 100).toFixed(1)}%` : "—";
+}

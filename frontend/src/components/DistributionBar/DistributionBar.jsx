@@ -8,7 +8,8 @@ import styles from "./DistributionBar.module.css";
  * Deliberately not a new chart library: consistent with the existing project approach.
  *
  * `segments`: [{ key, label, count, tone }] - `tone` matches Badge's tone vocabulary
- * (success/danger/warning/info/accent/neutral) so colors stay consistent app-wide.
+ * (success/danger/warning/info/accent/neutral) so colors stay consistent app-wide. Segments are shown
+ * largest first (ties keep their given order), each with its count and percentage in the legend.
  */
 export function DistributionBar({ segments, emptyIcon, emptyTitle, emptyDescription }) {
   const total = segments.reduce((sum, segment) => sum + segment.count, 0);
@@ -17,7 +18,11 @@ export function DistributionBar({ segments, emptyIcon, emptyTitle, emptyDescript
     return <EmptyState icon={emptyIcon} title={emptyTitle} description={emptyDescription} />;
   }
 
-  const visibleSegments = segments.filter((segment) => segment.count > 0);
+  const visibleSegments = segments
+    .filter((segment) => segment.count > 0)
+    .map((segment, index) => ({ segment, index }))
+    .sort((a, b) => b.segment.count - a.segment.count || a.index - b.index)
+    .map(({ segment }) => segment);
 
   return (
     <div className={styles.wrap}>

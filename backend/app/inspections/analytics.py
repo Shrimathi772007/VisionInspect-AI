@@ -1017,3 +1017,112 @@ def get_inspection_analytics_summary(
 
 
 InspectionAnalyticsSummary.model_rebuild()
+
+
+# ---------------------------------------------------------------------------
+# By-category analytics (GET /inspections/analytics/by-category)
+# ---------------------------------------------------------------------------
+
+# The row for inspections whose category cannot be resolved (see app.inspections.service.resolve_category),
+# or resolves to a value outside MVTEC_CATEGORIES. Present only when such inspections exist in the window.
+UNCATEGORISED = "uncategorised"
+
+
+class CategoryAnalyticsRow(BaseModel):
+    category: str = Field(description="MVTec category, or 'uncategorised' when none can be resolved.")
+    total: int = Field(description="Inspections of this category created in the window.")
+    ai_analysed: int = Field(description="Of those, inspections with an AI prediction.")
+    ai_defective: int = Field(description="AI-analysed inspections the AI predicted defective.")
+    ai_good: int = Field(description="AI-analysed inspections the AI predicted good.")
+    defect_rate: Optional[float] = Field(
+        description="ai_defective / ai_analysed as a fraction 0..1: the share of AI-analysed inspections the AI "
+        "predicted defective. Based on AI predictions, not ground truth. None when ai_analysed is 0."
+    )
+    manual_review: int = Field(description="Inspections flagged review_required = true.")
+    pass_count: int = Field(description="Inspections with quality decision PASS.")
+    fail_count: int = Field(description="Inspections with quality decision FAIL.")
+    manual_review_decisions: int = Field(description="Inspections with quality decision MANUAL_REVIEW.")
+    not_assessed: int = Field(description="Inspections with quality decision NOT_ASSESSED (or none recorded).")
+
+
+class CategoryAnalytics(BaseModel):
+    window_days: int = Field(description=f"The trailing window in days, one of {list(ALLOWED_WINDOW_DAYS)}.")
+    categories: list[CategoryAnalyticsRow] = Field(
+        description="One row per MVTec category (all 15, even with no inspections) plus 'uncategorised' when "
+        "needed, ordered by total descending, then category name."
+    )
+
+
+_CATEGORY_COUNT_FIELDS = (
+    "total", "ai_analysed", "ai_defective", "ai_good", "manual_review", "pass_count", "fail_count",
+    "manual_review_decisions", "not_assessed",
+)
+
+
+def get_category_analytics(db: Session, window_days: int = TREND_WINDOW_DAYS) -> CategoryAnalytics:
+    """Per-category inspection, AI-prediction, review and quality-decision counts over the last `window_days`
+    calendar days (the summary's UTC-day window idiom). Defect rates are derived from AI predictions, not ground
+    truth (Inspection.status / MVTec labels are not used here).
+
+    The category of an inspection is resolved exactly as the AI path does (app.inspections.service.
+    resolve_category): an import's from its dataset image_path, an upload's from its product's category. The
+    rule only depends on the source, the product's category, the path's first segment and its number of segments,
+    so the query groups by those (in SQL, never loading rows) and applies the rule once per group to a real
+    image_path of that group (min), which gives the same answer for every row of the group.
+
+    Raises ValueError when `window_days` is not one of ALLOWED_WINDOW_DAYS (same validation as the summary).
+    """
+    from app.dataset.categories import MVTEC_CATEGORIES
+    from app.inspections.service import resolve_category
+
+    if window_days not in ALLOWED_WINDOW_DAYS:
+        raise ValueError(f"days must be one of {list(ALLOWED_WINDOW_DAYS)}, got {window_days}")
+
+    today = datetime.now(timezone.utc).date()
+    window_start = today - timedelta(days=window_days - 1)
+    day_col = _utc_day(Inspection.created_at)
+    decision_expr = func.coalesce(Inspection.quality_decision, QUALITY_NOT_ASSESSED)
+    first_segment = func.split_part(Inspection.image_path, "/", 1)
+    slash_count = func.length(Inspection.image_path) - func.length(func.replace(Inspection.image_path, "/", ""))
+
+    rows = db.execute(
+        select(
+            Inspection.source.label("source"),
+            Product.category.label("product_category"),
+            func.min(Inspection.image_path).label("image_path"),
+            func.count().label("total"),
+            func.count().filter(Inspection.ai_prediction.isnot(None)).label("ai_analysed"),
+            func.count().filter(Inspection.ai_prediction == DEFECTIVE_PREDICTION).label("ai_defective"),
+            func.count().filter(Inspection.ai_prediction == GOOD_PREDICTION).label("ai_good"),
+            func.count().filter(Inspection.review_required.is_(True)).label("manual_review"),
+            func.count().filter(decision_expr == PASS).label("pass_count"),
+            func.count().filter(decision_expr == FAIL).label("fail_count"),
+            func.count().filter(decision_expr == MANUAL_REVIEW).label("manual_review_decisions"),
+            func.count().filter(decision_expr == QUALITY_NOT_ASSESSED).label("not_assessed"),
+        )
+        .select_from(Inspection)
+        .outerjoin(Product, Product.id == Inspection.product_id)
+        .where(day_col >= window_start)
+        .where(day_col <= today)
+        .group_by(Inspection.source, Product.category, first_segment, slash_count)
+    ).all()
+
+    counts = {category: dict.fromkeys(_CATEGORY_COUNT_FIELDS, 0) for category in MVTEC_CATEGORIES}
+    for row in rows:
+        category = resolve_category(row.source, row.image_path, row.product_category)
+        if category not in MVTEC_CATEGORIES:
+            category = UNCATEGORISED
+        bucket = counts.setdefault(category, dict.fromkeys(_CATEGORY_COUNT_FIELDS, 0))
+        for field in _CATEGORY_COUNT_FIELDS:
+            bucket[field] += getattr(row, field)
+
+    result = [
+        CategoryAnalyticsRow(
+            category=category,
+            defect_rate=(values["ai_defective"] / values["ai_analysed"]) if values["ai_analysed"] else None,
+            **values,
+        )
+        for category, values in counts.items()
+    ]
+    result.sort(key=lambda row: (-row.total, row.category))
+    return CategoryAnalytics(window_days=window_days, categories=result)

@@ -1,0 +1,19 @@
+.tip {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  vertical-align: -2px;
+  color: var(--color-text-tertiary);
+  cursor: help;
+  border-radius: var(--radius-full);
+}
+
+.tip:hover,
+.tip:focus-visible {
+  color: var(--color-text-secondary);
+}
+
+.tip:focus-visible {
+  outline: 2px solid var(--color-accent-border);
+  outline-offset: 2px;
+}

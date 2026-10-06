@@ -283,5 +283,6 @@ def test_phase4_adds_exactly_one_new_api_route(client):
     # (PATCH /products/{product_id}/category) + the all-categories serving change's one (GET /ai/models)
     # + the localization change's one (GET /inspections/{inspection_id}/heatmap)
     # + the batch/enhancement change's three (POST /inspections/batch, GET .../enhanced, GET .../image-quality).
-    assert operations == 28
+    # + the by-category analytics change's one (GET /inspections/analytics/by-category).
+    assert operations == 29
     assert "/inspections/{inspection_id}/report" in paths
