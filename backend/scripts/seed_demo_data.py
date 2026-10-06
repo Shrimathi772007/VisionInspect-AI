@@ -7,6 +7,9 @@ quality decision and heatmap).
     python scripts/seed_demo_data.py ... --dry-run          # print the plan, write nothing, ask nothing
     python scripts/seed_demo_data.py ... --reset            # print what would be wiped, then stop
     python scripts/seed_demo_data.py ... --reset --yes      # wipe ALL inspections (and their files), then seed
+    python scripts/seed_demo_data.py ... --reset --reset-ids --yes [--extra-uploads 25]
+                                                            # also delete the DEMO-* products and restart the
+                                                            # inspection and product ids at 1, then seed
 
 Run `alembic upgrade head` on the target database first. The database is the one configured for the app
 (backend/.env: POSTGRES_*), exactly like the API.
@@ -17,7 +20,9 @@ quality.
 
 Timestamps are demo timestamps spread over N days (--days): after each inspection is created through the
 normal path, its inspection_date and created_at are set to a deterministic, evenly spaced point in the last N
-days (oldest first), so the dashboard's trend charts show a series.
+days (oldest first), so the dashboard's trend charts show a series. The uploads are spread evenly between the
+imports (merge_timeline), so every day has both kinds, and inspections are created in timestamp order, so ids
+and dates increase together.
 
 What it creates (all idempotent - existing rows are kept and reported):
   * a quality engineer (app.auth.bootstrap.create_or_promote_quality_engineer) and a factory supervisor (the
@@ -30,11 +35,25 @@ What it creates (all idempotent - existing rows are kept and reported):
   * 4 upload-style inspections (no ground truth) through the upload pipeline: tile and bottle train/good
     copies, a tile copy with a painted black bar, and a wood train/good copy (wood's model is
     NOT_PRODUCTION_READY, so it goes to MANUAL_REVIEW).
+  * --extra-uploads N (default 25) more upload-style inspections (no ground truth, so only these show AI-only
+    severity scores and review cases) through the same upload pipeline, for the demo products. Each is a copy
+    of a dataset/<category>/train/good image (train/good only), most with a painted black mark: a small spot
+    (~1% of the image), a linear stripe, a medium patch (~5-8%), a large block (~15-25%) or three scattered
+    spots, drawn as a bar, a blob or a square. The rest are plain copies (good). Wood, carpet, screw and pill
+    (NOT_PRODUCTION_READY models, so MANUAL_REVIEW) always get a painted mark, at least 10 other categories
+    get one, and tile and bottle get plain copies (plan_extra_uploads). Fully deterministic: one
+    random.Random(42) chooses the source files, mark positions and sizes; nothing else is random.
+    Painted defects are synthetic demo marks, not real defects; results are demonstration data, not accuracy.
 If the demo products already have inspections, no inspections are added (use --reset --yes to start again).
 
 --reset deletes every inspection in the database plus only the files that belong to them (their uploaded
 images under storage/uploads and heatmaps under storage/heatmaps); users and products are kept. Without
 --yes it prints the counts and stops.
+
+--reset-ids (only with --reset) additionally deletes the DEMO-* products (never users) and restarts the
+inspections and products id sequences at 1 (setval(seq, 1, false); TRUNCATE is not used because defects has
+a foreign key to inspections and is never touched). The products sequence is only restarted when no other
+product is left, so ids can never collide. Without --yes it prints the plan and stops.
 """
 
 import argparse
@@ -42,6 +61,7 @@ import asyncio
 import getpass
 import math
 import os
+import random
 import sys
 import tempfile
 import time
@@ -65,6 +85,37 @@ UPLOAD_FILES = (  # (product category, source category, painted bar?)
     ("wood", "wood", False),
 )
 
+EXTRA_UPLOADS_DEFAULT = 25
+EXTRA_UPLOADS_SEED = 42
+# Painted mark size classes: target fraction of the image area (min, max) the mark covers.
+SIZE_CLASSES = {
+    "small_spot": (0.008, 0.012),
+    "linear_stripe": (0.015, 0.03),
+    "medium_patch": (0.05, 0.08),
+    "large_block": (0.15, 0.25),
+    "scattered_spots": (0.015, 0.024),  # three separate spots, together
+}
+SHAPES_BY_CLASS = {
+    "small_spot": ("blob", "square"),
+    "linear_stripe": ("bar",),
+    "medium_patch": ("blob", "square"),
+    "large_block": ("square",),
+    "scattered_spots": ("blob", "square"),
+}
+# The 25-item mix (cycled when N > 25, first N when smaller): (category, size class or None for plain).
+# Wood, carpet, screw and pill come first with marks big enough to be flagged; plain tile and bottle early.
+EXTRA_UPLOAD_TEMPLATE = (
+    ("wood", "medium_patch"), ("carpet", "medium_patch"), ("screw", "large_block"), ("pill", "large_block"),
+    ("tile", None), ("bottle", None),
+    ("bottle", "small_spot"), ("cable", "linear_stripe"), ("capsule", "medium_patch"), ("grid", "large_block"),
+    ("hazelnut", "scattered_spots"), ("leather", "small_spot"), ("metal_nut", "linear_stripe"),
+    ("tile", "medium_patch"), ("toothbrush", "large_block"), ("transistor", "scattered_spots"),
+    ("zipper", "linear_stripe"),
+    ("cable", None), ("hazelnut", None), ("zipper", None),
+    ("leather", "linear_stripe"), ("tile", "small_spot"), ("carpet", "large_block"), ("wood", "scattered_spots"),
+    ("bottle", "linear_stripe"),
+)
+
 
 # ---------------------------------------------------------------------------
 # Pure helpers (unit-tested; no database)
@@ -79,7 +130,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--days", type=int, default=14, help="spread demo timestamps over this many days (default 14)")
     parser.add_argument("--per-category", type=int, default=8, help="dataset imports per MVTec category (default 8)")
     parser.add_argument("--reset", action="store_true", help="wipe ALL inspections first (needs --yes)")
+    parser.add_argument("--reset-ids", action="store_true",
+                        help="with --reset: also delete the DEMO-* products and restart inspection/product ids at 1")
     parser.add_argument("--yes", action="store_true", help="confirm --reset")
+    parser.add_argument("--extra-uploads", type=int, default=EXTRA_UPLOADS_DEFAULT,
+                        help=f"extra upload-style inspections with painted demo marks (default {EXTRA_UPLOADS_DEFAULT})")
     parser.add_argument("--dry-run", action="store_true", help="print the plan only")
     return parser
 
@@ -90,6 +145,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         build_parser().error("--days must be at least 1")
     if args.per_category < 1:
         build_parser().error("--per-category must be at least 1")
+    if args.extra_uploads < 0:
+        build_parser().error("--extra-uploads must be 0 or more")
+    if args.reset_ids and not args.reset:
+        build_parser().error("--reset-ids needs --reset")
     return args
 
 
@@ -159,6 +218,118 @@ def spread_timestamps(count: int, days: int, now: datetime) -> list[datetime]:
     return [start + step * (i + 1) for i in range(count)]
 
 
+def merge_timeline(imports: list, uploads: list) -> list:
+    """Imports and uploads in one display order, the uploads spread evenly between the imports (upload j at
+    position floor((j + 0.5) * total / len(uploads))), so every part of the demo period has both kinds.
+    Relative order inside each list is kept."""
+    total = len(imports) + len(uploads)
+    if not uploads:
+        return list(imports)
+    upload_slots = {math.floor((j + 0.5) * total / len(uploads)) for j in range(len(uploads))}
+    pending_imports, pending_uploads = iter(imports), iter(uploads)
+    return [next(pending_uploads) if i in upload_slots else next(pending_imports) for i in range(total)]
+
+
+@dataclass(frozen=True)
+class PaintSpec:
+    """A synthetic demo mark: shape ("bar", "blob" or "square") and boxes (x0, y0, x1, y1) as fractions of the
+    image width/height. Synthetic demo marks, not real defects."""
+    size_class: str
+    shape: str
+    boxes: tuple[tuple[float, float, float, float], ...]
+
+
+def _place(rng: random.Random, w: float, h: float, lo: float = 0.1, hi: float = 0.9) -> tuple[float, float, float, float]:
+    x0 = rng.uniform(lo, hi - w) if hi - w > lo else (1 - w) / 2
+    y0 = rng.uniform(lo, hi - h) if hi - h > lo else (1 - h) / 2
+    return (x0, y0, x0 + w, y0 + h)
+
+
+def _shape_dims(shape: str, fraction: float, rng: random.Random) -> tuple[float, float]:
+    """(w, h) as image fractions so the shape covers `fraction` of the image area."""
+    if shape == "square":
+        side = math.sqrt(fraction)
+        return side, side
+    if shape == "blob":  # ellipse: area = pi/4 * w * h
+        ratio = rng.uniform(0.7, 1.4)
+        w = math.sqrt(4 * fraction / math.pi * ratio)
+        return w, 4 * fraction / (math.pi * w)
+    length = rng.uniform(0.55, 0.75)  # bar: long and thin (aspect >= 10)
+    thickness = fraction / length
+    return (length, thickness) if rng.random() < 0.5 else (thickness, length)
+
+
+def make_paint_spec(size_class: str, rng: random.Random) -> PaintSpec:
+    """A deterministic (given rng's state) mark of one size class; the covered area is drawn from the middle
+    of the class's range."""
+    lo, hi = SIZE_CLASSES[size_class]
+    fraction = rng.uniform(lo + (hi - lo) * 0.15, hi - (hi - lo) * 0.15)
+    shape = rng.choice(SHAPES_BY_CLASS[size_class])
+    if size_class != "scattered_spots":
+        return PaintSpec(size_class, shape, (_place(rng, *_shape_dims(shape, fraction, rng)),))
+    boxes = []  # three spots, one in each of three separate thirds of the image (left/middle/right columns)
+    for column in range(3):
+        w, h = _shape_dims(shape, fraction / 3, rng)
+        x_lo, x_hi = 0.05 + column / 3, (column + 1) / 3 - 0.05
+        x0 = rng.uniform(x_lo, max(x_lo, x_hi - w))
+        y0 = rng.uniform(0.1, 0.9 - h)
+        boxes.append((x0, y0, x0 + w, y0 + h))
+    return PaintSpec(size_class, shape, tuple(boxes))
+
+
+def _pixel_box(box: tuple[float, float, float, float], width: int, height: int) -> list[int]:
+    x0, y0, x1, y1 = box
+    return [round(x0 * width), round(y0 * height), round(x1 * width) - 1, round(y1 * height) - 1]
+
+
+def paint_mask(spec: PaintSpec, size: tuple[int, int]):
+    """The mark as a PIL "L" mask (255 = painted) for an image of `size`."""
+    from PIL import Image, ImageDraw
+
+    mask = Image.new("L", size, 0)
+    draw = ImageDraw.Draw(mask)
+    for box in spec.boxes:
+        pixels = _pixel_box(box, *size)
+        if spec.shape == "blob":
+            draw.ellipse(pixels, fill=255)
+        else:
+            draw.rectangle(pixels, fill=255)
+    return mask
+
+
+def painted_area_fraction(spec: PaintSpec, size: tuple[int, int]) -> float:
+    histogram = paint_mask(spec, size).histogram()
+    return histogram[255] / (size[0] * size[1])
+
+
+def paint_defect(image, spec: PaintSpec):
+    """A copy of `image` with the mark painted black (same size and mode)."""
+    painted = image.copy()
+    black = 0 if painted.mode in ("L", "1", "I", "F") else (0,) * len(painted.getbands())
+    painted.paste(black, (0, 0), paint_mask(spec, painted.size))
+    return painted
+
+
+def plan_extra_uploads(count: int, files_by_category: dict[str, list[str]], seed: int = EXTRA_UPLOADS_SEED) -> list:
+    """`count` upload-style items from EXTRA_UPLOAD_TEMPLATE (cycled), each with a train/good source file and,
+    unless plain, a PaintSpec. One random.Random(seed) picks the files (no file used twice per category while
+    any is left), the marks and the final order; the same inputs always give the same plan."""
+    rng = random.Random(seed)
+    used = {category: set() for category in files_by_category}
+    items = []
+    for i in range(count):
+        category, size_class = EXTRA_UPLOAD_TEMPLATE[i % len(EXTRA_UPLOAD_TEMPLATE)]
+        files = sorted(files_by_category[category])
+        unused = [f for f in files if f not in used[category]] or files
+        filename = rng.choice(unused)
+        used[category].add(filename)
+        spec = make_paint_spec(size_class, rng) if size_class else None
+        items.append(PlannedInspection("upload", category, filename=filename, painted=spec is not None,
+                                       source_category=category, paint=spec))
+    rng.shuffle(items)
+    return items
+
+
 def password_from(env_name: str, prompt_label: str, prompt=getpass.getpass) -> str:
     """The password from `env_name`, or typed twice through getpass. Never echoed, printed or logged."""
     value = os.environ.get(env_name)
@@ -188,6 +359,7 @@ class PlannedInspection:
     filename: str | None = None
     painted: bool = False
     source_category: str | None = None
+    paint: PaintSpec | None = None  # extra uploads: the synthetic demo mark (None = plain copy)
 
 
 def demo_product_code(category: str) -> str:
@@ -198,7 +370,7 @@ def demo_product_name(category: str) -> str:
     return f"{category.replace('_', ' ').title()} Demo Product"
 
 
-def build_plan(per_category: int) -> list[PlannedInspection]:
+def build_plan(per_category: int, extra_uploads: int = 0) -> list[PlannedInspection]:
     from app.dataset.categories import MVTEC_CATEGORIES
     from app.dataset.service import list_defect_types, list_images
 
@@ -207,12 +379,21 @@ def build_plan(per_category: int) -> list[PlannedInspection]:
         files = {entry["defect_type"]: list_images(category, DEMO_SPLIT, entry["defect_type"])
                  for entry in list_defect_types(category, DEMO_SPLIT)}
         by_category[category] = [PlannedInspection("import", category, t, f) for t, f in select_images(files, per_category)]
-    plan = interleave(by_category)
-    plan += [PlannedInspection("upload", product, painted=painted, source_category=source) for product, source, painted in UPLOAD_FILES]
-    return plan
+    uploads = [PlannedInspection("upload", product, filename="000.png", painted=painted, source_category=source)
+               for product, source, painted in UPLOAD_FILES]
+    train_good = {category: list_images(category, "train", GOOD) for category in sorted(MVTEC_CATEGORIES)}
+    uploads += plan_extra_uploads(extra_uploads, train_good)
+    return merge_timeline(interleave(by_category), uploads)
 
 
-def print_reset_plan(db) -> tuple[int, int, int]:
+def upload_label(item: PlannedInspection) -> str:
+    stem = Path(item.filename).stem
+    if item.paint is not None:
+        return f"{item.source_category}_train_good_{stem}_painted_{item.paint.size_class}_{item.paint.shape}.png"
+    return f"{item.source_category}_train_good_{stem}{'_painted_bar' if item.painted else ''}.png"
+
+
+def print_reset_plan(db, reset_ids: bool = False) -> tuple[int, int, int]:
     from sqlalchemy import func, select
 
     from app.models.inspection import Inspection, InspectionSource
@@ -222,8 +403,40 @@ def print_reset_plan(db) -> tuple[int, int, int]:
     heatmaps = db.scalar(select(func.count()).select_from(Inspection).where(Inspection.heatmap_path.is_not(None)))
     print(f"--reset would delete ALL {total} inspections: {uploads} uploads (their image files under storage/uploads), "
           f"{total - uploads} dataset imports (dataset files are never touched) and {heatmaps} heatmap files. "
-          "Users and products are kept.")
+          f"Users are kept{'' if reset_ids else ' and products are kept'}.")
+    if reset_ids:
+        from app.models.product import Product
+
+        demo = db.scalar(select(func.count()).select_from(Product).where(Product.product_code.like(DEMO_CODE_PATTERN)))
+        other = db.scalar(select(func.count()).select_from(Product).where(Product.product_code.not_like(DEMO_CODE_PATTERN)))
+        products_note = "(no other products exist)" if not other else f"- NOT done: {other} non-demo products exist"
+        print(f"--reset-ids would also delete the {demo} DEMO-* products (users are never touched), restart the "
+              f"inspections id sequence at 1 and the products id sequence at 1 {products_note}.")
     return total, uploads, heatmaps
+
+
+DEMO_CODE_PATTERN = "DEMO-%"
+RESET_SEQUENCE_TABLES = ("inspections", "products")
+
+
+def reset_ids(db) -> dict:
+    """After reset_inspections: delete the DEMO-* products and restart the inspections and products id sequences
+    at 1. Only these two tables are touched (never users or defects); a sequence is restarted only when its
+    table is empty, so ids can never collide."""
+    from sqlalchemy import text
+
+    stats = {"demo_products": db.execute(text("DELETE FROM products WHERE product_code LIKE :pattern"),
+                                         {"pattern": DEMO_CODE_PATTERN}).rowcount}
+    for table in RESET_SEQUENCE_TABLES:
+        remaining = db.execute(text(f"SELECT count(*) FROM {table}")).scalar()
+        if remaining:
+            stats[f"{table}_sequence"] = f"kept ({remaining} rows left)"
+            continue
+        sequence = db.execute(text("SELECT pg_get_serial_sequence(:table, 'id')"), {"table": table}).scalar()
+        db.execute(text("SELECT setval(CAST(:sequence AS regclass), 1, false)"), {"sequence": sequence})
+        stats[f"{table}_sequence"] = "restarted at 1"
+    db.commit()
+    return stats
 
 
 def reset_inspections(db) -> dict:
@@ -331,9 +544,25 @@ def painted_copy(source: Path, target: Path) -> Path:
     return target
 
 
+def write_upload_copy(item: PlannedInspection, source: Path, target: Path) -> Path:
+    """The upload file for one planned upload: a byte copy of the train/good image, the legacy diagonal bar
+    (base tile upload) or the item's synthetic demo mark (extra uploads)."""
+    from PIL import Image
+
+    if item.paint is not None:
+        with Image.open(source) as im:
+            im.load()
+            paint_defect(im, item.paint).save(target)
+    elif item.painted:
+        painted_copy(source, target)
+    else:
+        target.write_bytes(source.read_bytes())
+    return target
+
+
 def create_inspections(db, plan: list[PlannedInspection], products: dict, qe_user, timestamps: list[datetime]) -> list:
-    """Create every planned inspection through the API's own handlers, grouped by category (so each model is
-    loaded once), then set its demo timestamp."""
+    """Create every planned inspection through the API's own handlers, in plan (= timestamp) order so ids and
+    dates increase together, then set its demo timestamp."""
     from starlette.datastructures import UploadFile
 
     from app.inspections.router import _process_upload, import_dataset_inspection
@@ -341,7 +570,7 @@ def create_inspections(db, plan: list[PlannedInspection], products: dict, qe_use
     from app.inspections.storage import DATASET_ROOT
 
     created = [None] * len(plan)
-    order = sorted(range(len(plan)), key=lambda i: (plan[i].kind, plan[i].category, i))
+    order = range(len(plan))
     with tempfile.TemporaryDirectory(prefix="visioninspect_seed_") as tmp:
         for count, index in enumerate(order, start=1):
             item = plan[index]
@@ -351,13 +580,9 @@ def create_inspections(db, plan: list[PlannedInspection], products: dict, qe_use
                                                defect_type=item.defect_type, filename=item.filename)
                 inspection = import_dataset_inspection(payload, db=db, current_user=qe_user)
             else:
-                source = DATASET_ROOT / item.source_category / "train" / "good" / "000.png"
-                name = f"{item.source_category}_train_good_000{'_painted_bar' if item.painted else ''}.png"
-                local = Path(tmp) / name
-                if item.painted:
-                    painted_copy(source, local)
-                else:
-                    local.write_bytes(source.read_bytes())
+                source = DATASET_ROOT / item.source_category / "train" / GOOD / item.filename
+                name = upload_label(item)
+                local = write_upload_copy(item, source, Path(tmp) / name)
                 with open(local, "rb") as handle:
                     upload = UploadFile(file=handle, filename=name, size=local.stat().st_size)
                     inspection = asyncio.run(_process_upload(db, product.id, upload, time.perf_counter()))
@@ -367,7 +592,7 @@ def create_inspections(db, plan: list[PlannedInspection], products: dict, qe_use
             db.refresh(inspection)
             created[index] = inspection
             label = f"{item.defect_type}/{item.filename}" if item.kind == "import" else name
-            print(f"  [{count:>3}/{len(plan)}] {item.kind:<6} {item.category:<11} {label:<38} -> "
+            print(f"  [{count:>3}/{len(plan)}] id {inspection.id:>5} {item.kind:<6} {item.category:<11} {label:<58} -> "
                   f"{inspection.ai_prediction or 'no AI':<9} {inspection.quality_decision}")
     return created
 
@@ -389,9 +614,12 @@ def print_summary(db) -> None:
     table("Inspections by category", by_category)
     for column, title in ((Inspection.source, "by source"), (Inspection.quality_decision, "by quality decision"),
                           (Inspection.ai_prediction, "by AI prediction"), (Inspection.review_required, "by review_required"),
-                          (Inspection.severity_level, "by severity level")):
+                          (Inspection.severity_level, "by severity level"),
+                          (Inspection.localization["defect_form"].as_string(), "by defect form")):
         rows = db.execute(select(column, func.count()).group_by(column).order_by(func.count().desc())).all()
         table(f"Inspections {title}", [(getattr(k, "value", k), v) for k, v in rows])
+    min_id, max_id = db.execute(select(func.min(Inspection.id), func.max(Inspection.id))).one()
+    print(f"\nInspection ids: {min_id} .. {max_id}")
     summary = get_inspection_analytics_summary(db)
     rate = summary.automation_rate
     print(f"\nAutomation rate: {rate:.1%}" if rate is not None else "\nAutomation rate: n/a")
@@ -420,7 +648,7 @@ def main(argv: list[str] | None = None) -> int:
     with SessionLocal() as db:
         print(f"Database: {db.get_bind().url.database}")
         if args.reset:
-            print_reset_plan(db)
+            print_reset_plan(db, args.reset_ids)
             if not require_yes_for_reset(args.reset, args.yes):
                 print("Refusing to reset without --yes. Nothing was changed.")
                 return 1
@@ -428,13 +656,15 @@ def main(argv: list[str] | None = None) -> int:
                 print("(dry run: not resetting)")
             else:
                 print("Reset done:", reset_inspections(db))
+                if args.reset_ids:
+                    print("Id reset done:", reset_ids(db))
 
         users = ensure_users(db, args, args.dry_run)
         print(f"QE {args.qe_email}: {users['qe']}; supervisor {args.supervisor_email}: {users['supervisor']}")
         products, created_codes, kept_codes = ensure_products(db, args.dry_run)
         print(f"Products: {len(created_codes)} {'would be ' if args.dry_run else ''}created, {len(kept_codes)} kept")
 
-        plan = build_plan(args.per_category)
+        plan = build_plan(args.per_category, args.extra_uploads)
         timestamps = spread_timestamps(len(plan), args.days, datetime.now(timezone.utc).replace(microsecond=0))
         existing = 0
         product_ids = [p.id for p in products.values() if p is not None]
@@ -444,8 +674,7 @@ def main(argv: list[str] | None = None) -> int:
               f"{sum(p.kind == 'upload' for p in plan)} uploads, {timestamps[0]:%Y-%m-%d %H:%M} .. {timestamps[-1]:%Y-%m-%d %H:%M} UTC")
         if args.dry_run:
             for item, stamp in zip(plan, timestamps):
-                label = f"{item.defect_type}/{item.filename}" if item.kind == "import" else (
-                    f"{item.source_category} train/good{' + painted bar' if item.painted else ''}")
+                label = f"{item.defect_type}/{item.filename}" if item.kind == "import" else upload_label(item)
                 print(f"  {stamp:%Y-%m-%d %H:%M}  {item.kind:<6} {item.category:<11} {label}")
             return 0
         if existing:

@@ -253,3 +253,230 @@ def test_timestamps_cover_most_days():
 def test_demo_product_naming():
     assert seed.demo_product_code("metal_nut") == "DEMO-METAL_NUT-001"
     assert seed.demo_product_name("metal_nut") == "Metal Nut Demo Product"
+
+
+# ---------------------------------------------------------------------------
+# --reset-ids
+# ---------------------------------------------------------------------------
+
+def test_reset_ids_flags():
+    args = seed.parse_args(REQUIRED)
+    assert (args.reset_ids, args.extra_uploads) == (False, 25)
+    args = seed.parse_args(REQUIRED + ["--reset", "--reset-ids", "--yes", "--extra-uploads", "0"])
+    assert (args.reset, args.reset_ids, args.yes, args.extra_uploads) == (True, True, True, 0)
+    with pytest.raises(SystemExit):
+        seed.parse_args(REQUIRED + ["--reset-ids", "--yes"])  # --reset-ids needs --reset
+    with pytest.raises(SystemExit):
+        seed.parse_args(REQUIRED + ["--extra-uploads", "-1"])
+
+
+def test_reset_ids_without_yes_changes_nothing(capsys):
+    """Runs main() against the (separate) test database: it prints the plan (users never touched) and refuses;
+    users (hashes included), products, inspections and both id sequences are unchanged."""
+    from sqlalchemy import text
+
+    from app.database import SessionLocal
+
+    def snapshot():
+        with SessionLocal() as db:
+            return {
+                "users": db.execute(text("SELECT id, name, email, role, password_hash FROM users ORDER BY id")).all(),
+                "products": db.execute(text("SELECT id, product_code FROM products ORDER BY id")).all(),
+                "inspections": db.execute(text("SELECT count(*), max(id) FROM inspections")).one(),
+                "sequences": [db.execute(text(f"SELECT last_value, is_called FROM {t}_id_seq")).one()
+                              for t in ("inspections", "products", "users")],
+            }
+
+    before = snapshot()
+    assert seed.main(REQUIRED + ["--reset", "--reset-ids", "--extra-uploads", "3"]) == 1
+    out = capsys.readouterr().out
+    assert "--reset-ids would also delete the" in out and "users are never touched" in out
+    assert "Refusing to reset without --yes. Nothing was changed." in out
+    assert snapshot() == before
+
+
+class _Result:
+    def __init__(self, value, rowcount):
+        self._value, self.rowcount = value, rowcount
+
+    def scalar(self):
+        return self._value
+
+
+class _RecordingSession:
+    """Stands in for a Session: records every SQL statement; table counts come from `remaining`."""
+
+    def __init__(self, remaining):
+        self.statements, self.remaining, self.committed = [], remaining, False
+
+    def execute(self, statement, params=None):
+        sql = str(statement)
+        self.statements.append((sql, params))
+        if sql.startswith("SELECT count(*) FROM "):
+            value = self.remaining[sql.rsplit(" ", 1)[1]]
+        elif "pg_get_serial_sequence" in sql:
+            value = f"public.{params['table']}_id_seq"
+        else:
+            value = None
+        return _Result(value, rowcount=15)
+
+    def commit(self):
+        self.committed = True
+
+
+def test_reset_ids_touches_only_demo_products_and_the_two_sequences():
+    db = _RecordingSession({"inspections": 0, "products": 0})
+    stats = seed.reset_ids(db)
+    assert stats == {"demo_products": 15, "inspections_sequence": "restarted at 1", "products_sequence": "restarted at 1"}
+    assert db.committed
+    sql = " ".join(s for s, _ in db.statements).lower()
+    for forbidden in ("users", "defects", "truncate", "drop", "alter", "update"):
+        assert forbidden not in sql
+    deletes = [(s, p) for s, p in db.statements if s.startswith("DELETE")]
+    assert deletes == [("DELETE FROM products WHERE product_code LIKE :pattern", {"pattern": "DEMO-%"})]
+    setvals = [(s, p["sequence"]) for s, p in db.statements if "setval" in s]
+    assert [name for _, name in setvals] == ["public.inspections_id_seq", "public.products_id_seq"]
+    assert all("1, false" in s for s, _ in setvals)
+
+
+def test_reset_ids_keeps_a_sequence_whose_table_is_not_empty():
+    db = _RecordingSession({"inspections": 0, "products": 2})
+    stats = seed.reset_ids(db)
+    assert stats["products_sequence"] == "kept (2 rows left)"
+    assert [p["sequence"] for s, p in db.statements if "setval" in s] == ["public.inspections_id_seq"]
+
+
+# ---------------------------------------------------------------------------
+# Painted demo marks and the extra-upload plan
+# ---------------------------------------------------------------------------
+
+TRAIN_GOOD = {c: [f"{i:03d}.png" for i in range(30)] for c in (
+    "bottle", "cable", "capsule", "carpet", "grid", "hazelnut", "leather", "metal_nut", "pill", "screw", "tile",
+    "toothbrush", "transistor", "wood", "zipper")}
+
+
+def _png_bytes(image) -> bytes:
+    from io import BytesIO
+
+    buffer = BytesIO()
+    image.save(buffer, "PNG")
+    return buffer.getvalue()
+
+
+@pytest.mark.parametrize("size_class", sorted(seed.SIZE_CLASSES))
+@pytest.mark.parametrize("size", [(800, 800), (840, 840), (900, 900), (1024, 1024)])
+def test_painted_area_fraction_is_within_its_size_class(size_class, size):
+    import random
+
+    lo, hi = seed.SIZE_CLASSES[size_class]
+    rng = random.Random(42)
+    for _ in range(60):
+        spec = seed.make_paint_spec(size_class, rng)
+        assert spec.size_class == size_class and spec.shape in seed.SHAPES_BY_CLASS[size_class]
+        assert len(spec.boxes) == (3 if size_class == "scattered_spots" else 1)
+        assert all(0 <= x0 < x1 <= 1 and 0 <= y0 < y1 <= 1 for x0, y0, x1, y1 in spec.boxes)
+        assert lo <= seed.painted_area_fraction(spec, size) <= hi
+
+
+def test_size_classes_match_the_requested_sizes():
+    assert seed.SIZE_CLASSES["small_spot"][0] < 0.01 < seed.SIZE_CLASSES["small_spot"][1]
+    assert seed.SIZE_CLASSES["medium_patch"] == (0.05, 0.08)
+    assert seed.SIZE_CLASSES["large_block"] == (0.15, 0.25)
+    assert seed.SHAPES_BY_CLASS["linear_stripe"] == ("bar",)
+
+
+def test_linear_stripes_are_long_and_thin():
+    import random
+
+    rng = random.Random(42)
+    for _ in range(50):
+        (x0, y0, x1, y1), = seed.make_paint_spec("linear_stripe", rng).boxes
+        w, h = x1 - x0, y1 - y0
+        assert max(w, h) / min(w, h) >= 10
+
+
+@pytest.mark.parametrize("mode, colour, black", [("RGB", (200, 180, 160), (0, 0, 0)), ("L", 200, 0)])
+def test_paint_defect_is_deterministic_and_only_blackens_the_mark(mode, colour, black):
+    import random
+
+    from PIL import Image
+
+    image = Image.new(mode, (256, 256), colour)
+    spec = seed.make_paint_spec("medium_patch", random.Random(42))
+    assert spec == seed.make_paint_spec("medium_patch", random.Random(42))
+    painted = seed.paint_defect(image, spec)
+    assert _png_bytes(painted) == _png_bytes(seed.paint_defect(image, spec))
+    assert (painted.mode, painted.size) == (mode, image.size)
+    assert image.getcolors() == [(256 * 256, colour)]  # the source image is not modified
+    mask = seed.paint_mask(spec, image.size)
+    for xy in [(x, y) for x in range(0, 256, 8) for y in range(0, 256, 8)]:
+        assert painted.getpixel(xy) == (black if mask.getpixel(xy) else colour)
+
+
+def test_extra_upload_plan_is_deterministic_and_has_the_required_mix():
+    plan = seed.plan_extra_uploads(25, TRAIN_GOOD)
+    assert plan == seed.plan_extra_uploads(25, TRAIN_GOOD)
+    assert plan == seed.plan_extra_uploads(25, {c: list(reversed(v)) for c, v in TRAIN_GOOD.items()})
+    assert len(plan) == 25 and all(p.kind == "upload" and p.source_category == p.category for p in plan)
+    painted = [p for p in plan if p.paint is not None]
+    plain = [p for p in plan if p.paint is None]
+    assert all(p.painted for p in painted) and not any(p.painted for p in plain)
+    painted_categories = {p.category for p in painted}
+    assert {"wood", "carpet", "screw", "pill"} <= painted_categories
+    assert len(painted_categories - {"wood", "carpet", "screw", "pill"}) >= 10
+    assert 4 <= len(plain) <= 6 and {"tile", "bottle"} <= {p.category for p in plain}
+    assert len({p.category for p in plain}) >= 3
+    assert {p.paint.size_class for p in painted} == set(seed.SIZE_CLASSES)  # every size class occurs
+    assert all(p.filename in TRAIN_GOOD[p.category] for p in plan)  # train/good sources only
+    picks = [(p.category, p.filename) for p in plan]
+    assert len(set(picks)) == len(picks)  # no source image used twice
+    assert seed.plan_extra_uploads(25, TRAIN_GOOD, seed=7) != plan  # the seed is what fixes the choices
+
+
+@pytest.mark.parametrize("count", [0, 3, 40])
+def test_extra_upload_plan_sizes(count):
+    plan = seed.plan_extra_uploads(count, TRAIN_GOOD)
+    assert len(plan) == count
+    if count >= 4:
+        assert {"wood", "carpet", "screw", "pill"} <= {p.category for p in plan if p.paint is not None}
+
+
+def test_upload_labels():
+    import random
+
+    spec = seed.make_paint_spec("large_block", random.Random(42))
+    item = seed.PlannedInspection("upload", "pill", filename="214.png", painted=True, source_category="pill", paint=spec)
+    assert seed.upload_label(item) == "pill_train_good_214_painted_large_block_square.png"
+    legacy = seed.PlannedInspection("upload", "tile", filename="000.png", painted=True, source_category="tile")
+    assert seed.upload_label(legacy) == "tile_train_good_000_painted_bar.png"
+
+
+# ---------------------------------------------------------------------------
+# Timeline: imports and uploads interleaved, timestamps monotonic
+# ---------------------------------------------------------------------------
+
+def test_merge_timeline_spreads_uploads_and_keeps_order():
+    imports = [("import", i) for i in range(120)]
+    uploads = [("upload", j) for j in range(29)]
+    order = seed.merge_timeline(imports, uploads)
+    assert len(order) == 149
+    assert [x for x in order if x[0] == "import"] == imports
+    assert [x for x in order if x[0] == "upload"] == uploads
+    positions = [i for i, x in enumerate(order) if x[0] == "upload"]
+    assert all(4 <= b - a <= 6 for a, b in zip(positions, positions[1:]))  # evenly spaced
+    assert seed.merge_timeline(imports, []) == imports
+    assert seed.merge_timeline([], uploads) == uploads
+
+
+@pytest.mark.parametrize("days", [7, 14])
+def test_every_day_has_imports_and_uploads(days):
+    now = datetime(2026, 10, 6, 12, 0, tzinfo=timezone.utc)
+    order = seed.merge_timeline(["import"] * 120, ["upload"] * 29)
+    stamps = seed.spread_timestamps(len(order), days, now)
+    assert all(a < b for a, b in zip(stamps, stamps[1:]))
+    assert all(now - timedelta(days=days) < s < now for s in stamps)
+    kinds_by_day = {}
+    for kind, stamp in zip(order, stamps):
+        kinds_by_day.setdefault(stamp.date(), set()).add(kind)
+    assert len(kinds_by_day) >= days
+    assert all(kinds == {"import", "upload"} for kinds in kinds_by_day.values())
