@@ -4,10 +4,11 @@ import { Box, CheckCircle2, XCircle, ScanEye, ArrowRight, AlertCircle } from "lu
 import { Modal } from "../Modal/Modal";
 import { Card } from "../Card/Card";
 import { Badge } from "../Badge/Badge";
+import { StatusBadge } from "../StatusBadge/StatusBadge";
 import { Button } from "../Button/Button";
 import { Skeleton } from "../Skeleton/Skeleton";
 import { EmptyState } from "../EmptyState/EmptyState";
-import { statusLabel, statusTone, sourceLabel, sourceTone } from "../../utils/badgeMaps";
+import { sourceLabel, sourceTone } from "../../utils/badgeMaps";
 import { formatDateTime } from "../../utils/formatDate";
 import styles from "./ProductDetailModal.module.css";
 
@@ -137,7 +138,7 @@ export function ProductDetailModal({ product, inspections, isLoading, error, ope
               </div>
               <div className={styles.rowBadges}>
                 <Badge tone={sourceTone(inspection.source)}>{sourceLabel(inspection.source)}</Badge>
-                <Badge tone={statusTone(inspection.status)}>{statusLabel(inspection.status)}</Badge>
+                <StatusBadge status={inspection.status} />
               </div>
               <Button
                 size="sm"

@@ -117,14 +117,15 @@ describe("TrendChart", () => {
 });
 
 describe("ActivityChart", () => {
-  it("renders the backend's per-day series with the Passed / Failed / Pending legend", () => {
+  it("renders the backend's per-day series with the Passed / Failed / Unlabelled legend (data key stays 'pending')", () => {
     const days = makeDays(14, () => ({ total: 4, good: 2, defective: 1, pending: 1 }));
 
     render(<ActivityChart days={days} />);
 
     expect(screen.getByText("Passed")).toBeInTheDocument();
     expect(screen.getByText("Failed")).toBeInTheDocument();
-    expect(screen.getByText("Pending")).toBeInTheDocument();
+    expect(screen.getByText("Unlabelled")).toBeInTheDocument();
+    expect(screen.queryByText("Pending")).not.toBeInTheDocument();
     expect(screen.getAllByTestId("trend-bar")).toHaveLength(14);
   });
 

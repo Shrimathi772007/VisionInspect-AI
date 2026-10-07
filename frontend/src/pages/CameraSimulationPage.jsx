@@ -8,6 +8,7 @@ import { ApiError } from "../api/client";
 import { PageHeader } from "../components/PageHeader/PageHeader";
 import { Card } from "../components/Card/Card";
 import { Badge } from "../components/Badge/Badge";
+import { StatusBadge } from "../components/StatusBadge/StatusBadge";
 import { Button } from "../components/Button/Button";
 import { Select } from "../components/Select/Select";
 import { Input } from "../components/Input/Input";
@@ -21,8 +22,6 @@ import {
   formatConfidence,
   qualityDecisionLabel,
   qualityDecisionTone,
-  statusLabel,
-  statusTone,
 } from "../utils/badgeMaps";
 import {
   ALL_DEFECT_TYPES,
@@ -395,7 +394,7 @@ export function CameraSimulationPage() {
                         {frame.defectType}/{frame.filename}
                       </td>
                       <td>
-                        <Badge tone={statusTone(inspection.status)}>{statusLabel(inspection.status) || "—"}</Badge>
+                        <StatusBadge status={inspection.status} fallback="—" />
                       </td>
                       <td>
                         {inspection.ai_prediction ? (

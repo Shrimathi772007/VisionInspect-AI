@@ -8,10 +8,17 @@ export const ROLE_TONES = {
   factory_supervisor: "info",
 };
 
+// Display text only: the stored/API status value stays "pending" (an upload without a ground-truth label).
 export const STATUS_LABELS = {
-  pending: "Pending",
+  pending: "Unlabelled",
   good: "Good",
   defective: "Defective",
+};
+
+export const UNLABELLED_STATUS_HINT = "No ground-truth label. The AI prediction is shown separately.";
+
+export const STATUS_HINTS = {
+  pending: UNLABELLED_STATUS_HINT,
 };
 
 export const STATUS_TONES = {
@@ -44,6 +51,11 @@ export function statusLabel(status) {
 
 export function statusTone(status) {
   return STATUS_TONES[status] || "neutral";
+}
+
+/** Tooltip for a status badge, or undefined when the label needs none. */
+export function statusHint(status) {
+  return STATUS_HINTS[status];
 }
 
 export function sourceLabel(source) {
@@ -261,7 +273,7 @@ export function reportStatusTone(status) {
 }
 
 // Dashboard outcome vocabulary - one colour per meaning across the dashboard's charts and badges:
-// Pass / Good green, Fail / Defective red, Manual review amber, Not assessed / Pending grey. Dashboard-only
+// Pass / Good green, Fail / Defective red, Manual review amber, Not assessed / Unlabelled grey. Dashboard-only
 // on purpose: the maps above keep their own tones on the other pages.
 export const OUTCOME_TONES = {
   PASS: "success",

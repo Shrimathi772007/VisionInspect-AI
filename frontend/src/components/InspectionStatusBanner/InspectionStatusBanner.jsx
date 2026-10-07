@@ -1,5 +1,5 @@
 import { CheckCircle2, XCircle, CircleDashed } from "lucide-react";
-import { statusLabel, statusTone } from "../../utils/badgeMaps";
+import { UNLABELLED_STATUS_HINT, statusLabel, statusTone } from "../../utils/badgeMaps";
 import styles from "./InspectionStatusBanner.module.css";
 
 const STATUS_ICONS = {
@@ -11,7 +11,7 @@ const STATUS_ICONS = {
 const STATUS_DESCRIPTIONS = {
   good: "No defects were recorded for this capture.",
   defective: "This capture was flagged as defective.",
-  pending: "This capture is awaiting quality review.",
+  pending: UNLABELLED_STATUS_HINT,
 };
 
 export function InspectionStatusBanner({ status }) {

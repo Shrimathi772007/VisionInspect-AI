@@ -146,8 +146,8 @@ describe("Dashboard layout and presentation", () => {
       "Recent inspections",
       "Quick actions",
     ].forEach((name) => expect(screen.getByRole("heading", { name })).toBeInTheDocument());
-    ["Products", "Inspections", "Pending review", "AI analyzed", "AI defect rate", "Good (ground truth)",
-      "Defective (ground truth)", "Pending (no ground truth yet)", "Manual review", "Automation rate"].forEach((label) =>
+    ["Products", "Inspections", "Unlabelled", "AI analyzed", "AI defect rate", "Good (ground truth)",
+      "Defective (ground truth)", "Unlabelled (no ground truth)", "Manual review", "Automation rate"].forEach((label) =>
       expect(screen.getByText(label, { selector: "p" })).toBeInTheDocument()
     );
   });

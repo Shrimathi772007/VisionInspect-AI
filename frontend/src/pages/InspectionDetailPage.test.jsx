@@ -229,6 +229,22 @@ describe("InspectionDetailPage", () => {
       await loaded();
       expect(screen.queryByRole("heading", { name: "Dataset reference" })).not.toBeInTheDocument();
     });
+
+    it("shows an upload's 'pending' status as Unlabelled in the banner and the badge, never as Pending", async () => {
+      getInspection.mockResolvedValue({ ...UPLOAD_INSPECTION, status: "pending" });
+      renderPage(6);
+      await loaded();
+
+      const hint = "No ground-truth label. The AI prediction is shown separately.";
+      const banner = within(await screen.findByRole("status"));
+      expect(banner.getByText("Unlabelled")).toBeInTheDocument();
+      expect(banner.getByText(hint)).toBeInTheDocument();
+      const badges = screen.getAllByText("Unlabelled").filter((el) => el.tagName === "SPAN");
+      expect(badges).toHaveLength(1);
+      expect(badges[0]).toHaveAttribute("title", hint);
+      expect(screen.queryByText("Pending")).not.toBeInTheDocument();
+      expect(screen.queryByText(/awaiting quality review/)).not.toBeInTheDocument();
+    });
   });
 
   describe("AI prediction card for uploads", () => {

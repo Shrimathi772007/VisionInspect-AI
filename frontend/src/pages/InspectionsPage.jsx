@@ -11,13 +11,12 @@ import { Card } from "../components/Card/Card";
 import { Button } from "../components/Button/Button";
 import { Input } from "../components/Input/Input";
 import { Badge } from "../components/Badge/Badge";
+import { StatusBadge } from "../components/StatusBadge/StatusBadge";
 import { Modal } from "../components/Modal/Modal";
 import { EmptyState } from "../components/EmptyState/EmptyState";
 import { Skeleton } from "../components/Skeleton/Skeleton";
 import { RoleGate } from "../components/RoleGate/RoleGate";
 import {
-  statusLabel,
-  statusTone,
   sourceLabel,
   sourceTone,
   qualityDecisionLabel,
@@ -189,7 +188,7 @@ export function InspectionsPage() {
                     <Badge tone={qualityDecisionTone("MANUAL_REVIEW")}>{qualityDecisionLabel("MANUAL_REVIEW")}</Badge>
                   )}
                   <Badge tone={sourceTone(inspection.source)}>{sourceLabel(inspection.source)}</Badge>
-                  <Badge tone={statusTone(inspection.status)}>{statusLabel(inspection.status)}</Badge>
+                  <StatusBadge status={inspection.status} />
                 </div>
                 <RoleGate allow={["quality_engineer"]}>
                   <button

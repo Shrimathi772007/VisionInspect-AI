@@ -31,6 +31,7 @@ import { PageHeader } from "../components/PageHeader/PageHeader";
 import { StatCard } from "../components/StatCard/StatCard";
 import { Card } from "../components/Card/Card";
 import { Badge } from "../components/Badge/Badge";
+import { StatusBadge } from "../components/StatusBadge/StatusBadge";
 import { Button } from "../components/Button/Button";
 import { EmptyState } from "../components/EmptyState/EmptyState";
 import { ErrorState, Unavailable } from "../components/ErrorState/ErrorState";
@@ -44,7 +45,6 @@ import { TrendChart } from "../components/TrendChart/TrendChart";
 import { CategoryBreakdown } from "../components/CategoryBreakdown/CategoryBreakdown";
 import {
   statusLabel,
-  statusTone,
   defectCategoryLabel,
   defectCategoryTone,
   qualityDecisionDisplayLabel,
@@ -277,11 +277,11 @@ export function DashboardPage() {
           />
           <StatCard
             icon={Clock}
-            label="Pending review"
+            label={statusLabel("pending")}
             value={formatCount(analytics?.by_status?.pending ?? 0)}
             loading={analyticsLoading}
             error={analyticsFailed}
-            note="No ground truth yet"
+            note="No ground-truth label"
             tone="neutral"
             trend={analyticsReady ? pendingTrend : null}
           />
@@ -324,7 +324,7 @@ export function DashboardPage() {
           />
           <StatCard
             icon={Clock}
-            label="Pending (no ground truth yet)"
+            label={`${statusLabel("pending")} (no ground truth)`}
             value={formatCount(analytics?.by_status?.pending ?? 0)}
             loading={analyticsLoading}
             error={analyticsFailed}
@@ -552,7 +552,7 @@ export function DashboardPage() {
               series={[
                 { key: "good", label: "Good", tone: predictionOutcomeTone("good") },
                 { key: "defective", label: "Defective", tone: predictionOutcomeTone("defective") },
-                { key: "pending", label: "Pending", tone: predictionOutcomeTone("pending") },
+                { key: "pending", label: statusLabel("pending"), tone: predictionOutcomeTone("pending") },
               ]}
               ariaLabel="Inspection ground-truth trend"
               emptyIcon={Activity}
@@ -768,7 +768,7 @@ export function DashboardPage() {
                         {product?.product_code} &middot; {formatRelativeTime(inspection.created_at)}
                       </p>
                     </div>
-                    <Badge tone={statusTone(inspection.status)}>{statusLabel(inspection.status)}</Badge>
+                    <StatusBadge status={inspection.status} />
                   </Link>
                 );
               })}

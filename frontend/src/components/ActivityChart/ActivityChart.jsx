@@ -1,10 +1,11 @@
 import { Activity } from "lucide-react";
 import { TrendChart } from "../TrendChart/TrendChart";
+import { statusLabel } from "../../utils/badgeMaps";
 
 const SERIES = [
   { key: "good", label: "Passed", tone: "success" },
   { key: "defective", label: "Failed", tone: "danger" },
-  { key: "pending", label: "Pending", tone: "neutral" },
+  { key: "pending", label: statusLabel("pending"), tone: "neutral" },
 ];
 
 /**

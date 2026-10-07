@@ -176,7 +176,7 @@ describe("DashboardPage", () => {
       renderDashboard();
 
       expect(card("Inspections").getByText("120")).toBeInTheDocument();
-      expect(card("Pending review").getByText("5")).toBeInTheDocument();
+      expect(card("Unlabelled").getByText("5")).toBeInTheDocument();
       expect(card("AI analyzed").getByText("80")).toBeInTheDocument();
       expect(card("AI defect rate").getByText("37.5%")).toBeInTheDocument();
       expect(card("AI defect rate").getByText("Of AI-analyzed inspections")).toBeInTheDocument();
@@ -250,7 +250,7 @@ describe("DashboardPage", () => {
       expect(inspections.getByText("—")).toBeInTheDocument();
       expect(inspections.getByText("Unavailable")).toBeInTheDocument();
       expect(inspections.queryByText("0")).not.toBeInTheDocument();
-      expect(card("Pending review").getByText("Unavailable")).toBeInTheDocument();
+      expect(card("Unlabelled").getByText("Unavailable")).toBeInTheDocument();
     });
 
     it("marks every analytics-backed section as unavailable", () => {

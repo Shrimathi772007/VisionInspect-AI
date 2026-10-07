@@ -13,6 +13,7 @@ import { ApiError } from "../api/client";
 import { useToast } from "../components/Toast/ToastProvider";
 import { Card } from "../components/Card/Card";
 import { Badge } from "../components/Badge/Badge";
+import { StatusBadge } from "../components/StatusBadge/StatusBadge";
 import { Button } from "../components/Button/Button";
 import { Skeleton } from "../components/Skeleton/Skeleton";
 import { ErrorState } from "../components/ErrorState/ErrorState";
@@ -26,8 +27,6 @@ import { LocalizationPanel } from "../components/LocalizationPanel/LocalizationP
 import { SeverityCard } from "../components/SeverityCard/SeverityCard";
 import { EnhancementPreviewCard } from "../components/EnhancementPreviewCard/EnhancementPreviewCard";
 import {
-  statusLabel,
-  statusTone,
   sourceLabel,
   sourceTone,
   aiPredictionLabel,
@@ -326,7 +325,7 @@ export function InspectionDetailPage() {
                 <div className={styles.metaRow}>
                   <dt>Status</dt>
                   <dd>
-                    <Badge tone={statusTone(inspection.status)}>{statusLabel(inspection.status)}</Badge>
+                    <StatusBadge status={inspection.status} />
                   </dd>
                 </div>
                 <div className={styles.metaRow}>

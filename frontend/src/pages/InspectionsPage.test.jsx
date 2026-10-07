@@ -67,6 +67,17 @@ describe("InspectionsPage severity badge", () => {
     expect(rowFor(7).getByText("Severity: Unheard-of")).toBeInTheDocument();
   });
 
+  it("labels an upload without ground truth Unlabelled (with a tooltip) and keeps Good / Defective", () => {
+    renderList([row({ id: 10 }), row({ id: 11, status: "good", source: "mvtec_ad" }),
+      row({ id: 12, status: "defective", source: "mvtec_ad" })]);
+
+    const unlabelled = rowFor(10).getByText("Unlabelled");
+    expect(unlabelled).toHaveAttribute("title", "No ground-truth label. The AI prediction is shown separately.");
+    expect(rowFor(10).queryByText("Pending")).not.toBeInTheDocument();
+    expect(rowFor(11).getByText("Good")).not.toHaveAttribute("title");
+    expect(rowFor(12).getByText("Defective")).not.toHaveAttribute("title");
+  });
+
   it("gives each row's chevron its fixed-size class and a 16px icon", () => {
     renderList([row({ id: 8, review_required: true, quality_decision: "MANUAL_REVIEW" }), row({ id: 9 })]);
 
