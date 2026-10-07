@@ -1,6 +1,7 @@
 """defect_form_v1, severity_v1 and the AI-only quality precedence - pure unit tests on plain values (no model,
 no database, no dataset). Also a frozen copy of the ground-truth (import) quality rules, proving imports keep
-their exact decisions and texts."""
+their exact decisions and texts (rule 1 skips a ground-truth/AI conflict, now that AI-defective imports
+get severity_v1)."""
 
 from itertools import product
 from types import SimpleNamespace
@@ -158,8 +159,19 @@ def test_ai_only_defective_localized_upload_gets_severity_v1():
     assert result.level == "High"
 
 
+@pytest.mark.parametrize("status", ["good", "defective"])
+def test_ai_defective_import_gets_the_same_severity_v1_as_an_upload(status):
+    # The gate depends on the AI result only; the ground-truth status is neither read nor changed.
+    inspection = _inspection(status=status)
+    result = _ai_only_severity(inspection)
+    upload = _ai_only_severity(_inspection())
+    assert (result.score, result.level) == (upload.score, upload.level) == (pytest.approx(61.5), "High")
+    assert inspection.status == status
+
+
 @pytest.mark.parametrize("overrides", [
-    {"status": "good"}, {"status": "defective"},          # imports with ground truth keep their own path
+    {"status": "good", "ai_prediction": "good"},          # imports the AI found good: no severity
+    {"status": "defective", "ai_prediction": "good"},
     {"ai_prediction": "good"}, {"ai_prediction": None},   # good / no AI: no severity
     {"localization": None}, {"localization": {**LOCALIZED, "boxes": []}},
     {"localization": {k: v for k, v in LOCALIZED.items() if k != "defect_form_score"}},
@@ -204,7 +216,7 @@ def test_ai_only_texts_quote_severity_and_its_action():
 
 
 # ---------------------------------------------------------------------------
-# Imports with ground truth: frozen copy of the rules as they were before this task
+# Imports with ground truth: frozen copy of the rules (rule 1 skips a ground-truth/AI conflict)
 # ---------------------------------------------------------------------------
 
 def _frozen_ground_truth_quality(status, ai_prediction, defect_category, severity_level):
@@ -215,10 +227,11 @@ def _frozen_ground_truth_quality(status, ai_prediction, defect_category, severit
             return ["Inspect the product for contamination and verify cleaning or handling procedures."]
         return []
 
-    if severity_level in ("Critical", "High"):
+    conflict = ai_prediction in ("good", "defective") and status != ai_prediction
+    if severity_level in ("Critical", "High") and not conflict:  # a conflict is never auto-failed
         return QualityAssessment(FAIL, "High-severity defect evidence requires review.",
                                  " ".join(["Escalate the inspection for quality review.", *recs(defect_category)]))
-    if ai_prediction in ("good", "defective") and status != ai_prediction:
+    if conflict:
         return QualityAssessment(NOT_ASSESSED, "Conflicting inspection evidence requires review.",
                                  "Conflicting inspection evidence requires quality review.")
     if status == "defective" or ai_prediction == "defective":
@@ -228,6 +241,16 @@ def _frozen_ground_truth_quality(status, ai_prediction, defect_category, severit
                                  " ".join(r or ["Escalate the inspection for quality review."]))
     return QualityAssessment(PASS, "No significant defect evidence identified.",
                              "Product can proceed to the next quality-control stage.")
+
+
+@pytest.mark.parametrize("level", ["Critical", "High"])
+def test_severe_false_positive_import_is_not_assessed_not_failed(level):
+    # Ground truth "good", AI "defective" with a severity_v1 level: the conflict rule decides, not rule 1.
+    result = assess_quality("good", "defective", "good", level, review_required=False, severity_score=90.0)
+    assert result.decision == NOT_ASSESSED
+    assert result.assessment == "Conflicting inspection evidence requires review."
+    # Without the conflict, the same severity still fails as before.
+    assert assess_quality("defective", "defective", "crack", level).decision == FAIL
 
 
 @pytest.mark.parametrize("status, ai, level, category", list(product(

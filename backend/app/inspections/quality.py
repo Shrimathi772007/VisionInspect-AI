@@ -28,13 +28,12 @@ other three without overwriting or being derived by simply copying any one of th
 
 EVIDENCE PRECEDENCE (in order - the first matching rule decides the outcome)
 --------------------------------------------------------------------------------
-1. severity_level is Critical or High
-       -> FAIL. A known-severe defect must never be waved through as PASS, regardless of
-          what status/ai_prediction say (in this system severity is only ever computed
-          from a real defect_category, so this cannot currently contradict a "good"
-          ground truth - see app.inspections.severity - but the check is kept first so it
-          continues to take precedence if severity coverage improves later, per Phase 3's
-          extensibility requirement). quality_risk is a deterministic function of
+1. severity_level is Critical or High, AND rule 2's conflict does not apply
+       -> FAIL. A known-severe defect must never be waved through as PASS. Imports the AI found
+          defective now get severity_v1 from the AI's own localization (app.inspections.severity),
+          so for an AI false positive (ground truth "good", AI "defective") the severity is the
+          AI's claim, not known evidence - that conflict falls through to rule 2 (NOT_ASSESSED)
+          instead of a FAIL against the ground truth. quality_risk is a deterministic function of
           severity_level in this system (see severity.quality_risk_for_level), so checking
           severity_level alone is equivalent and sufficient - there is no independent
           signal in quality_risk today.
@@ -151,20 +150,21 @@ def assess_quality(
     if status not in _GROUND_TRUTH_STATUSES:
         return _assess_ai_only(ai_prediction, severity_level, severity_score, review_required)
 
-    # Rule 1: a known-severe defect always wins, regardless of status/ai_prediction.
-    if severity_level in (CRITICAL, HIGH):
+    has_ground_truth = status in _GROUND_TRUTH_STATUSES
+    ai_available = ai_prediction in (GOOD_PREDICTION, DEFECTIVE_PREDICTION)
+    conflicting = has_ground_truth and ai_available and status != ai_prediction
+
+    # Rule 1: a known-severe defect wins, unless the ground truth contradicts the AI it came from.
+    if severity_level in (CRITICAL, HIGH) and not conflicting:
         return QualityAssessment(
             decision=FAIL,
             assessment="High-severity defect evidence requires review.",
             recommendation=_combine(_ESCALATE_RECOMMENDATION, *_defect_category_recommendations(defect_category)),
         )
 
-    has_ground_truth = status in _GROUND_TRUTH_STATUSES
-    ai_available = ai_prediction in (GOOD_PREDICTION, DEFECTIVE_PREDICTION)
-
     # Rule 2: ground truth and AI evidence both present but disagree - never silently
     # resolved either way.
-    if has_ground_truth and ai_available and status != ai_prediction:
+    if conflicting:
         return QualityAssessment(
             decision=NOT_ASSESSED,
             assessment="Conflicting inspection evidence requires review.",

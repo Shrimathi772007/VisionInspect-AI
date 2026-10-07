@@ -13,7 +13,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from app.ai.inference import DEFECTIVE_PREDICTION, GOOD_PREDICTION, localization, predict_image
+from app.ai.inference import DEFECTIVE_PREDICTION, localization, predict_image
 from app.ai.inference.serving import SERVING_CONFIGS
 from app.ai.preprocessing.patchcore_preprocess import decode_image
 from app.dataset.ground_truth import compute_defect_area_ratio
@@ -216,10 +216,11 @@ def apply_reliability_and_localization(inspection: Inspection, db: Session, resu
 
 
 def _ai_only_severity(inspection: Inspection) -> severity.SeverityAssessment | None:
-    """severity_v1 (app.inspections.severity.assess_ai_severity) for an inspection WITHOUT ground truth
-    whose AI prediction is defective and whose localization has regions and a defect form; None otherwise
-    (imports with ground truth keep the ground-truth path, good predictions get no severity). Never raises."""
-    if inspection.status in (GOOD_PREDICTION, DEFECTIVE_PREDICTION) or inspection.ai_prediction != DEFECTIVE_PREDICTION:
+    """severity_v1 (app.inspections.severity.assess_ai_severity) for an inspection whose AI prediction is
+    defective and whose localization has regions and a defect form - uploads and MVTec imports alike, since
+    it depends only on the AI result, never on the ground-truth status (which it never reads or changes).
+    None otherwise (good predictions and unlocalized results get no severity). Never raises."""
+    if inspection.ai_prediction != DEFECTIVE_PREDICTION:
         return None
     located = inspection.localization if isinstance(inspection.localization, dict) else None
     if not located or not located.get("boxes") or located.get("defect_form_score") is None:
@@ -247,9 +248,9 @@ def apply_severity_assessment(inspection: Inspection, db: Session) -> None:
     evidence" (see compute_defect_area_ratio) rather than a failure, so severity assessment
     can never block inspection creation.
 
-    Inspections WITHOUT ground truth (uploads) that the AI found defective and localized are instead
-    scored by severity_v1 from their localization, defect form and confidence (see _ai_only_severity);
-    for everything else this is exactly the ground-truth path above.
+    Inspections the AI found defective and localized (uploads and imports alike) are instead scored by
+    severity_v1 from their localization, defect form and confidence (see _ai_only_severity); for
+    everything else this is exactly the ground-truth path above.
     """
     defect_area_ratio = None
     mvtec_parts = _resolve_mvtec_parts(inspection)

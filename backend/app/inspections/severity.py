@@ -63,11 +63,12 @@ will start receiving real scores automatically, with zero changes to the scoring
 
 AI-ONLY INSPECTIONS (severity_v1, later addition)
 --------------------------------------------------
-Uploads have no ground truth, but they now have anomaly-map localization (regions, area, centroid), a
-rule-based defect form and a margin-based confidence. assess_ai_severity (below) scores them from those,
-with the same weights, bands and risk mapping - see the severity_v1 notes for the formulas and their
-limitations (location is a centre-is-functional proxy; region area overestimates the defect). Everything
-above, including the ground-truth path for MVTec imports, is unchanged.
+Every AI-scored inspection (upload or MVTec import) now has anomaly-map localization (regions, area,
+centroid), a rule-based defect form and a margin-based confidence. assess_ai_severity (below) scores the
+AI-defective ones from those, with the same weights, bands and risk mapping - see the severity_v1 notes for
+the formulas and their limitations (location is a centre-is-functional proxy; region area overestimates
+the defect). Everything above is unchanged: the ground-truth path still runs for every inspection and is
+used whenever severity_v1 does not apply.
 """
 
 import math
@@ -274,12 +275,13 @@ def recommended_action_for_level(level: Optional[str]) -> Optional[str]:
 
 
 # ---------------------------------------------------------------------------
-# severity_v1 - AI-only inspections (uploads), from the anomaly-map localization
+# severity_v1 - AI-defective inspections, from the anomaly-map localization
 # ---------------------------------------------------------------------------
 #
-# Applies ONLY to inspections without ground truth whose AI prediction is "defective" and whose
+# Applies to any inspection (upload or MVTec import) whose AI prediction is "defective" and whose
 # localization has at least one region (app.inspections.service.apply_severity_assessment decides that);
-# MVTec imports keep the all-four-required ground-truth path above, unchanged. Each factor is a 0-100
+# it depends only on the AI result and never reads or changes an import's ground-truth status. Everything
+# else keeps the all-four-required ground-truth path above, unchanged. Each factor is a 0-100
 # score; the specification's weights are then applied through calculate_severity_score above
 # (factor * weight / 100), so the bands, clamping and quality_risk mapping are the engine's own:
 #
@@ -374,7 +376,7 @@ def assess_severity(
 
 
 def assess_ai_severity(area_pct, centroid, defect_form_score, ai_confidence) -> SeverityAssessment:
-    """severity_v1 for an AI-only, AI-defective inspection with localization regions (see the severity_v1
+    """severity_v1 for an AI-defective inspection with localization regions (see the severity_v1
     notes above). "Not assessed" (score/level None) when any input is unavailable - never partial."""
     factors = ai_severity_factors(area_pct, centroid, defect_form_score, ai_confidence)
     if factors is None:

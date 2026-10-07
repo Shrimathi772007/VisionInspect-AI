@@ -333,10 +333,12 @@ def test_review_comes_before_a_severity_driven_fail_for_ai_only_inspections():
 
 
 def _pre_task_decision(status, ai_prediction, severity_level):
-    """The decision rules for inspections WITH ground truth, frozen as they were before this task."""
-    if severity_level in ("Critical", "High"):
+    """The decision rules for inspections WITH ground truth, frozen as they were before this task - except
+    that a Critical/High severity no longer overrides a ground-truth/AI conflict (imports now get severity_v1)."""
+    conflict = ai_prediction in ("good", "defective") and status != ai_prediction
+    if severity_level in ("Critical", "High") and not conflict:
         return FAIL
-    if ai_prediction in ("good", "defective") and status != ai_prediction:
+    if conflict:
         return NOT_ASSESSED
     if status == "defective" or ai_prediction == "defective":
         return FAIL

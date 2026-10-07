@@ -271,8 +271,9 @@ def import_dataset_inspection(
     # to fail or roll back the creation above (see app.inspections.service.run_ai_inference).
     run_ai_inference(inspection, db)
 
-    # Severity assessment - see app.inspections.severity for the current all-four-required
-    # policy; MVTec imports have a real defect_category but that alone is not sufficient.
+    # Severity assessment - an import the AI found defective and localized gets severity_v1,
+    # exactly like an upload; otherwise the all-four-required ground-truth path (see
+    # app.inspections.severity). The ground-truth status above is never changed by this.
     apply_severity_assessment(inspection, db)
 
     # Quality assessment runs last so it can reason about the settled ai_prediction/

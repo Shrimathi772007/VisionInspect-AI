@@ -7,17 +7,23 @@ const DEFECT_FORM_NOTE = "Shape-based form derived from the anomaly region; not 
 const SEVERITY_NOTE =
   "Severity is rule-based: size, location (centre-weighted proxy), form and confidence. Region size is approximate.";
 const NO_SEVERITY_AI_ONLY = "No severity: the inspection is good or has no localized region.";
+const NO_SEVERITY_AI_GOOD_IMPORT = "No defect detected by the AI, so severity does not apply.";
 const NO_SEVERITY_GROUND_TRUTH = "Not assessed - insufficient evidence available";
 
 const GROUND_TRUTH_STATUSES = ["good", "defective"];
 
+function noSeverityText(inspection) {
+  if (!GROUND_TRUTH_STATUSES.includes(inspection.status)) return NO_SEVERITY_AI_ONLY;
+  return inspection.ai_prediction === "good" ? NO_SEVERITY_AI_GOOD_IMPORT : NO_SEVERITY_GROUND_TRUTH;
+}
+
 /**
- * Severity assessment of one inspection. For uploads (no ground truth) severity comes from the rule-based
- * severity_v1 (size, location, form, confidence of the anomaly region); imports keep the ground-truth wording.
+ * Severity assessment of one inspection. Severity comes from the rule-based severity_v1 (size, location, form,
+ * confidence of the anomaly region) whenever the AI found a localized defect - uploads and imports alike.
+ * Without a score, an import the AI found good says so; any other import keeps the ground-truth wording.
  */
 export function SeverityCard({ inspection }) {
   const hasScore = Number.isFinite(inspection.severity_score);
-  const isAiOnly = !GROUND_TRUTH_STATUSES.includes(inspection.status);
 
   return (
     <Card className={styles.card}>
@@ -58,7 +64,7 @@ export function SeverityCard({ inspection }) {
           {inspection.defect_form_label && <p className={styles.note}>{DEFECT_FORM_NOTE}</p>}
         </>
       ) : (
-        <p className={styles.fallback}>{isAiOnly ? NO_SEVERITY_AI_ONLY : NO_SEVERITY_GROUND_TRUTH}</p>
+        <p className={styles.fallback}>{noSeverityText(inspection)}</p>
       )}
     </Card>
   );

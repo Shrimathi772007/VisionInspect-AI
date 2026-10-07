@@ -46,9 +46,26 @@ describe("SeverityCard", () => {
     expect(screen.queryByText(SEVERITY_NOTE)).not.toBeInTheDocument();
   });
 
-  it("keeps the ground-truth wording for an import without severity", () => {
-    render(<SeverityCard inspection={{ status: "defective", severity_score: null }} />);
+  it.each(["good", "defective"])("says the AI found no defect for an AI-good import (ground truth %s)", (status) => {
+    render(<SeverityCard inspection={{ status, ai_prediction: "good", severity_score: null }} />);
+    expect(screen.getByText("No defect detected by the AI, so severity does not apply.")).toBeInTheDocument();
+    expect(screen.queryByText("Not assessed - insufficient evidence available")).not.toBeInTheDocument();
+  });
+
+  it("keeps the upload wording for an AI-good upload", () => {
+    render(<SeverityCard inspection={{ status: "pending", ai_prediction: "good", severity_score: null }} />);
+    expect(screen.getByText("No severity: the inspection is good or has no localized region.")).toBeInTheDocument();
+  });
+
+  it.each([null, "defective"])("keeps the ground-truth wording for an import without severity (AI %s)", (ai) => {
+    render(<SeverityCard inspection={{ status: "defective", ai_prediction: ai, severity_score: null }} />);
     expect(screen.getByText("Not assessed - insufficient evidence available")).toBeInTheDocument();
+  });
+
+  it("shows the severity_v1 score for an AI-defective import", () => {
+    render(<SeverityCard inspection={{ ...SCORED, status: "good", ai_prediction: "defective" }} />);
+    expect(screen.getByText("71 / 100")).toBeInTheDocument();
+    expect(screen.getByText(SEVERITY_NOTE)).toBeInTheDocument();
   });
 
   it("omits the defect form rows when there is no form", () => {

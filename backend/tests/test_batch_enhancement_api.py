@@ -1,6 +1,7 @@
-"""Uploads with defect form + severity_v1, POST /inspections/batch, the enhancement preview endpoints, the
-automation rate, and score identity of the upload path. Only synthetic images and copies of
-dataset/<category>/train/good/ images are used (never the test split)."""
+"""Uploads and dataset imports with defect form + severity_v1, POST /inspections/batch, the enhancement
+preview endpoints, the automation rate, and score identity of the upload path. Only synthetic images and
+copies of dataset/<category>/train/good/ images are scored by a real model; the import tests reference
+test/ images but always fake predict_image, so no served model ever sees the test split."""
 
 import io
 import shutil
@@ -84,6 +85,60 @@ def test_good_upload_gets_no_severity_and_no_defect_form(category_products, monk
     assert body["quality_decision"] == "PASS"
     assert body["severity_score"] is None and body["severity_level"] is None
     assert body["defect_form"] is None and "defect_form" not in body["localization"]
+
+
+# ---------------------------------------------------------------------------
+# Dataset imports: severity_v1 follows the AI result, the ground-truth status is never changed
+# (predict_image is faked here, so no served model ever scores a test/ image)
+# ---------------------------------------------------------------------------
+
+def _import(category_products, defect_type, split="test", filename="000.png"):
+    product = category_products.create(category="tile")
+    response = category_products.client.post(
+        "/inspections/import",
+        headers=category_products.qe_headers,
+        json={"product_id": product["id"], "category": "tile", "split": split, "defect_type": defect_type,
+              "filename": filename},
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def test_ai_defective_import_gets_severity_v1(category_products, monkeypatch):
+    monkeypatch.setattr("app.inspections.service.predict_image", lambda *a, **k: _fake("tile"))
+    body = _import(category_products, "crack")
+
+    assert body["status"] == "defective" and body["defect_category"] == "crack"  # ground truth untouched
+    assert body["localization"]["boxes"] and body["defect_form"]
+    assert body["severity_score"] is not None and body["severity_level"] in {"Critical", "High", "Medium", "Low"}
+    assert body["severity_action"]
+    assert body["quality_decision"] == "FAIL"
+
+
+@pytest.mark.parametrize("defect_type, split, decision", [
+    ("good", "train", "PASS"),              # ground truth good, AI good
+    ("crack", "test", "NOT_ASSESSED"),      # ground truth defective, AI good: conflict
+])
+def test_ai_good_import_gets_no_severity(category_products, monkeypatch, defect_type, split, decision):
+    monkeypatch.setattr("app.inspections.service.predict_image", lambda *a, **k: _fake("tile", "good", 0.5))
+    body = _import(category_products, defect_type, split)
+
+    assert body["severity_score"] is None and body["severity_level"] is None
+    assert body["quality_risk"] == "Not assessed"
+    assert body["status"] == ("good" if defect_type == "good" else "defective")
+    assert body["quality_decision"] == decision
+
+
+def test_false_positive_import_gets_severity_but_keeps_its_ground_truth(category_products, monkeypatch):
+    monkeypatch.setattr("app.inspections.service.predict_image", lambda *a, **k: _fake("tile"))
+    body = _import(category_products, "good", split="train")
+
+    assert body["severity_score"] is not None and body["severity_level"] is not None
+    assert body["status"] == "good" and body["defect_category"] == "good"
+    with SessionLocal() as session:
+        assert session.get(Inspection, body["id"]).status == "good"
+    # Ground truth and AI disagree: never auto-failed, whatever the severity level.
+    assert body["quality_decision"] == "NOT_ASSESSED"
 
 
 def test_report_carries_defect_form_and_recommended_action(client, qe_headers, category_products, monkeypatch):
