@@ -1,0 +1,63 @@
+{
+  "description": "Image-level average precision (AP) for the six ResNet-18 model-family-study categories, whose final-test reports store no AP.",
+  "note": "computed post-hoc from saved final-test scores; no re-scoring; no selection use",
+  "method": "sklearn.metrics.average_precision_score(labels, scores) over every final-test image, defective = positive class (label 1), score = the saved per-image reconstruction_error - the same function the WRN-50 final tests used. sklearn 1.9.0.",
+  "rounding": "AP rounded half-to-even to 5 decimal places (Python round(ap, 5)); e.g. 1.0000000000000002 -> 1.0.",
+  "computed_on": "2026-10-07",
+  "categories": {
+    "cable": {
+      "category": "cable",
+      "average_precision": 0.99288,
+      "n_images": 150,
+      "n_defective": 92,
+      "source_file": "backend/ai_models/cable/model_family_study/reports/final_test_result.json",
+      "source_sha256": "018fd12a7a37988bac87418abbf0d97e6c506583210f6ec99ce7294d208f16ad",
+      "computed_on": "2026-10-07"
+    },
+    "leather": {
+      "category": "leather",
+      "average_precision": 1.0,
+      "n_images": 124,
+      "n_defective": 92,
+      "source_file": "backend/ai_models/leather/model_family_study/reports/final_test_result.json",
+      "source_sha256": "767656b80684c620200f912c2c5478456b2dcd0af2b43713066060b85f119f2f",
+      "computed_on": "2026-10-07"
+    },
+    "metal_nut": {
+      "category": "metal_nut",
+      "average_precision": 0.99816,
+      "n_images": 115,
+      "n_defective": 93,
+      "source_file": "backend/ai_models/metal_nut/model_family_study/reports/final_test_result.json",
+      "source_sha256": "ed08b6e95abd5629384330ed338c4dbd661a9b0690d4a37d6db9163ffdb34b7b",
+      "computed_on": "2026-10-07"
+    },
+    "tile": {
+      "category": "tile",
+      "average_precision": 0.99886,
+      "n_images": 117,
+      "n_defective": 84,
+      "source_file": "backend/ai_models/tile/model_family_study/reports/final_test_result.json",
+      "source_sha256": "f78a95d2b73a72ed4fffa06649b3344115bcb95021286603a7bd42b0f9433321",
+      "computed_on": "2026-10-07"
+    },
+    "toothbrush": {
+      "category": "toothbrush",
+      "average_precision": 0.9885,
+      "n_images": 42,
+      "n_defective": 30,
+      "source_file": "backend/ai_models/toothbrush/model_family_study/reports/final_test_result.json",
+      "source_sha256": "b049fb4e77c3956f6241cf501181749a51adce9c1a119db9e6df5f25587ca39a",
+      "computed_on": "2026-10-07"
+    },
+    "transistor": {
+      "category": "transistor",
+      "average_precision": 0.98539,
+      "n_images": 100,
+      "n_defective": 40,
+      "source_file": "backend/ai_models/transistor/model_family_study/reports/final_test_result.json",
+      "source_sha256": "cb073c538280d52ce342c963c1dccd5b95afd4f4283eab00d7e5a1ebcfc6ac22",
+      "computed_on": "2026-10-07"
+    }
+  }
+}

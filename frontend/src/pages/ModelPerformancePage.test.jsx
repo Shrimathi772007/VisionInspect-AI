@@ -10,7 +10,7 @@ import { MVTEC_CATEGORIES, categoryLabel } from "../constants/mvtecCategories";
 
 const GATES = ["EXCELLENT", "GOOD", "ACCEPTABLE", "NOT_PRODUCTION_READY"];
 
-// 15 rows shaped like GET /ai/models; the ResNet-18 rows have no average precision (null).
+// 15 rows shaped like GET /ai/models; the ResNet-18 rows carry the post-hoc AP addendum value.
 const MODELS = MVTEC_CATEGORIES.map((category, index) => {
   const wrn = index % 2 === 0;
   return {
@@ -24,7 +24,7 @@ const MODELS = MVTEC_CATEGORIES.map((category, index) => {
     final_test_recall: 0.9166666,
     final_test_fpr: 0.0454545,
     final_test_auroc: 0.99711,
-    final_test_average_precision: wrn ? 0.99515 : null,
+    final_test_average_precision: wrn ? 0.99515 : 0.98539,
   };
 });
 
@@ -61,7 +61,8 @@ describe("ModelPerformancePage", () => {
     expect(second.getByText("ResNet-18 patch model")).toBeInTheDocument();
     expect(second.getByText("whole image 256")).toBeInTheDocument();
     expect(second.getByText("Good")).toBeInTheDocument();
-    expect(second.getByText("—")).toBeInTheDocument(); // null AP
+    expect(second.getByText("0.985")).toBeInTheDocument(); // ResNet-18 AP from the addendum
+    expect(second.queryByText("—")).not.toBeInTheDocument();
     expect(within(rows[3]).getByText("Not production ready")).toBeInTheDocument();
   });
 
@@ -73,6 +74,33 @@ describe("ModelPerformancePage", () => {
     expect(screen.getByText(/Metrics are from each category's single final test on the MVTec AD test set\./)).toBeInTheDocument();
     expect(screen.getByText(/Excellent: recall >= 0\.90, F1 >= 0\.85, FPR <= 0\.10/)).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/ai_models|\.pt\b|sha256/i);
+  });
+
+  it("shows a ResNet-18 AP of 1.0 as 1.000 and a missing AP as a dash", async () => {
+    getAiModels.mockResolvedValue([
+      { ...MODELS[1], category: "leather", final_test_average_precision: 1.0 },
+      { ...MODELS[3], category: "tile", final_test_average_precision: null },
+      { ...MODELS[5], category: "cable", final_test_average_precision: undefined },
+    ]);
+    renderPage();
+
+    const rows = (await screen.findAllByRole("row")).slice(1);
+    expect(within(rows[0]).getByText("1.000")).toBeInTheDocument();
+    expect(within(rows[1]).getByText("—")).toBeInTheDocument();
+    expect(within(rows[2]).getByText("—")).toBeInTheDocument();
+  });
+
+  it("explains how AP was computed, including the post-hoc ResNet-18 values", async () => {
+    getAiModels.mockResolvedValue(MODELS);
+    renderPage();
+    await screen.findAllByRole("row");
+
+    expect(
+      screen.getByText(
+        "AP is image-level (defective = positive). For the 6 ResNet-18 categories it was computed after the final " +
+          "test from the saved scores; no model or threshold changed."
+      )
+    ).toBeInTheDocument();
   });
 
   it("renders an unknown or null gate safely", async () => {

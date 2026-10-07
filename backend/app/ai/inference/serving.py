@@ -37,6 +37,8 @@ already-locked reports, not derived here.
 
 import hashlib
 import importlib.util
+import json
+import math
 import sys
 import threading
 from collections import OrderedDict
@@ -82,6 +84,31 @@ GATES = (GATE_EXCELLENT, GATE_GOOD, GATE_ACCEPTABLE, GATE_NOT_PRODUCTION_READY)
 PATCHCORE_STUDY_DIR = Path(__file__).resolve().parents[3] / "scripts" / "experiments" / "patchcore_wrn50"
 WRN50_STUDY_LOGIC_SHA256 = "47fa5ae6543bd216c561b2c81291aa8fefb18e7aee953484342c5c1ea1bc277d"
 GRID_FULL320_LOGIC_SHA256 = "f4645bfaebcfe43ac8c77b302e87f160e3e74310ca027188a3b0bc02bdceaaf2"
+
+# Image-level average precision of the six ResNet-18 categories, whose model-family-study final-test reports store
+# none. Computed post-hoc from the per-image scores those reports saved (no re-scoring, no selection use; see the
+# file's note, method and per-category source SHA-256). Display metadata only: no model, threshold or decision
+# reads it. Loaded once at import; a missing or unreadable file, or a missing category, leaves the AP None.
+AP_ADDENDUM_PATH = Path(__file__).resolve().parents[1] / "ap_addendum.json"
+
+
+def load_ap_addendum(path: Path = AP_ADDENDUM_PATH) -> dict[str, float]:
+    """category -> AP from the addendum file; {} when the file is missing or unreadable. An entry without a finite
+    average_precision in [0, 1] is skipped."""
+    try:
+        categories = json.loads(Path(path).read_text(encoding="utf-8"))["categories"]
+        items = categories.items()
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return {}
+    addendum = {}
+    for category, entry in items:
+        value = entry.get("average_precision") if isinstance(entry, dict) else None
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and 0 <= value <= 1:
+            addendum[category] = float(value)
+    return addendum
+
+
+_AP_ADDENDUM = load_ap_addendum()
 
 
 @dataclass(frozen=True)
@@ -140,7 +167,7 @@ def _resnet18_entry(category: str, model_name: str, threshold: float, threshold_
                     md5: str, sha256: str, config_sha256: str, input_side: int, experiment_id: str, lock_digest: str,
                     gate: str, recall: float, fpr: float, auroc: float) -> CategoryServingConfig:
     """A ResNet-18 model-family-study winner (selected_candidate/model_state.pt + model_config.json). The study
-    reports no average precision, so it is None."""
+    reports no average precision; it comes from the post-hoc AP addendum (None when absent)."""
     return CategoryServingConfig(
         category=category,
         artifact_name="model_family_study/selected_candidate/model_state",
@@ -165,7 +192,7 @@ def _resnet18_entry(category: str, model_name: str, threshold: float, threshold_
         final_test_recall=recall,
         final_test_fpr=fpr,
         final_test_auroc=auroc,
-        final_test_average_precision=None,
+        final_test_average_precision=_AP_ADDENDUM.get(category),
     )
 
 
@@ -325,7 +352,7 @@ SERVING_CONFIGS: dict[str, CategoryServingConfig] = {
         final_test_recall=0.9166666666666666,
         final_test_fpr=0.0,
         final_test_auroc=0.9971139971139972,
-        final_test_average_precision=None,
+        final_test_average_precision=_AP_ADDENDUM.get("tile"),  # post-hoc, see AP_ADDENDUM_PATH
     ),
     # Cable: the locked winner of the normal-only alternative model-family study (the Phase 1
     # ConvAE, ai_models/cable/phase1_baseline/, failed with recall 0% / AUROC 0.574 and is NOT served).
@@ -363,7 +390,7 @@ SERVING_CONFIGS: dict[str, CategoryServingConfig] = {
         final_test_recall=0.8586956521739131,
         final_test_fpr=0.017241379310344827,
         final_test_auroc=0.9880059970014994,
-        final_test_average_precision=None,
+        final_test_average_precision=_AP_ADDENDUM.get("cable"),  # post-hoc, see AP_ADDENDUM_PATH
     ),
     # Leather, metal_nut, toothbrush, transistor: the locked winners of the same normal-only model-family study.
     # Every value is copied verbatim from backend/ai_models/<category>/model_family_study/selection_lock.json

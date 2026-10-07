@@ -166,7 +166,8 @@ def test_gates_modes_and_model_names_are_as_declared():
         config = SERVING_CONFIGS[category]
         assert config.input_mode is None and config.aggregation == "top1pct_mean"
         assert config.expected_backbone_sha256 == RESNET18_SHA256
-        assert config.final_test_average_precision is None  # not reported by the model-family study
+        # Not reported by the model-family study: the post-hoc AP addendum (tests/test_ap_addendum.py).
+        assert config.final_test_average_precision == serving.load_ap_addendum()[category]
         assert config.artifact_name == "model_family_study/selected_candidate/model_state"
 
 
@@ -628,7 +629,7 @@ def test_ai_models_lists_the_15_registered_models(headers_fixture, client, reque
     grid = next(row for row in rows if row["category"] == "grid")
     assert (grid["model_name"], grid["input_mode"], grid["input_size"]) == ("wrn50_patchcore_full320", "full320", [320, 320])
     tile = next(row for row in rows if row["category"] == "tile")
-    assert (tile["family"], tile["input_mode"], tile["final_test_average_precision"]) == ("patch_anomaly", "resize", None)
+    assert (tile["family"], tile["input_mode"], tile["final_test_average_precision"]) == ("patch_anomaly", "resize", 0.99886)
 
 
 def test_ai_models_exposes_no_paths_or_hashes(client, qe_headers):

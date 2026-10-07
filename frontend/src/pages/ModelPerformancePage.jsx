@@ -15,6 +15,10 @@ const METRICS_FOOTNOTE =
   "(Excellent: recall >= 0.90, F1 >= 0.85, FPR <= 0.10; Good: recall >= 0.85, F1 >= 0.80, FPR <= 0.10; " +
   "Acceptable: recall >= 0.75, F1 >= 0.70, FPR <= 0.15).";
 
+const AP_FOOTNOTE =
+  "AP is image-level (defective = positive). For the 6 ResNet-18 categories it was computed after the final test " +
+  "from the saved scores; no model or threshold changed.";
+
 const EM_DASH = "—";
 
 const FAMILY_LABELS = {
@@ -125,6 +129,7 @@ export function ModelPerformancePage() {
             </table>
           </div>
           <p className={styles.footnote}>{METRICS_FOOTNOTE}</p>
+          <p className={styles.footnote}>{AP_FOOTNOTE}</p>
           <p className={styles.footnote}>
             Inspections from a category whose model is not production ready always go to manual review.
           </p>
