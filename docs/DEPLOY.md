@@ -227,6 +227,25 @@ Copy the backups off the VM (for example with `scp` or `rsync`) as well.
 
 `docker compose down` keeps the volumes. `docker compose down -v` **deletes the database and all uploads**.
 
+## Tested configuration
+
+Built and smoke-tested on 2026-10-07 with Docker Desktop 29.8.2 / Compose v5.5.1 (WSL2, 6 CPUs, 7.8 GB for
+Docker) as a separate project (`docker compose -p vi-test`, `WEB_PORT=18080`), all requests through the web
+container:
+
+- First build about 4.5 minutes; images: backend 2.24 GB, web 93 MB. The build checks passed (18 pins, torch
+  2.14.0+cpu, Grid study file hashes). The `opencv-python-headless` pin needs no extra system libraries.
+- Migrations applied to head on first start; no model or dataset warnings.
+- Health, SPA deep links, login, `/ai/models` (15), uploads for tile, grid (WRN-50 full320) and wood
+  (`MANUAL_REVIEW`), heatmap, analytics, dataset categories (15), a 5 MB upload (accepted) and a 61 MB request
+  (413 from nginx) all passed. The seed script ran inside the backend container.
+- Inference time per image (CPU): tile 1.1-1.3 s cold, 0.2 s warm; Grid 6.4-8.3 s cold, about 2 s warm.
+  Memory: backend about 1 GB with tile and Grid loaded, db about 45 MB, web about 9 MB.
+- `restart backend` and a backend-only recreate kept the same container address, so `web` kept proxying
+  without a restart; the restart advice below is a precaution for when the address changes.
+- On Windows, a repository path with a space works when `AI_MODELS_DIR` and `DATASET_DIR` are absolute paths
+  with forward slashes, unquoted (e.g. `C:/Users/Jane Doe/VisionInspect-AI/dataset`).
+
 ## Known limits
 
 - Inference is CPU-only and synchronous: each request occupies the worker while the model runs. Expect roughly
