@@ -417,7 +417,7 @@ export function DashboardPage() {
             )}
           </Card>
 
-          <Card className={styles.analyticsCard}>
+          <Card className={`${styles.analyticsCard} ${styles.severityCard}`}>
             <div className={styles.cardHeader}>
               <h2 className={styles.cardTitle}>Severity &amp; Risk Distribution</h2>
               <span className={styles.cardSubtitle}>Phase 2 severity engine</span>

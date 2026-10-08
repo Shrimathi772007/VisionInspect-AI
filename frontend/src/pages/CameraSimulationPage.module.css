@@ -10,6 +10,11 @@
   color: var(--color-info);
 }
 
+/* Keep the icon at its 18 px size when the text wraps on narrow screens. */
+.banner > svg {
+  flex-shrink: 0;
+}
+
 .bannerTitle {
   font-size: 14px;
   font-weight: 700;

@@ -212,6 +212,11 @@ a.recentRow:hover {
   padding: var(--space-6);
 }
 
+/* Shares a row with the taller Product Quality Overview; keep its own height instead of stretching. */
+.severityCard {
+  align-self: start;
+}
+
 .productList {
   display: flex;
   flex-direction: column;
