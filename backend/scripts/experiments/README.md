@@ -42,7 +42,7 @@ in `backend/scripts/`, but this was not verified when the scripts were archived.
 ## Before running anything
 
 - **Hard-coded paths.** Many scripts use absolute paths from the original Windows machine
-  (`C:\Users\SHRIMATHI S\Documents\VisionInspect-AI\...`) or point at the original
+  (the repository root there; read them as `./...` relative to the repository root) or point at the original
   scratchpad folder. Some expect to be started from `backend/` so that `app.` imports work.
 - **Required data.** They expect `backend/ai_models/` (git-ignored, not in this repository)
   and `dataset/` (the MVTec AD images) to exist with the original contents.
