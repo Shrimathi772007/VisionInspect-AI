@@ -19,6 +19,11 @@ const AP_FOOTNOTE =
   "AP is image-level (defective = positive). For the 6 ResNet-18 categories it was computed after the final test " +
   "from the saved scores; no model or threshold changed.";
 
+export const LOCALIZATION_FOOTNOTE =
+  "Second scoring of final test sets for localization only; no model or threshold changed; anomaly-map boxes, not " +
+  "a trained detector. Box AP@0.5 matches each defect region of the ground-truth mask (one-box-per-image view in " +
+  "brackets). Pixel AUROC excludes pixels outside the analysed area for the centre-crop 224 categories.";
+
 const EM_DASH = "—";
 
 const FAMILY_LABELS = {
@@ -96,7 +101,7 @@ export function ModelPerformancePage() {
       {!isLoading && !error && models.length > 0 && (
         <Card className={styles.tableCard}>
           <div className={styles.tableWrap}>
-            <table className={styles.table}>
+            <table className={styles.table} aria-label="Served models">
               <thead>
                 <tr>
                   <th scope="col">Category</th>
@@ -133,6 +138,38 @@ export function ModelPerformancePage() {
           <p className={styles.footnote}>
             Inspections from a category whose model is not production ready always go to manual review.
           </p>
+        </Card>
+      )}
+
+      {!isLoading && !error && models.length > 0 && (
+        <Card className={styles.tableCard}>
+          <h2 className={styles.sectionTitle}>Localization (evaluation only)</h2>
+          <div className={styles.tableWrap}>
+            <table className={`${styles.table} ${styles.compactTable}`} aria-label="Localization evaluation">
+              <thead>
+                <tr>
+                  <th scope="col">Category</th>
+                  <th scope="col" className={styles.numeric}>Box AP@0.5</th>
+                  <th scope="col" className={styles.numeric}>Pixel AUROC</th>
+                </tr>
+              </thead>
+              <tbody>
+                {models.map((model) => (
+                  <tr key={model.category}>
+                    <td className={styles.categoryCell}>{categoryLabel(model.category)}</td>
+                    <td className={styles.numeric}>
+                      {decimal(model.box_ap50)}
+                      {Number.isFinite(model.box_ap50_merged) && (
+                        <span className={styles.secondary}> ({decimal(model.box_ap50_merged)})</span>
+                      )}
+                    </td>
+                    <td className={styles.numeric}>{decimal(model.pixel_auroc)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className={styles.footnote}>{LOCALIZATION_FOOTNOTE}</p>
         </Card>
       )}
     </div>

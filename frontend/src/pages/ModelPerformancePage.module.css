@@ -90,3 +90,34 @@
 .skeletonRow:last-child {
   border-bottom: none;
 }
+
+.tableCard + .tableCard {
+  margin-top: var(--space-5);
+}
+
+.sectionTitle {
+  padding: var(--space-2) var(--space-3) 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.secondary {
+  color: var(--color-text-secondary);
+}
+
+/* Three columns that must fit a phone without scrolling: wrap the headers, tighten the cells. */
+@media (max-width: 640px) {
+  .compactTable th {
+    white-space: normal;
+  }
+
+  .compactTable th,
+  .compactTable td {
+    padding: var(--space-2);
+  }
+
+  .compactTable td {
+    font-size: 12.5px;
+  }
+}

@@ -122,7 +122,7 @@ describe("UI terminology", () => {
         <ModelPerformancePage />
       </MemoryRouter>
     );
-    await screen.findByText("Wood");
+    await screen.findAllByText("Wood"); // in both tables of the model performance page
     assertTerminology();
   });
 });

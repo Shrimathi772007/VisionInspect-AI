@@ -55,3 +55,12 @@ in `backend/scripts/`, but this was not verified when the scripts were archived.
   Do not delete those files to get around that.
 - The scripts write into `backend/ai_models/`. Running one can overwrite artifacts that the
   serving configuration pins by hash (`backend/app/ai/inference/serving.py`).
+
+## Localization evaluation (second scoring, disclosed)
+
+`localization_map/` holds a later, evaluation-only run: box AP@0.5 of the anomaly-map boxes and pixel AUROC of the
+served models (rules declared in `localization_map/PROTOCOL.md` before scoring). It is a **second scoring of every
+category's final test set, used for localization only**: no model, threshold, lock or box rule changed, and no result
+was used to select or tune anything. It writes nothing into `backend/ai_models/`; the summary is
+`backend/app/ai/box_eval_addendum.json`, shown on the Models page. The boxes come from the anomaly map, not from a
+trained detector.

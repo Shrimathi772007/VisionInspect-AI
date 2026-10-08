@@ -5,7 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 vi.mock("../api/ai", () => ({ getAiModels: vi.fn() }));
 
 import { getAiModels } from "../api/ai";
-import { ModelPerformancePage } from "./ModelPerformancePage";
+import { LOCALIZATION_FOOTNOTE, ModelPerformancePage } from "./ModelPerformancePage";
 import { MVTEC_CATEGORIES, categoryLabel } from "../constants/mvtecCategories";
 
 const GATES = ["EXCELLENT", "GOOD", "ACCEPTABLE", "NOT_PRODUCTION_READY"];
@@ -28,6 +28,14 @@ const MODELS = MVTEC_CATEGORIES.map((category, index) => {
   };
 });
 
+async function tableRows(name) {
+  const table = await screen.findByRole("table", { name });
+  return within(table).getAllByRole("row").slice(1);
+}
+
+const modelRows = () => tableRows("Served models");
+const localizationRows = () => tableRows("Localization evaluation");
+
 function renderPage() {
   return render(
     <MemoryRouter>
@@ -45,7 +53,7 @@ describe("ModelPerformancePage", () => {
     getAiModels.mockResolvedValue(MODELS);
     renderPage();
 
-    const rows = (await screen.findAllByRole("row")).slice(1);
+    const rows = await modelRows();
     expect(rows).toHaveLength(15);
     const first = within(rows[0]);
     expect(first.getByText(categoryLabel(MODELS[0].category))).toBeInTheDocument();
@@ -69,7 +77,7 @@ describe("ModelPerformancePage", () => {
   it("shows the footnote and never a path or hash", async () => {
     getAiModels.mockResolvedValue(MODELS);
     renderPage();
-    await screen.findAllByRole("row");
+    await modelRows();
 
     expect(screen.getByText(/Metrics are from each category's single final test on the MVTec AD test set\./)).toBeInTheDocument();
     expect(screen.getByText(/Excellent: recall >= 0\.90, F1 >= 0\.85, FPR <= 0\.10/)).toBeInTheDocument();
@@ -84,7 +92,7 @@ describe("ModelPerformancePage", () => {
     ]);
     renderPage();
 
-    const rows = (await screen.findAllByRole("row")).slice(1);
+    const rows = await modelRows();
     expect(within(rows[0]).getByText("1.000")).toBeInTheDocument();
     expect(within(rows[1]).getByText("—")).toBeInTheDocument();
     expect(within(rows[2]).getByText("—")).toBeInTheDocument();
@@ -93,7 +101,7 @@ describe("ModelPerformancePage", () => {
   it("explains how AP was computed, including the post-hoc ResNet-18 values", async () => {
     getAiModels.mockResolvedValue(MODELS);
     renderPage();
-    await screen.findAllByRole("row");
+    await modelRows();
 
     expect(
       screen.getByText(
@@ -125,5 +133,44 @@ describe("ModelPerformancePage", () => {
     renderPage();
 
     expect(await screen.findByText("No models registered")).toBeInTheDocument();
+  });
+
+  it("shows box AP@0.5 (one-box-per-image AP in brackets) and pixel AUROC in a second table", async () => {
+    getAiModels.mockResolvedValue([
+      { ...MODELS[0], box_ap50: 0.12345, box_ap50_merged: 0.25, pixel_auroc: 0.9712 },
+      { ...MODELS[1], box_ap50: 0, box_ap50_merged: 0, pixel_auroc: 1 },
+    ]);
+    renderPage();
+
+    const rows = await localizationRows();
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]).getByText(categoryLabel(MODELS[0].category))).toBeInTheDocument();
+    expect(rows[0]).toHaveTextContent("0.123 (0.250)");
+    expect(within(rows[0]).getByText("0.971")).toBeInTheDocument();
+    expect(rows[1]).toHaveTextContent("0.000 (0.000)");
+    expect(within(rows[1]).getByText("1.000")).toBeInTheDocument();
+  });
+
+  it("shows a dash when the localization addendum or a category is missing", async () => {
+    getAiModels.mockResolvedValue([
+      { ...MODELS[0], box_ap50: null, box_ap50_merged: null, pixel_auroc: null },
+      { ...MODELS[1] }, // an older API without the fields
+    ]);
+    renderPage();
+
+    for (const row of await localizationRows()) {
+      expect(within(row).getAllByText("—")).toHaveLength(2);
+      expect(row).not.toHaveTextContent("(");
+    }
+  });
+
+  it("explains the localization evaluation in a footnote", async () => {
+    getAiModels.mockResolvedValue(MODELS);
+    renderPage();
+    await localizationRows();
+
+    expect(screen.getByText(LOCALIZATION_FOOTNOTE)).toBeInTheDocument();
+    expect(LOCALIZATION_FOOTNOTE).toMatch(/^Second scoring of final test sets for localization only; no model or threshold changed; anomaly-map boxes, not a trained detector\./);
+    expect(LOCALIZATION_FOOTNOTE).toMatch(/excludes pixels outside the analysed area for the centre-crop 224 categories/);
   });
 });

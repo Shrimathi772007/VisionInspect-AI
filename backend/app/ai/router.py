@@ -8,6 +8,7 @@ hashes stay server-side.
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from app.ai.box_eval import box_eval_for
 from app.ai.inference.serving import SERVING_CONFIGS, CategoryServingConfig
 from app.auth.dependencies import get_current_user
 from app.models.user import User
@@ -28,6 +29,11 @@ class ServedModelOut(BaseModel):
     final_test_fpr: float | None
     final_test_auroc: float | None
     final_test_average_precision: float | None
+    # Localization evaluation addendum (app/ai/box_eval_addendum.json): a second scoring of the final test set for
+    # localization only, with anomaly-map boxes (not a trained detector). None when the file or category is missing.
+    box_ap50: float | None
+    box_ap50_merged: float | None
+    pixel_auroc: float | None
 
 
 def _served_model(config: CategoryServingConfig) -> ServedModelOut:
@@ -43,6 +49,7 @@ def _served_model(config: CategoryServingConfig) -> ServedModelOut:
         final_test_fpr=config.final_test_fpr,
         final_test_auroc=config.final_test_auroc,
         final_test_average_precision=config.final_test_average_precision,
+        **box_eval_for(config.category),
     )
 
 

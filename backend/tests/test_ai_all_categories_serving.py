@@ -60,7 +60,7 @@ EXPECTED_MODES = {
 }
 API_FIELDS = {
     "category", "model_name", "family", "input_mode", "input_size", "threshold", "gate", "final_test_recall",
-    "final_test_fpr", "final_test_auroc", "final_test_average_precision",
+    "final_test_fpr", "final_test_auroc", "final_test_average_precision", "box_ap50", "box_ap50_merged", "pixel_auroc",
 }
 AI_FIELDS = ("ai_prediction", "ai_reconstruction_error", "ai_threshold", "ai_model_name", "ai_inference_time_ms")
 DATASET_DIR = Path(DATASET_ROOT).resolve()
