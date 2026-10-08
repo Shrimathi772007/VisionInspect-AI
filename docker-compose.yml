@@ -52,6 +52,12 @@ services:
       MAX_UPLOAD_SIZE_MB: "10"
       UVICORN_WORKERS: ${UVICORN_WORKERS:-1}
       VISIONINSPECT_AI_MODEL_CACHE_SIZE: ${VISIONINSPECT_AI_MODEL_CACHE_SIZE:-3}
+      # Failed-login limits (in memory, per worker; see docs/DEPLOY.md). Invalid values fall back to these defaults.
+      LOGIN_MAX_ATTEMPTS: ${LOGIN_MAX_ATTEMPTS:-5}
+      LOGIN_MAX_ATTEMPTS_PER_IP: ${LOGIN_MAX_ATTEMPTS_PER_IP:-20}
+      LOGIN_WINDOW_SECONDS: ${LOGIN_WINDOW_SECONDS:-900}
+      # Peers whose X-Forwarded-For uvicorn believes. "*" is safe only while the backend port stays unpublished.
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-*}
     volumes:
       # The app resolves its models at <backend>/ai_models, which is /app/ai_models in the image.
       - ${AI_MODELS_DIR:?set AI_MODELS_DIR in .env.docker}:/app/ai_models:ro

@@ -89,6 +89,9 @@ Set at least `POSTGRES_PASSWORD`, `JWT_SECRET_KEY` and `FRONTEND_ORIGINS` (the a
 browser, for example `http://203.0.113.10:8080`). The defaults for `AI_MODELS_DIR=./backend/ai_models` and
 `DATASET_DIR=./dataset` match section 4. `.env.docker` is Git-ignored; never commit it.
 
+The failed-login limits (`LOGIN_MAX_ATTEMPTS`, `LOGIN_MAX_ATTEMPTS_PER_IP`, `LOGIN_WINDOW_SECONDS`) and
+`FORWARDED_ALLOW_IPS` are optional; see [Login rate limiting](#login-rate-limiting) before changing them.
+
 ## 6. Build and start
 
 ```bash
@@ -183,6 +186,21 @@ VM and a DNS name pointing at it:
 
 3. `sudo systemctl reload caddy`, open ports 80 and 443, close 8080. Caddy obtains and renews the certificate.
 
+**Before users log in through Caddy:** nginx now sees every request coming from Caddy's address, so all users
+share one client IP and the per-IP login limit (20 failures in 15 minutes by default) would lock everyone out
+together. Make nginx take the client address from Caddy, which overwrites `X-Forwarded-For` with the real client
+by default. Find the address Caddy's requests arrive from (normally the compose network gateway:
+`docker network inspect visioninspect_default --format '{{(index .IPAM.Config 0).Gateway}}'`), then add to the
+`server` block of `frontend/nginx.conf`, rebuild `web` and check the backend logs show real client addresses:
+
+```
+set_real_ip_from 172.18.0.1;   # the gateway address found above, never a wide range
+real_ip_header X-Forwarded-For;
+```
+
+The same applies to a load balancer or CDN in front of `web`: trust only its addresses. This recipe has not been
+tested on a VM yet.
+
 ## 10. Update
 
 ```bash
@@ -226,6 +244,34 @@ docker compose --env-file .env.docker start backend web
 Copy the backups off the VM (for example with `scp` or `rsync`) as well.
 
 `docker compose down` keeps the volumes. `docker compose down -v` **deletes the database and all uploads**.
+
+## Login rate limiting
+
+`POST /auth/login` refuses further attempts with `429 Too Many Requests`, a `Retry-After` header (seconds) and the
+message "Too many failed login attempts. Please wait and try again later." when, within `LOGIN_WINDOW_SECONDS`:
+
+| Variable | Default | Counts failed logins per |
+|---|---|---|
+| `LOGIN_MAX_ATTEMPTS` | 5 | client IP + email (case-insensitive) |
+| `LOGIN_MAX_ATTEMPTS_PER_IP` | 20 | client IP, any email |
+| `LOGIN_WINDOW_SECONDS` | 900 (15 minutes) | sliding window for both |
+
+Values must be positive integers; anything else falls back to the default (a warning is logged). Only failures
+count. While locked, even the correct password gets 429, and the response is the same whether or not the email
+exists. A successful login clears that IP + email counter; the per-IP counter keeps running. Registration is not
+limited.
+
+- **Single worker only.** Counters are kept in memory in the backend process. With `UVICORN_WORKERS` above 1
+  each worker counts separately, so the effective limits multiply by the number of workers.
+- **Restart clears them.** `docker compose --env-file .env.docker restart backend` resets every counter (for
+  example to unlock a user at once). A restart or crash also forgets in-progress counts.
+- **Do not publish the backend port.** The client IP is what nginx saw: nginx overwrites `X-Forwarded-For` with
+  its peer address and uvicorn trusts that header from `FORWARDED_ALLOW_IPS` (default `*`). That is safe only
+  because nothing but `web` can reach port 8000. If you ever publish it, set `FORWARDED_ALLOW_IPS` to the `web`
+  container's address, or anyone could choose their own client IP.
+- **A load balancer, CDN or Caddy in front of `web`** must have its real-client-IP handling set up (section 9).
+  Otherwise every user shares the proxy's IP and the per-IP limit locks everyone out together.
+- Many users behind one NAT address share the per-IP limit; raise `LOGIN_MAX_ATTEMPTS_PER_IP` if that matters.
 
 ## Tested configuration
 

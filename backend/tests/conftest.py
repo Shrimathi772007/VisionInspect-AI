@@ -86,6 +86,7 @@ from PIL import Image  # noqa: E402
 from sqlalchemy import create_engine, delete, select, text  # noqa: E402
 from sqlalchemy.engine import URL  # noqa: E402
 
+from app.auth.rate_limit import login_rate_limiter  # noqa: E402
 from app.auth.security import hash_password  # noqa: E402
 from app.database import SessionLocal, engine  # noqa: E402
 from app.inspections.storage import HEATMAP_ROOT, STORAGE_ROOT  # noqa: E402
@@ -205,6 +206,14 @@ class TemporaryUsers:
             with SessionLocal() as session:
                 session.execute(delete(User).where(User.email.in_(self.emails)))
                 session.commit()
+
+
+@pytest.fixture(autouse=True)
+def _fresh_login_rate_limiter():
+    """Every test starts with no recorded login failures; the shared TestClient is one "IP" for all of them."""
+    login_rate_limiter.clear()
+    yield
+    login_rate_limiter.clear()
 
 
 @pytest.fixture(autouse=True)

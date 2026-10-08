@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user
+from app.auth.rate_limit import TOO_MANY_ATTEMPTS_MESSAGE, login_rate_limiter
 from app.auth.schemas import Token, UserCreate, UserLogin, UserOut
 from app.auth.security import create_access_token, hash_password, verify_password
 from app.database import get_db
@@ -32,7 +33,18 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-def login(payload: UserLogin, db: Session = Depends(get_db)):
+def login(payload: UserLogin, request: Request, db: Session = Depends(get_db)):
+    # Behind nginx this is the address nginx saw (uvicorn --proxy-headers; nginx overwrites X-Forwarded-For).
+    client_ip = request.client.host if request.client else "unknown"
+    # Checked before the password, so a locked-out client learns nothing about whether it was right.
+    retry_after = login_rate_limiter.retry_after(client_ip, payload.email)
+    if retry_after is not None:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=TOO_MANY_ATTEMPTS_MESSAGE,
+            headers={"Retry-After": str(retry_after)},
+        )
+
     invalid_credentials = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Incorrect email or password",
@@ -41,8 +53,10 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
 
     user = db.execute(select(User).where(User.email == payload.email)).scalar_one_or_none()
     if user is None or not verify_password(payload.password, user.password_hash):
+        login_rate_limiter.record_failure(client_ip, payload.email)
         raise invalid_credentials
 
+    login_rate_limiter.reset(client_ip, payload.email)
     access_token = create_access_token({"sub": str(user.id), "role": user.role.value})
     return Token(access_token=access_token, user=user)
 

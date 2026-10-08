@@ -8,6 +8,9 @@ import { ThemeToggle } from "../components/ThemeToggle/ThemeToggle";
 import { ApiError } from "../api/client";
 import styles from "./LoginPage.module.css";
 
+// Same text as the backend's 429 detail; used even when the response had no readable body.
+const TOO_MANY_ATTEMPTS_MESSAGE = "Too many failed login attempts. Please wait and try again later.";
+
 export function LoginPage() {
   const { login, isAuthenticated, isBootstrapping } = useAuth();
   const navigate = useNavigate();
@@ -33,7 +36,11 @@ export function LoginPage() {
       const redirectTo = location.state?.from?.pathname || "/dashboard";
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+      if (err instanceof ApiError && err.status === 429) {
+        setError(TOO_MANY_ATTEMPTS_MESSAGE);
+      } else {
+        setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+      }
     } finally {
       setIsSubmitting(false);
     }

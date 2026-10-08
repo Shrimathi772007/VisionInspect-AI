@@ -49,4 +49,4 @@ exec uvicorn app.main:app \
     --port 8000 \
     --workers "${UVICORN_WORKERS:-1}" \
     --proxy-headers \
-    --forwarded-allow-ips "*"
+    --forwarded-allow-ips "${FORWARDED_ALLOW_IPS:-*}"
