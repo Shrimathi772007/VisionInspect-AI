@@ -8,8 +8,10 @@ vi.mock("../hooks/useProducts", () => ({
     isLoading: false,
   }),
 }));
+const { categoriesState } = vi.hoisted(() => ({ categoriesState: { current: null } }));
+const DEFAULT_CATEGORIES = { categories: ["bottle", "tile"], isLoading: false, error: null, refetch: () => {} };
 vi.mock("../hooks/useDatasetCategories", () => ({
-  useDatasetCategories: () => ({ categories: ["bottle", "tile"], isLoading: false }),
+  useDatasetCategories: () => categoriesState.current,
 }));
 vi.mock("../api/dataset", () => ({
   getDatasetCategoryDetail: vi.fn(),
@@ -58,6 +60,7 @@ const importedNames = () => importDatasetInspection.mock.calls.map(([args]) => `
 
 describe("CameraSimulationPage", () => {
   beforeEach(() => {
+    categoriesState.current = DEFAULT_CATEGORIES;
     vi.useFakeTimers();
     importCount = 0;
     getDatasetCategoryDetail.mockReset().mockImplementation(async (category) => ({
@@ -229,5 +232,37 @@ describe("CameraSimulationPage", () => {
     await start();
     expect(screen.getByText("No images found for this category, split and defect type.")).toBeInTheDocument();
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  describe("without dataset categories", () => {
+    const NO_CATEGORIES = "No dataset categories found. Check that the dataset folder is mounted.";
+
+    it("explains an empty category list and disables the dropdown", () => {
+      categoriesState.current = { ...DEFAULT_CATEGORIES, categories: [] };
+      renderPage();
+      expect(screen.getByRole("alert")).toHaveTextContent(NO_CATEGORIES);
+      expect(screen.getByLabelText("Dataset category")).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Start simulated camera" })).toBeDisabled();
+    });
+
+    it("shows the same message when the categories fail to load, with a retry", () => {
+      const refetch = vi.fn();
+      categoriesState.current = { ...DEFAULT_CATEGORIES, categories: [], error: new ApiError(500, "boom"), refetch };
+      renderPage();
+      expect(screen.getByRole("alert")).toHaveTextContent(NO_CATEGORIES);
+      expect(screen.queryByText(/boom/)).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+      expect(refetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("shows no message while loading or when categories exist", () => {
+      categoriesState.current = { ...DEFAULT_CATEGORIES, categories: [], isLoading: true };
+      const { unmount } = renderPage();
+      expect(screen.queryByText(NO_CATEGORIES)).not.toBeInTheDocument();
+      unmount();
+      categoriesState.current = DEFAULT_CATEGORIES;
+      renderPage();
+      expect(screen.queryByText(NO_CATEGORIES)).not.toBeInTheDocument();
+    });
   });
 });

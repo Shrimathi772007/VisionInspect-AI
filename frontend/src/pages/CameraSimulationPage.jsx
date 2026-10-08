@@ -107,7 +107,14 @@ async function tick(run, loop) {
  */
 export function CameraSimulationPage() {
   const { products, isLoading: productsLoading } = useProducts();
-  const { categories, isLoading: categoriesLoading } = useDatasetCategories();
+  const {
+    categories,
+    isLoading: categoriesLoading,
+    error: categoriesError,
+    refetch: refetchCategories,
+  } = useDatasetCategories();
+  // An empty list or a failed request both usually mean the dataset folder is not mounted.
+  const noCategories = !categoriesLoading && (Boolean(categoriesError) || categories.length === 0);
 
   const [productId, setProductId] = useState("");
   const [category, setCategory] = useState("");
@@ -257,6 +264,9 @@ export function CameraSimulationPage() {
       </div>
 
       <Card className={styles.controls}>
+        {noCategories && (
+          <ErrorState message="No dataset categories found. Check that the dataset folder is mounted." onRetry={refetchCategories} />
+        )}
         <div className={styles.grid}>
           <Select label="Product" value={productId} onChange={(e) => setProductId(e.target.value)} disabled={controlsLocked || productsLoading}>
             <option value="" disabled>
@@ -275,7 +285,7 @@ export function CameraSimulationPage() {
               setCategory(e.target.value);
               setDefectType(ALL_DEFECT_TYPES);
             }}
-            disabled={controlsLocked || categoriesLoading}
+            disabled={controlsLocked || categoriesLoading || noCategories}
           >
             <option value="" disabled>
               Select a category
