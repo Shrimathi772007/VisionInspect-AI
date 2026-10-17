@@ -660,7 +660,7 @@ than specified.
 | Precision | DONE | Final-test reports; mean 97.7% |
 | Recall | DONE | Mean 91.1%; per category in Milestone 4 |
 | F1-score | DONE | Mean 93.8% |
-| mAP score | DONE, labelled | Image-level AP (area under the image-level precision-recall curve): mean 0.9946. Box AP@0.5 of the anomaly-map boxes: mean 0.200. Neither is a trained detector's mAP. |
+| mAP score | DONE, labelled | mAP@0.5 of the anomaly-map boxes (mean over the 15 categories of per-category box AP at IoU 0.5): 0.200. Image-level AP (area under the image-level precision-recall curve): mean 0.9946. The boxes come from the anomaly map, not from a trained detector. |
 | Inspection automation rate | DONE | `automation_rate` in `GET /inspections/analytics/summary`: share of decided inspections decided PASS or FAIL. A live value; none is stored in the repository. |
 | Defect identification accuracy | DONE | Reported as recall (the reports state `defect_identification_accuracy` equals recall) |
 | False defect detection rate | DONE | Reported as FPR; mean 7.7% |
@@ -1093,8 +1093,8 @@ and applied unchanged to each category.
   lowest of the nine. A third input mode (full320) was therefore added as a separate addendum
   (`ADDENDUM_1_GRID_FULL320.md`). The addendum used normal data only and was committed before any WRN-50 test
   scoring. Its 6 rows were pooled with Grid's 12 existing rows, a full320 row won, and Grid's test set was scored
-  once with that model. The original crop224 Grid lock was never scored. The addendum records that mentor
-  approval was not requested.
+  once with that model. The original crop224 Grid lock was never scored. The addendum records that it was an
+  author-initiated change, added after the original plan without outside approval, and disclosed for that reason.
 - **Image-level AP for the six ResNet-18 categories was computed afterwards.** Their final-test reports store no
   AP. On 2026-10-07 it was computed from the per-image scores those reports saved, with no re-scoring and no use
   in any selection (`backend/app/ai/ap_addendum.json`).

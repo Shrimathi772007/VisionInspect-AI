@@ -173,7 +173,7 @@ than specified.
 | Precision | DONE | Final-test reports; mean 97.7% |
 | Recall | DONE | Mean 91.1%; per category in Milestone 4 |
 | F1-score | DONE | Mean 93.8% |
-| mAP score | DONE, labelled | Image-level AP (area under the image-level precision-recall curve): mean 0.9946. Box AP@0.5 of the anomaly-map boxes: mean 0.200. Neither is a trained detector's mAP. |
+| mAP score | DONE, labelled | mAP@0.5 of the anomaly-map boxes (mean over the 15 categories of per-category box AP at IoU 0.5): 0.200. Image-level AP (area under the image-level precision-recall curve): mean 0.9946. The boxes come from the anomaly map, not from a trained detector. |
 | Inspection automation rate | DONE | `automation_rate` in `GET /inspections/analytics/summary`: share of decided inspections decided PASS or FAIL. A live value; none is stored in the repository. |
 | Defect identification accuracy | DONE | Reported as recall (the reports state `defect_identification_accuracy` equals recall) |
 | False defect detection rate | DONE | Reported as FPR; mean 7.7% |

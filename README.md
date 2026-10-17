@@ -92,7 +92,8 @@ there is no trained detector.
   the threshold towards 1. It is a margin heuristic, not a probability. Each category's model also carries its
   evidence gate and final-test metrics.
 - **Manual-review rules**. An inspection is flagged for manual review when confidence is below 0.70, or when the
-  category's model gate is NOT_PRODUCTION_READY. Flagged inspections get the quality decision `MANUAL_REVIEW`.
+  category's model gate is NOT_PRODUCTION_READY. For uploads, a flagged inspection gets the quality decision
+  `MANUAL_REVIEW`. For dataset imports the review flag is stored, but the ground-truth rules decide.
 
 ### Rule-based severity
 
