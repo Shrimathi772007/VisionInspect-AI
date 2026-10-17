@@ -1,5 +1,7 @@
 # VisionInspect AI
 
+## Overview
+
 VisionInspect AI is a web application for visual quality inspection of manufactured parts. A quality engineer
 uploads product images or imports images from the MVTec AD dataset. The backend scores each image with an
 unsupervised anomaly-detection model chosen by the product's MVTec category, marks the suspicious region with a
@@ -8,18 +10,6 @@ review. A dashboard aggregates the results.
 
 The models are trained on defect-free images only (MVTec AD `train/good`). They detect "unusual compared with
 normal"; they do not classify defect types.
-
-Further documents:
-
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): deployed architecture, request flows, roles, database tables and
-  the API route table.
-- [docs/ML_METHODOLOGY.md](docs/ML_METHODOLOGY.md): dataset, models, evaluation protocol and its exceptions, full
-  results, localization evaluation and experiment history.
-- [docs/DEPLOY.md](docs/DEPLOY.md): Docker Compose deployment on a Linux VM, backup, HTTPS notes and the tested
-  configurations.
-- [postman/README.md](postman/README.md): the Postman collection.
-
-## Stack
 
 | Layer | Technology |
 |---|---|
@@ -30,6 +20,128 @@ Further documents:
 | Deployment | Docker Compose with three services: `web` (nginx serving the built frontend and proxying `/api`), `backend` (uvicorn), `db` |
 
 Exact Python package versions are pinned in [backend/requirements.txt](backend/requirements.txt).
+
+## Contents
+
+[Overview](#overview) | [Key features](#key-features) | [Quick start](#quick-start) | [Live demo](#live-demo) |
+[Results summary](#results-summary) | [Setup](#setup) | [Testing](#testing) | [Known limitations](#known-limitations) |
+[Repository layout](#repository-layout) | [Documentation links](#documentation-links) |
+[Dataset attribution](#dataset-attribution)
+
+## Key features
+
+### At a glance
+
+- [Roles and authentication](#roles-and-authentication): quality engineer and factory supervisor, JWT login.
+- [Upload and batch upload](#upload-and-batch-upload): JPEG/PNG, one file or up to 20 per batch.
+- [Dataset import and camera simulation](#dataset-import-and-camera-simulation): inspections from labelled MVTec images.
+- [Models for 15 MVTec categories](#models-for-15-mvtec-categories): one locked, hash-verified model per category.
+- [Heatmap and box localization](#heatmap-and-box-localization): regions from the anomaly map, not a trained detector.
+- [Confidence and manual review](#confidence-and-manual-review): margin confidence and the review rule.
+- [Rule-based severity](#rule-based-severity): weighted size, location, form and confidence.
+- [Defect form classification](#defect-form-classification): a rule on the shape of the flagged region; it does not identify MVTec defect types.
+- [Image enhancement preview](#image-enhancement-preview): denoise and contrast preview with quality metrics.
+- [Dashboard analytics](#dashboard-analytics): totals, trends and per-category breakdown over 7, 14 or 30 days.
+- [Models page](#models-page): each category's model, gate and final-test metrics.
+- [Postman collection](#postman-collection): all 29 API operations plus negative tests.
+- [Docker Compose deployment](#docker-compose-deployment): web, backend and database on one VM.
+
+Each section below names, in parentheses, the code or endpoint that implements the feature.
+
+### Roles and authentication
+
+(`backend/app/auth/`, `backend/app/users/`) JWT bearer tokens (HS256, 60 minutes by default) and bcrypt password
+hashes. Two roles: quality engineer and factory supervisor. The backend enforces roles; the frontend hides
+controls a role cannot use. See the role table in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#roles).
+
+### Upload and batch upload
+
+- **Upload** (`POST /inspections/upload`). JPEG or PNG, up to 10 MB (`MAX_UPLOAD_SIZE_MB`). The file is checked
+  with Pillow and stored under a random name. The AI model is chosen by the product's MVTec category. A product
+  without a category gets no AI result. The image content is not checked against the category.
+- **Batch upload** (`POST /inspections/batch`). Up to 20 files and 50 MB per batch; each file goes through the
+  single-upload pipeline. The response reports each file's result separately, and a bad file does not stop the
+  others.
+
+### Dataset import and camera simulation
+
+- **Dataset import** (`POST /inspections/import`, Dataset page). Creates an inspection from an MVTec image on the
+  server. The ground-truth label (`good` or `defective`) and the defect type come from the dataset folder names.
+  The model is chosen by the dataset category.
+- **Camera simulation** (Camera simulation page). It replays labelled MVTec images from the server's dataset
+  folder as a timed sequence of dataset imports: 1 to 10 seconds between frames, at most 50 frames per run, and
+  defect types taken in turn. It is not a live camera.
+
+### Models for 15 MVTec categories
+
+(`backend/app/ai/inference/serving.py`) Each of the 15 categories has exactly one registered model: a WRN-50
+PatchCore model for 9 categories and a ResNet-18 patch model for 6, each with a locked threshold. Model files are
+hash-checked on first load, and no category falls back to another category's model. Results are in
+[Results summary](#results-summary); methods are in [docs/ML_METHODOLOGY.md](docs/ML_METHODOLOGY.md).
+
+### Heatmap and box localization
+
+(`backend/app/ai/inference/localization.py`) The per-patch anomaly scores are upsampled and blurred into an
+anomaly map. Regions at or above the model's threshold become at most 5 boxes, and regions under 0.25% of the
+image are discarded. The heatmap is a transparent PNG drawn over the image. The boxes come from the anomaly map;
+there is no trained detector.
+
+### Confidence and manual review
+
+- **Confidence and reliability**. Confidence is `sigmoid(10 * |ln(score / threshold)|)`, which runs from 0.5 at
+  the threshold towards 1. It is a margin heuristic, not a probability. Each category's model also carries its
+  evidence gate and final-test metrics.
+- **Manual-review rules**. An inspection is flagged for manual review when confidence is below 0.70, or when the
+  category's model gate is NOT_PRODUCTION_READY. Flagged inspections get the quality decision `MANUAL_REVIEW`.
+
+### Rule-based severity
+
+(`backend/app/inspections/severity.py`) For an AI-defective inspection with boxes: severity = 0.30 size + 0.25
+location + 0.25 form + 0.20 confidence, banded into Low, Medium, High and Critical.
+
+### Defect form classification
+
+(`backend/app/inspections/defect_form.py`) The form is a shape rule on the flagged region (multiple regions, large
+area, linear, small spot or localized patch). It does not identify the defect type.
+
+### Image enhancement preview
+
+(`GET /inspections/{id}/enhanced`, `/image-quality`) Denoising and CLAHE contrast, with before/after brightness,
+contrast, sharpness and noise estimates. This is a preview only: the models always score the original image, and
+nothing is stored.
+
+### Dashboard analytics
+
+- **Dashboard** (`GET /inspections/analytics/summary`, `/analytics/by-category`). Totals, AI defect rate, quality
+  decisions, severity and defect-category distributions, a daily trend, processing times and a per-category
+  breakdown, over a 7, 14 or 30-day window. All values are computed in PostgreSQL.
+- **Production quality report** (`GET /inspections/{id}/report`) for a single inspection.
+
+### Models page
+
+(`GET /ai/models`) One row per category: model, input mode, locked threshold, gate, final-test recall, FPR, AUROC,
+image-level AP, box AP@0.5 and pixel AUROC.
+
+### Postman collection
+
+([postman/](postman/)) Covers all 29 API operations and adds a negative-test folder. Requests that write are
+skipped unless `allowWrites` is set to `true`.
+
+### Docker Compose deployment
+
+([docker-compose.yml](docker-compose.yml)) Three services on one VM: `web`, `backend` and `db`. Only `web`
+publishes a port. The models and the dataset are mounted read-only from host folders, and the backend runs the
+database migrations when it starts. See [Setup, step 4](#4-run) and [docs/DEPLOY.md](docs/DEPLOY.md).
+
+## Quick start
+
+1. Clone: `git clone https://github.com/Shrimathi772007/VisionInspect-AI.git` ([details](#1-clone)).
+2. Models: download the models ZIP from <DRIVE_LINK> and extract it into `backend/` ([details](#2-models)).
+3. Dataset: extract MVTec AD into `dataset/` ([details](#3-dataset)).
+4. Configure: `cp .env.docker.example .env.docker`, then set `POSTGRES_PASSWORD`, `JWT_SECRET_KEY` and `FRONTEND_ORIGINS` ([details](#4-run)).
+5. Start: `docker compose --env-file .env.docker up -d --build` ([details](#4-run)).
+6. Open the site on `WEB_PORT` (default 8080), for example `http://localhost:8080` ([details](#4-run)).
+7. First quality engineer: `docker compose --env-file .env.docker exec backend python scripts/create_quality_engineer.py --name "Quality Engineer" --email qe@example.com` ([details](#5-first-quality-engineer-and-demo-data)).
 
 ## Live demo
 
@@ -50,51 +162,6 @@ Exact Python package versions are pinned in [backend/requirements.txt](backend/r
 - Inference runs on the CPU of a 2-vCPU VM. Backend inference times measured there were 0.3 to 0.6 s per image for
   Tile and 1.9 s for Wood. Grid, the largest model, takes a few seconds per image: 3.9 s warm and 5.1 s on the
   first request.
-
-## Features
-
-Each item names, in parentheses, the code or endpoint that implements it.
-
-- **Roles and authentication** (`backend/app/auth/`, `backend/app/users/`). JWT bearer tokens (HS256, 60 minutes by
-  default) and bcrypt password hashes. Two roles: quality engineer and factory supervisor. The backend enforces
-  roles; the frontend hides controls a role cannot use. See the role table in
-  [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#roles).
-- **Upload** (`POST /inspections/upload`). JPEG or PNG, up to 10 MB (`MAX_UPLOAD_SIZE_MB`). The file is checked
-  with Pillow and stored under a random name. The AI model is chosen by the product's MVTec category. A product
-  without a category gets no AI result. The image content is not checked against the category.
-- **Batch upload** (`POST /inspections/batch`). Up to 20 files and 50 MB per batch; each file goes through the
-  single-upload pipeline. The response reports each file's result separately, and a bad file does not stop the
-  others.
-- **Dataset import** (`POST /inspections/import`, Dataset page). Creates an inspection from an MVTec image on the
-  server. The ground-truth label (`good` or `defective`) and the defect type come from the dataset folder names.
-  The model is chosen by the dataset category.
-- **Camera simulation** (Camera simulation page). It replays labelled MVTec images from the server's dataset
-  folder as a timed sequence of dataset imports: 1 to 10 seconds between frames, at most 50 frames per run, and
-  defect types taken in turn. It is not a live camera.
-- **Heatmap and box localization** (`backend/app/ai/inference/localization.py`). The per-patch anomaly scores are
-  upsampled and blurred into an anomaly map. Regions at or above the model's threshold become at most 5 boxes,
-  and regions under 0.25% of the image are discarded. The heatmap is a transparent PNG drawn over the image. The
-  boxes come from the anomaly map; there is no trained detector.
-- **Confidence and reliability**. Confidence is `sigmoid(10 * |ln(score / threshold)|)`, which runs from 0.5 at
-  the threshold towards 1. It is a margin heuristic, not a probability. Each category's model also carries its
-  evidence gate and final-test metrics.
-- **Manual-review rules**. An inspection is flagged for manual review when confidence is below 0.70, or when the
-  category's model gate is NOT_PRODUCTION_READY. Flagged inspections get the quality decision `MANUAL_REVIEW`.
-- **Rule-based severity and defect form** (`backend/app/inspections/severity.py`, `defect_form.py`). For an
-  AI-defective inspection with boxes: severity = 0.30 size + 0.25 location + 0.25 form + 0.20 confidence, banded
-  into Low, Medium, High and Critical. The form is a shape rule on the flagged region (multiple regions, large
-  area, linear, small spot or localized patch). It does not identify the defect type.
-- **Image enhancement preview** (`GET /inspections/{id}/enhanced`, `/image-quality`). Denoising and CLAHE contrast,
-  with before/after brightness, contrast, sharpness and noise estimates. This is a preview only: the models
-  always score the original image, and nothing is stored.
-- **Dashboard analytics** (`GET /inspections/analytics/summary`, `/analytics/by-category`). Totals, AI defect
-  rate, quality decisions, severity and defect-category distributions, a daily trend, processing times and a
-  per-category breakdown, over a 7, 14 or 30-day window. All values are computed in PostgreSQL.
-- **Models page** (`GET /ai/models`). One row per category: model, input mode, locked threshold, gate,
-  final-test recall, FPR, AUROC, image-level AP, box AP@0.5 and pixel AUROC.
-- **Production quality report** (`GET /inspections/{id}/report`) for a single inspection.
-- **Postman collection** ([postman/](postman/)). Covers all 29 API operations and adds a negative-test folder.
-  Requests that write are skipped unless `allowWrites` is set to `true`.
 
 ## Results summary
 
@@ -222,11 +289,11 @@ never taken as a command-line argument.
 
 `scripts/seed_demo_data.py` creates one quality engineer, one factory supervisor, 15 demo products and demo
 inspections. Every demo inspection runs real inference, and the demo images come from `dataset/`, so set up
-both the models and the dataset first. Passwords
-come from `VISIONINSPECT_SEED_QE_PASSWORD` and `VISIONINSPECT_SEED_SUPERVISOR_PASSWORD`, or from a prompt.
-Useful options are `--dry-run`, `--days` (default 14), `--per-category` (default 8), `--extra-uploads` (default
-25), and `--reset --yes`, which deletes **every** inspection. Run both scripts from `backend/`, or inside the
-backend container with `docker compose --env-file .env.docker exec backend python scripts/...`. Section 7 of
+both the models and the dataset first. Passwords come from `VISIONINSPECT_SEED_QE_PASSWORD` and
+`VISIONINSPECT_SEED_SUPERVISOR_PASSWORD`, or from a prompt. Useful options are `--dry-run`, `--days` (default 14),
+`--per-category` (default 8), `--extra-uploads` (default 25), and `--reset --yes`, which deletes **every**
+inspection. Run both scripts from `backend/`, or inside the backend container with
+`docker compose --env-file .env.docker exec backend python scripts/...`. Section 7 of
 [docs/DEPLOY.md](docs/DEPLOY.md) has the full commands.
 
 ### 6. Without the models or the dataset
@@ -286,21 +353,55 @@ The Postman collection ([postman/](postman/)) can be run in Postman or with newm
 
 ```
 backend/
-  app/            FastAPI application: auth, users, products, inspections, dataset, ai
-  app/ai/         models, preprocessing, inference and serving registry, evaluation and training code,
-                  ap_addendum.json and box_eval_addendum.json
-  migrations/     Alembic migrations
-  scripts/        create_quality_engineer.py, seed_demo_data.py, earlier experiment scripts
-  scripts/experiments/   archived per-category experiment runners, protocols and declarations
-  docker/         build-time image checks
-  tests/          pytest suite
-  ai_models/      trained models (not in Git; see Setup)
-frontend/         React application, nginx.conf, Dockerfile
-dataset/          MVTec AD (not in Git; see Setup)
-docs/             DEPLOY.md, ARCHITECTURE.md, ML_METHODOLOGY.md
-postman/          Postman collection, environment and sample image
-docker-compose.yml, .env.docker.example
+  app/
+    main.py                  FastAPI app: CORS, routers, /health and /health/db
+    auth/                    register, login, JWT, login rate limiter, role dependencies
+    users/                   user list and role changes (quality engineers only)
+    products/                create, list and delete products; set each product's MVTec category
+    inspections/             upload, batch, import, analytics, severity, defect form, quality decision, report
+    dataset/                 MVTec dataset browsing and ground-truth masks
+    ai/inference/            serving.py (model registry), predict.py, localization.py (boxes, heatmap)
+    ai/models/               ResNet-18, WRN-50-2, PatchCore and patch-anomaly model code
+    ai/analytics/            image enhancement preview and image-quality metrics
+    ai/preprocessing/, ai/evaluation/, ai/training/  image preprocessing; evaluation and training code
+    ai/router.py             GET /ai/models
+    ai/ap_addendum.json      image-level AP for the six ResNet-18 categories
+    ai/box_eval_addendum.json  box AP@0.5 and pixel AUROC for all 15 categories
+    models/, database/       SQLAlchemy models (users, products, inspections, defects), engine and session
+  migrations/versions/       Alembic migrations
+  scripts/
+    create_quality_engineer.py  create or promote the first quality engineer
+    seed_demo_data.py        demo users, products and inspections
+    experiments/             archived per-category experiment runners, protocols and declarations
+  tests/                     pytest suite (conftest.py sets up the isolated test database)
+  docker/check_image.py      build-time checks of package pins, CPU torch and study file hashes
+  Dockerfile, docker-entrypoint.sh  backend image; the entrypoint waits for PostgreSQL, migrates, starts uvicorn
+  requirements.txt, .env.example    pinned Python packages; settings for local development
+  ai_models/                 trained models (not in Git; see Setup)
+frontend/
+  src/App.jsx                routes and role-guarded pages
+  src/api/                   fetch client and API calls
+  src/pages/                 Login, Register, Dashboard, Products, Inspections, InspectionUpload,
+                             InspectionDetail, DatasetBrowser, CameraSimulation, ModelPerformance, Users
+  src/components/            shared UI, e.g. LocalizationOverlay, LocalizationPanel, SeverityCard,
+                             ManualReviewBanner, BatchUploadPanel, EnhancementPreviewCard, CategoryBreakdown
+  nginx.conf, Dockerfile     nginx config (serves the build, proxies /api) and the frontend image
+  .env.example               VITE_API_BASE_URL for local development
+dataset/                     MVTec AD (not in Git; see Setup)
+docs/                        DEPLOY.md, ARCHITECTURE.md, ML_METHODOLOGY.md
+postman/                     collection, local environment, sample-images/sample.png, README.md
+docker-compose.yml, .env.docker.example  web, backend and db services; template for .env.docker
 ```
+
+## Documentation links
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): deployed architecture, request flows, roles, database tables and
+  the API route table.
+- [docs/ML_METHODOLOGY.md](docs/ML_METHODOLOGY.md): dataset, models, evaluation protocol and its exceptions, full
+  results, localization evaluation and experiment history.
+- [docs/DEPLOY.md](docs/DEPLOY.md): Docker Compose deployment on a Linux VM, backup, HTTPS notes and the tested
+  configurations.
+- [postman/README.md](postman/README.md): the Postman collection.
 
 ## Dataset attribution
 
