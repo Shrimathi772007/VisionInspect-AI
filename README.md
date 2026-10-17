@@ -26,7 +26,7 @@ Exact Python package versions are pinned in [backend/requirements.txt](backend/r
 [Overview](#overview) | [Key features](#key-features) | [Quick start](#quick-start) | [Live demo](#live-demo) |
 [Results summary](#results-summary) | [Setup](#setup) | [Testing](#testing) | [Known limitations](#known-limitations) |
 [Repository layout](#repository-layout) | [Documentation links](#documentation-links) |
-[Dataset attribution](#dataset-attribution)
+[Dataset attribution](#dataset-attribution) | [Licence](#licence)
 
 ## Key features
 
@@ -136,7 +136,7 @@ database migrations when it starts. See [Setup, step 4](#4-run) and [docs/DEPLOY
 ## Quick start
 
 1. Clone: `git clone https://github.com/Shrimathi772007/VisionInspect-AI.git` ([details](#1-clone)).
-2. Models: download the models ZIP from <DRIVE_LINK> and extract it into `backend/` ([details](#2-models)).
+2. Models: download the [models ZIP](https://drive.google.com/file/d/11ACKiX4p8R7_2AQZw_l_TAWmR_aU7KdJ/view?usp=drive_link) and extract it into `backend/` ([details](#2-models)).
 3. Dataset: extract MVTec AD into `dataset/` ([details](#3-dataset)).
 4. Configure: `cp .env.docker.example .env.docker`, then set `POSTGRES_PASSWORD`, `JWT_SECRET_KEY` and `FRONTEND_ORIGINS` ([details](#4-run)).
 5. Start: `docker compose --env-file .env.docker up -d --build` ([details](#4-run)).
@@ -213,7 +213,10 @@ cd VisionInspect-AI
 
 The trained models are not in Git (`backend/ai_models/` is ignored).
 
-1. Download the models ZIP from <DRIVE_LINK>:
+1. Download the models ZIP from
+   https://drive.google.com/file/d/11ACKiX4p8R7_2AQZw_l_TAWmR_aU7KdJ/view?usp=drive_link. Drive cannot preview a
+   file this large; use the Download button, and choose 'Download anyway' if Google says it cannot scan the file
+   for viruses. The file is:
    - file `ai_models_2026-10-09_final.zip`, 2,140,816,693 bytes, 678 files;
    - SHA-256 `57e6bf57a81cd73deaadaebdad0604d4abe6b13e3832a88771ab5ccc3335b6e7`.
 2. Check the hash (`sha256sum` on Linux, `Get-FileHash -Algorithm SHA256` in PowerShell).
@@ -316,6 +319,9 @@ The backend suite needs PostgreSQL. It creates and migrates a separate `<POSTGRE
 `VISIONINSPECT_TEST_DATABASE_URL`) and refuses to run against the development database. Uploads go to a
 temporary folder. Tests that need the real models or backbone weights are skipped when those files are missing.
 
+Newman, 9 October 2026, commit df7499d, allowWrites=false, run against a scratch copy of the development database:
+30 requests, 92 assertions, 0 failures.
+
 The Postman collection ([postman/](postman/)) can be run in Postman or with newman against a running backend; see
 [postman/README.md](postman/README.md) for the run order and what each request checks.
 
@@ -391,6 +397,7 @@ dataset/                     MVTec AD (not in Git; see Setup)
 docs/                        DEPLOY.md, ARCHITECTURE.md, ML_METHODOLOGY.md
 postman/                     collection, local environment, sample-images/sample.png, README.md
 docker-compose.yml, .env.docker.example  web, backend and db services; template for .env.docker
+LICENSE.txt                  MIT licence for the code (see Licence)
 ```
 
 ## Documentation links
@@ -413,3 +420,17 @@ Unsupervised Anomaly Detection", IEEE Conference on Computer Vision and Pattern 
 MVTec AD is copyright 2019 MVTec Software GmbH and is licensed under the Creative Commons
 Attribution-NonCommercial-ShareAlike 4.0 International License (CC BY-NC-SA 4.0). It is used here for
 non-commercial purposes and is not redistributed in this repository.
+
+## Licence
+
+The code in this repository is licensed under the MIT License; see [LICENSE.txt](LICENSE.txt).
+
+The MIT licence does not cover:
+
+- **The MVTec AD dataset.** It is licensed under CC BY-NC-SA 4.0 (non-commercial use only) and is not included in
+  this repository.
+- **The ImageNet-pretrained ResNet-18 and Wide ResNet-50-2 weights** (`resnet18-f37072fd.pth`,
+  `wide_resnet50_2-95faca4d.pth`). They are the PyTorch model files from `download.pytorch.org`, the source URLs
+  recorded in `backend/app/ai/models/resnet18.py` and `wide_resnet50.py`, and they keep the terms of that source.
+- **The trained model files** in the models ZIP, which is distributed separately. They were trained on MVTec AD,
+  so they should be used under the dataset's non-commercial terms. This is a conservative note, not legal advice.

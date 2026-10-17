@@ -20,8 +20,9 @@ Only the web port is published. The backend and the database are reachable only 
 | vCPU | 2 | 4 |
 | Disk | 30 GB | 40 GB or more |
 
-The disk holds the Docker images (about 2 GB for the backend because of PyTorch), the models (about 850 MB), the
-MVTec AD dataset (about 5 GB), the database and the uploaded images and heatmaps.
+The disk holds the Docker images (about 2 GB for the backend because of PyTorch), the models (about 2.6 GB on disk;
+the models ZIP is 2.14 GB, so allow about 4.8 GB while both exist during extraction), the MVTec AD dataset (about
+5 GB), the database and the uploaded images and heatmaps.
 
 ## 2. Install Docker
 
