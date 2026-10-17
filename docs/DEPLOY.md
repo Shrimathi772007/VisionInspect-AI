@@ -292,6 +292,76 @@ container:
 - On Windows, a repository path with a space works when `AI_MODELS_DIR` and `DATASET_DIR` are absolute paths
   with forward slashes, unquoted (e.g. `C:/Users/Jane Doe/VisionInspect-AI/dataset`).
 
+## Tested on AWS
+
+Deployed and verified from outside on 2026-10-17: an EC2 VM in ap-south-1 (Mumbai), Ubuntu 24.04 x86_64, 2 vCPU,
+8 GiB RAM, 40 GB disk, plus a 4 GB swapfile as a build safety net. Docker Engine 29.9.1 and Compose v5.6.0
+were installed from Docker's apt repository. Plain HTTP on port 80 (`WEB_PORT=80`, `FRONTEND_ORIGINS=http://VM_IP`),
+directly on the public IP with no proxy in front (the HTTPS part of section 9 was skipped). Only port 80 is
+published by compose; SSH (22) is the only other port listening on the host.
+
+- Code: `git archive` of the commit (tracked files only), copied with scp. Models: the models ZIP (2.14 GB) in
+  500 MB parts, each SHA-256-checked on the VM, then joined and checked again before extraction (678 files).
+  Dataset: verified file by file (relative path and SHA-256) against the reference copy, 6,642 files in 15
+  categories.
+- First build 120 s. Images: backend 2.24 GB, web 93.2 MB (postgres:18-alpine 433 MB). `check_image.py` passed
+  (18 pins, torch 2.14.0+cpu, Grid study file hashes). `up -d --wait` took 54 s; migrations ran to head with
+  no model or dataset warnings.
+- Full demo seed (defaults: 120 imports + 29 uploads = 149 inspections, 15 products, 2 users) in 209 s.
+- All of these checks passed through `http://VM_IP`: health and SPA deep links; login for both roles;
+  `/ai/models` (15 rows with AP, box AP and pixel AUROC); uploads for tile, grid and wood (`MANUAL_REVIEW`);
+  the heatmap PNG; analytics; dataset categories (15) and a camera listing; a 5 MB upload (accepted) and a
+  61 MB request (413 from nginx); 429 with `Retry-After` on the 6th wrong password for one email.
+- The backend logged each client's real public IP, not the Docker gateway (`172.18.0.1`), so the per-IP login
+  limit is per user. From outside, port 80 answers and 5432 and 8000 do not.
+- Inference time per image as recorded by the backend (CPU), with wall time from a client in India in
+  brackets: tile 0.57 s cold (1.4 s), 0.32 s warm (1.2 s); Grid 5.1 s cold (5.7 s), 3.9 s warm (4.4 s);
+  wood 1.9 s. Grid is about twice as slow as on the 6-CPU test machine.
+- Memory with tile, grid and wood loaded: backend 1.18 GiB, db 36 MiB, web 10 MiB; 1.8 GiB of 7.6 GiB used
+  on the host, swap essentially unused. Disk: 19 GB of 38 GB used, including images, models, dataset and the
+  seeded data.
+- After `sudo reboot` all three containers came back on their own (`restart: unless-stopped`) about 10 s after
+  boot, and the site answered on port 80 34 s after the reboot command. The data was kept.
+
+Two things to watch for on a fresh VM:
+
+- **The MVTec AD archives on mvtec.com keep restrictive permissions.** Directories extract as `dr-xr-x---`, so
+  the backend (uid 10001) cannot read them. Those categories then disappear from the dataset listing, and the
+  seed fails with `404: Category not found`. Fix: `chmod -R a+rX dataset` on the host; this grants read
+  access only, no write. On 2026-10-17 the full-dataset link and 9 of the 15 per-category links on the
+  official download page returned 404, so those categories were copied from an existing verified copy.
+- The models ZIP stores its files as world-writable. Run `chmod -R go-w backend/ai_models` after extracting.
+  The mount is read-only in the container either way.
+
+### Redeploy a new commit
+
+The models, the dataset and `.env.docker` are not in Git, so extracting a `git archive` over the existing folder
+leaves them alone. Run this from the repository on the machine that has the code (a Linux/macOS shell or Git
+Bash on Windows; quote the key path if it has spaces):
+
+```bash
+git archive --format=tar.gz -o /tmp/visioninspect.tar.gz HEAD
+scp -i "<key.pem>" /tmp/visioninspect.tar.gz ubuntu@VM_IP:~/
+ssh -i "<key.pem>" ubuntu@VM_IP
+```
+
+On the VM:
+
+```bash
+cd ~/VisionInspect-AI
+tar xzf ~/visioninspect.tar.gz        # overwrites tracked files only; ai_models/, dataset/, .env.docker untouched
+echo <commit-hash> > DEPLOYED_COMMIT
+docker compose --env-file .env.docker up -d --build
+docker compose --env-file .env.docker ps    # wait for all three to be healthy
+rm ~/visioninspect.tar.gz
+docker builder prune -f
+```
+
+Extracting over the old tree does not remove files that were deleted from Git. If that matters, extract into a
+new folder, move `backend/ai_models/`, `dataset/` and `.env.docker` across, and start from there. The compose
+project name (`visioninspect`) stays the same, so the database and storage volumes are kept. Never use
+`down -v`.
+
 ## Known limits
 
 - Inference is CPU-only and synchronous: each request occupies the worker while the model runs. Expect roughly
