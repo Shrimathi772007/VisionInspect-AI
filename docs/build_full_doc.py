@@ -144,7 +144,7 @@ than specified.
 | Image acquisition | Camera integration simulation | DONE | Camera simulation page: timed imports of labelled dataset images; not a live camera |
 | Image acquisition | Batch image processing | DONE | `POST /inspections/batch`, up to 20 files and 50 MB |
 | Image acquisition | Image validation | DONE | Extension, streamed size limit and Pillow format check in `backend/app/inspections/storage.py` |
-| Image processing | Image preprocessing | DONE | `backend/app/ai/preprocessing/pipeline.py`; served models use `patchcore_preprocess.py` |
+| Image processing | Image preprocessing | DONE | `backend/app/ai/preprocessing/pipeline.py`, used by training, evaluation and the six served ResNet-18 models (`predict._image_to_tensor`); the nine WRN-50 models use `patchcore_preprocess.py` |
 | Image processing | Noise removal | PARTIAL | Non-local-means denoising in the enhancement preview (`backend/app/ai/analytics/enhancement.py`); computed per request, not stored and not used by the models |
 | Image processing | Image enhancement | PARTIAL | CLAHE contrast in the same preview, with the same limits |
 | Image processing | Feature extraction | DONE | Frozen ImageNet ResNet-18 and Wide ResNet-50-2 patch features (layers 2 and 3) |
