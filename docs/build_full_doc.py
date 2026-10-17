@@ -239,6 +239,79 @@ the trained model files are not covered by it; see [README.md](../README.md#lice
 """
 
 
+COVER = """\
+# VisionInspect AI: Project documentation
+
+- **Author:** Shrimathi S
+- **Date:** October 2026
+- **Live deployment:** http://13.206.115.50 (one AWS (Amazon Web Services) EC2 (Elastic Compute Cloud) virtual
+  machine, Docker Compose, plain HTTP (Hypertext Transfer Protocol))
+- **Deployed code:** Deployed commit 903e54c; later commits change only documentation, the licence text and the
+  documentation build script, none of which is part of the deployed images.
+"""
+
+READING_GUIDE = """\
+## Reading guide
+
+The table below points each common question to the sections that answer it.
+
+| Question | Read |
+|---|---|
+| What does the system do, and how well? | [Executive summary](#executive-summary), then [Problem statement](#problem-statement) |
+| What was built in each phase, and with which commits? | The "What was built", "Deliverables" and "Commits" sections of each milestone, starting at [Milestone 1](#milestone-1-project-setup-authentication-upload-and-dataset-integration) |
+| How is the system put together? | [Architecture](#architecture) and the technical sections of [Milestone 1](milestones/MILESTONE_1.md#technical-documentation) |
+| How do the models work, and how were they chosen? | [Milestone 2](milestones/MILESTONE_2.md#technical-documentation) and [ML methodology and results](#ml-methodology-and-results) |
+| How are severity and the quality decision computed? | [Milestone 3](milestones/MILESTONE_3.md#technical-documentation) |
+| What are the measured results and how were they validated? | [Milestone 4](milestones/MILESTONE_4.md#results) and its [Technical documentation](milestones/MILESTONE_4.md#technical-documentation) |
+| Which requirements are met? | [Appendix A: Requirements traceability](#appendix-a-requirements-traceability) |
+| How do I set it up, test it or fix a problem? | [Setup](#setup), [Testing](#testing), and the Troubleshooting section of each milestone, for example [Milestone 4](milestones/MILESTONE_4.md#troubleshooting) |
+| What does a term mean? | The Glossary section of each milestone, starting at [Milestone 1](milestones/MILESTONE_1.md#glossary) |
+"""
+
+EXECUTIVE_SUMMARY = """\
+## Executive summary
+
+VisionInspect AI inspects images of manufactured parts with anomaly-detection models trained on defect-free images
+only, so it needs no labelled defect data for training. All 15 MVTec AD (MVTec Anomaly Detection) categories are served, each by
+one locked, hash-verified model: WRN-50 PatchCore for 9 categories and a ResNet-18 patch model for 6
+(`backend/app/ai/inference/serving.py`). Every model and threshold was chosen on normal data and locked before its
+category's test set was scored, under protocols declared in `backend/scripts/experiments/`.
+
+On the official MVTec AD test split (1,725 images in total), the unweighted means over the 15 categories' final tests
+are recall 91.1%, F1 (harmonic mean of precision and recall) 93.8%, false-positive rate 7.7%, AUROC (area under the
+receiver operating characteristic curve) 0.9845 and image-level average precision 0.9946
+(`serving.py`, the final-test reports and `backend/app/ai/ap_addendum.json`). By the project's evidence gates, 8
+categories are EXCELLENT, 1 GOOD, 2 ACCEPTABLE and 4 NOT PRODUCTION READY; every result from the last group is routed
+to manual review (`review_rule` in `backend/app/ai/inference/localization.py`).
+
+Each defective prediction is localized with a heatmap and boxes cut from the model's anomaly map. Over the 15
+categories the mean box AP@0.5 is 0.200 and the mean pixel AUROC 0.9759 (`backend/app/ai/box_eval_addendum.json`).
+On 17 October 2026, 1712 backend tests and 324 frontend tests passed. The stack runs with Docker Compose on an AWS
+EC2 virtual machine at http://13.206.115.50, with the end-to-end checks recorded in [DEPLOY.md](DEPLOY.md).
+"""
+
+PROBLEM_STATEMENT = """\
+## Problem statement
+
+The project inspects images of manufactured parts across the 15 MVTec AD categories and turns each image into a
+quality decision that a quality engineer or a factory supervisor can act on. The data shape the design. The MVTec AD
+training split holds 3,629 good images and no defective ones, and the test split holds 1,258 defective and 467 good
+images with defect masks ([ML_METHODOLOGY.md](ML_METHODOLOGY.md#dataset)).
+
+The system therefore has to:
+
+- learn what normal looks like from good images only, per category;
+- decide whether an image is defective against a threshold fixed before any test image is seen;
+- show where the anomaly is, and rate its severity with a declared rule;
+- turn the evidence into a pass, fail or review decision, and send uncertain results to a person;
+- keep ground-truth labels and AI output separate;
+- serve two roles with different rights;
+- run on the CPU (central processing unit) of a single virtual machine.
+
+The four milestones below describe how each requirement was implemented, measured and deployed.
+"""
+
+
 def main() -> None:
     for relative in LINKED:
         if not (REPO / relative).is_file():
@@ -247,17 +320,20 @@ def main() -> None:
     chapters = [embed(path) for path in MILESTONES]
     shared = [embed(path) for path in SHARED]
 
-    titles = ["Introduction"] + [t for t, _ in chapters] + [
+    titles = ["Reading guide", "Introduction", "Executive summary", "Problem statement"] + [t for t, _ in chapters] + [
         "Appendix A: Requirements traceability", "Appendix B: Technology stack as built"] + [t for t, _ in shared] + [
         "Setup", "Testing", "Known limitations", "Deployment", "Licence"]
     contents = "\n".join(f"{i}. [{title}](#{slug(title)})" for i, title in enumerate(titles, 1))
 
     parts = [
-        "# VisionInspect AI: Project documentation",
+        COVER.strip("\n"),
         "This file is generated by `docs/build_full_doc.py` from the milestone files in `docs/milestones/` and the "
         "shared documents in `docs/`. Edit those files, not this one.",
+        READING_GUIDE.strip("\n"),
         "## Contents\n\n" + contents,
         INTRODUCTION.strip("\n"),
+        EXECUTIVE_SUMMARY.strip("\n"),
+        PROBLEM_STATEMENT.strip("\n"),
         *[body for _, body in chapters],
         TRACEABILITY.strip("\n"),
         STACK.strip("\n"),
